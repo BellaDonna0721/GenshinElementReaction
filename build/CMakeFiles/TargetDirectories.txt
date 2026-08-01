@@ -1,0 +1,3 @@
+D:/study/GenshinElement/build/CMakeFiles/game.dir
+D:/study/GenshinElement/build/CMakeFiles/edit_cache.dir
+D:/study/GenshinElement/build/CMakeFiles/rebuild_cache.dir
