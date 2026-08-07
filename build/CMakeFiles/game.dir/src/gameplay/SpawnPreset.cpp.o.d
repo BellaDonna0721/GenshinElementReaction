@@ -1,8 +1,8 @@
 CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o: \
-  D:\study\GenshinElement\src\gameplay\SpawnPreset.cpp \
-  D:\study\GenshinElement\src\gameplay\SpawnPreset.h \
-  D:\study\GenshinElement\src\gameplay\..\core\World.h \
-  D:\study\GenshinElement\src\gameplay\..\core\Entity.h \
+  D:\study\GenshinElementReaction\src\gameplay\SpawnPreset.cpp \
+  D:\study\GenshinElementReaction\src\gameplay\SpawnPreset.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\core\World.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\core\Entity.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdint \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__config \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__config_site \
@@ -653,11 +653,11 @@ CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wbuffer_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
-  D:\study\GenshinElement\src\gameplay\..\core\ComponentRegistry.h \
-  D:\study\GenshinElement\src\gameplay\..\components\ElementStatus.h \
-  D:\study\GenshinElement\src\gameplay\..\components\Transform.h \
-  D:\study\GenshinElement\src\gameplay\..\components\Velocity.h \
-  D:\study\GenshinElement\src\gameplay\..\components\RenderInfo.h \
-  D:\study\GenshinElement\src\gameplay\..\components\IdentityTag.h \
-  D:\study\GenshinElement\src\gameplay\..\components\FacingDirection.h \
-  D:\study\GenshinElement\src\gameplay\..\components\Collider.h
+  D:\study\GenshinElementReaction\src\gameplay\..\core\ComponentRegistry.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\ElementStatus.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\Transform.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\Velocity.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\RenderInfo.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\IdentityTag.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\FacingDirection.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\Collider.h

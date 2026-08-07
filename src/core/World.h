@@ -3,9 +3,7 @@
 #include "ComponentRegistry.h"
 #include <memory>
 #include <type_traits>
-#include <unordered_map>
 #include <vector>
-
 class IComponentPool {
 public:
     virtual ~IComponentPool() = default;

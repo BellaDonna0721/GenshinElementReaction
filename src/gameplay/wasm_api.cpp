@@ -50,16 +50,18 @@ void wasm_set_input(int move_up, int move_down,
                     int move_left, int move_right,
                     float mouse_x, float mouse_y,
                     int mouse_click,
+                    int mouse_right_click,
                     int element_key)
 {
-    g_input.move_up    = move_up != 0;
-    g_input.move_down  = move_down != 0;
-    g_input.move_left  = move_left != 0;
-    g_input.move_right = move_right != 0;
-    g_input.mouse_x    = mouse_x;
-    g_input.mouse_y    = mouse_y;
-    g_input.mouse_click = mouse_click != 0;
-    g_input.element_key = element_key;  // 1-7 切换玩家元素，0=不切
+    g_input.move_up          = move_up != 0;
+    g_input.move_down        = move_down != 0;
+    g_input.move_left        = move_left != 0;
+    g_input.move_right       = move_right != 0;
+    g_input.mouse_x          = mouse_x;
+    g_input.mouse_y          = mouse_y;
+    g_input.mouse_click      = mouse_click != 0;
+    g_input.mouse_right_click = mouse_right_click != 0;
+    g_input.element_key      = element_key;  // 1-7 切换玩家元素（1火…7草），0=不切
 }
 
 EMSCRIPTEN_KEEPALIVE

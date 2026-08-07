@@ -1,7 +1,7 @@
 CMakeFiles/game.dir/src/core/World.cpp.o: \
-  D:\study\GenshinElement\src\core\World.cpp \
-  D:\study\GenshinElement\src\core\World.h \
-  D:\study\GenshinElement\src\core\Entity.h \
+  D:\study\GenshinElementReaction\src\core\World.cpp \
+  D:\study\GenshinElementReaction\src\core\World.h \
+  D:\study\GenshinElementReaction\src\core\Entity.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdint \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__config \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__config_site \
@@ -652,4 +652,4 @@ CMakeFiles/game.dir/src/core/World.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wbuffer_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
-  D:\study\GenshinElement\src\core\ComponentRegistry.h
+  D:\study\GenshinElementReaction\src\core\ComponentRegistry.h

@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <cmath>
+#include <algorithm>
 
 // 元素类型（七元素 + 空）
 enum class ElementType : uint8_t {
@@ -12,7 +13,6 @@ enum class ElementType : uint8_t {
     Anemo,        // 风元素
     Geo,          // 岩元素
     Dendro,       // 草元素
-    Count
 };
 
 // 元素反应类型
@@ -23,14 +23,13 @@ enum class ReactionType : uint8_t {
     Melt,                  // 融化：火 + 冰  → 火打冰，倍率 ×2.0
     ReverseMelt,           // 融化：冰 + 火  → 冰打火，倍率 ×1.5
     Overload,              // 超载：火 + 雷  → 范围爆炸伤害 + 击飞
-    ElectroCharged,        // 感电：雷 + 水  → 持续雷伤 + 传导
+    ElectroCharged,        // 感电：雷 + 水  → 共存态 + 每 1s 各扣 0.4 DoT
     Frozen,                // 冻结：冰 + 水  → 控制静止
     Superconduct,          // 超导：冰 + 雷  → 减物抗 + 范围冰伤
     Swirl,                 // 扩散：风 + 其他元素 → 扩散元素范围伤害
     Crystallize,           // 结晶：岩 + 其他元素 → 生成对应元素护盾
     Burning,               // 燃烧：火 + 草  → 持续火伤
     Bloom,                 // 绽放：水 + 草  → 生成草原核
-    Quicken                // 激化：雷 + 草  → 增伤基底
 };
 
 // ==================== 元素强度分级 ====================
@@ -39,7 +38,6 @@ enum class ElementStrength : uint8_t {
     Medium        = 1,   // 1.5 理论 GU → 1.2 实际 → 10.75s
     Strong        = 2,   // 2   理论 GU → 1.6 实际 → 12s
     ExtraStrong   = 3,   // 4   理论 GU → 3.2 实际 → 17s
-    Count
 };
 
 // 元素强度参数（按用户给定表格 1:1 对应，包含 20% 附着瞬间折扣）
@@ -50,7 +48,7 @@ struct ElementStrengthParams {
     float decay_rate;          // 每秒衰减速率 = actual_gauge / duration
 };
 
-// 根据强度等级查参数（最常用，敌人预设、初始化元素、子弹附着 —— 统一走枚举正向查表）
+// 根据强度等级查参数
 inline ElementStrengthParams get_element_strength_params(ElementStrength s) {
     ElementStrengthParams p = {};
     switch (s) {
@@ -75,26 +73,78 @@ inline ElementStrengthParams get_element_strength_params(ElementStrength s) {
     }
 }
 
+// 单个附着元素槽
+struct AttachedSlot {
+    ElementType type          = ElementType::None;
+    float       gauge         = 0.0f;   // 当前量（随时间衰减）
+    float       initial_gauge = 0.0f;   // 附着瞬间的初始量（用于量条比例：gauge/initial_gauge = 0~100%）
+    float       duration      = 0.0f;
+    float       decay_rate    = 0.2f;
+
+    bool is_valid() const { return type != ElementType::None && gauge > 0.0f && duration > 0.0f; }
+
+    void clear() {
+        type          = ElementType::None;
+        gauge         = 0.0f;
+        initial_gauge = 0.0f;
+        duration      = 0.0f;
+    }
+};
+
 struct ElementStatus {
-    ElementType type       = ElementType::None;   //当前附着的元素类型（None=无）
-    float       gauge      = 0.0f;                //【实际附着元素量】= 理论量 × 0.8（附着瞬间立刻打八折）
-    float       duration   = 0.0f;                // 附着总时长（秒），按强度分级查表
-    float       decay_rate = 0.2f;                // 每秒衰减速率 【统一公式 = 实际gauge / duration，永远不再手填】
+    // —— 玩家专用：当前选中的射击元素（敌人永远为 None）——
+    // 与 slots[] 附着光环完全解耦：玩家身上可以同时"持有"火元素射击能力
+    // 并且"被附着"了水+雷共存光环，两者互不干扰。
+    ElementType current_player_elem = ElementType::None;
 
-    ElementType     pending_element  = ElementType::None;     // 待处理的输入元素（碰撞命中的子弹元素写这里，本帧统一处理）
-    ElementStrength pending_strength = ElementStrength::Weak; // 待处理的输入元素强度档（直接决定附着后的 gauge/duration/decay）
+    // —— 附着元素（双槽，最多两种共存；水雷相遇即进入该态）——
+    AttachedSlot slots[2];
 
-    ReactionType pending_reaction = ReactionType::None;  //待广播的反应脉冲（本帧触发反应时写入，OutputSystem 本帧读完立即清 0，只脉冲一帧）
+    // 水雷共存专用：距离下一次感电 DoT 扣 0.4/0.4 的剩余秒数
+    // 只有同时存在 Hydro + Electro 时才 >0；其他情况自动为 0
+    float electrocharged_cooldown = 0.0f;
 
-    bool is_active()  const { return gauge > 0.0f && duration > 0.0f; }
+    // —— 待处理命中元素（碰撞写，本帧统一处理）——
+    ElementType     pending_element  = ElementType::None;
+    ElementStrength pending_strength = ElementStrength::Weak;
+
+    // —— 反应脉冲（OutputSystem 每帧消费一次）——
+    ReactionType pending_reaction = ReactionType::None;
+
+    // =============== 查询工具 ===============
+    // 至少一个槽位有元素 → 视为 active（敌人身上有 aura 环）
+    bool is_active() const { return slots[0].is_valid() || slots[1].is_valid(); }
+
     bool has_pending() const { return pending_element != ElementType::None; }
 
+    int attached_count() const {
+        return (slots[0].is_valid() ? 1 : 0) + (slots[1].is_valid() ? 1 : 0);
+    }
+
+    // 返回指向 slot 的指针（方便外部读写），找不到返回 nullptr
+    AttachedSlot* find_slot(ElementType t) {
+        if (slots[0].type == t && slots[0].is_valid()) return &slots[0];
+        if (slots[1].type == t && slots[1].is_valid()) return &slots[1];
+        return nullptr;
+    }
+    const AttachedSlot* find_slot(ElementType t) const {
+        return const_cast<ElementStatus*>(this)->find_slot(t);
+    }
+
+    // 返回第一个空槽（或 nullptr 表示两槽都满）
+    AttachedSlot* find_empty_slot() {
+        if (!slots[0].is_valid()) return &slots[0];
+        if (!slots[1].is_valid()) return &slots[1];
+        return nullptr;
+    }
+
+    // =============== 本帧末尾清理 ===============
     void clear_pending() {
         pending_element  = ElementType::None;
         pending_strength = ElementStrength::Weak;
     }
 
-    // 取走并清除待广播反应（OutputSystem 本帧消费一次，下一帧自动无）
+    // 消费一次性反应脉冲（OutputSystem 调用）
     ReactionType consume_reaction() {
         ReactionType r = pending_reaction;
         pending_reaction = ReactionType::None;
@@ -102,22 +152,25 @@ struct ElementStatus {
     }
 };
 
-// ===== 统一附着入口 =====
+// ===== 统一附着入口（兼容旧调用点：找空 slot 写入；没空就覆盖 slot[0]）=====
 inline void attach_element(ElementStatus& s, ElementType type, ElementStrength strength) {
-    s.type = type;
     ElementStrengthParams p = get_element_strength_params(strength);
-    s.gauge      = p.actual_gauge;
-    s.duration   = p.duration;
-    s.decay_rate = p.decay_rate;
+    AttachedSlot* target = s.find_empty_slot();
+    if (!target) target = &s.slots[0];  // 兜底：没有空槽就覆盖第一个（一般不会发生，共存最多 Hydro+Electro=2 种）
+    target->type          = type;
+    target->gauge         = p.actual_gauge;
+    target->initial_gauge = p.actual_gauge;   // 初始基准：量条比例 = gauge/initial_gauge
+    target->duration      = p.duration;
+    target->decay_rate    = p.decay_rate;
 }
 
 // 判断元素是否可以作为"附着状态"留在目标身上
-//   可附着：Pyro / Hydro / Electro / Cryo / Dendro —— 这 5 种有附着光环 + 量条 + 自然衰减
-//   不可附着（只能做后手触发元素）：Anemo 风 / Geo 岩 —— 命中反应后不残留附着
+//   可附着：Pyro / Hydro / Electro / Cryo / Dendro
+//   不可附着（只能做后手触发元素）：Anemo / Geo
 inline bool is_attachable_element(ElementType type) {
-    return type == ElementType::Pyro   ||
-           type == ElementType::Hydro  ||
+    return type == ElementType::Pyro    ||
+           type == ElementType::Hydro   ||
            type == ElementType::Electro ||
-           type == ElementType::Cryo   ||
+           type == ElementType::Cryo    ||
            type == ElementType::Dendro;
 }

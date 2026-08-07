@@ -1,8 +1,8 @@
 CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o: \
-  D:\study\GenshinElement\src\systems\MovementSystem.cpp \
-  D:\study\GenshinElement\src\systems\MovementSystem.h \
-  D:\study\GenshinElement\src\systems\..\core\World.h \
-  D:\study\GenshinElement\src\systems\..\core\Entity.h \
+  D:\study\GenshinElementReaction\src\systems\MovementSystem.cpp \
+  D:\study\GenshinElementReaction\src\systems\MovementSystem.h \
+  D:\study\GenshinElementReaction\src\systems\..\core\World.h \
+  D:\study\GenshinElementReaction\src\systems\..\core\Entity.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdint \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__config \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__config_site \
@@ -653,9 +653,9 @@ CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wbuffer_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
-  D:\study\GenshinElement\src\systems\..\core\ComponentRegistry.h \
-  D:\study\GenshinElement\src\systems\..\components\Transform.h \
-  D:\study\GenshinElement\src\systems\..\components\Velocity.h \
-  D:\study\GenshinElement\src\systems\..\components\IdentityTag.h \
-  D:\study\GenshinElement\src\systems\InputSystem.h \
-  D:\study\GenshinElement\src\systems\..\components\ElementStatus.h
+  D:\study\GenshinElementReaction\src\systems\..\core\ComponentRegistry.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\Transform.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\Velocity.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\IdentityTag.h \
+  D:\study\GenshinElementReaction\src\systems\InputSystem.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\ElementStatus.h

@@ -1,6 +1,6 @@
 import {
   RenderCommand, EntityType, ElementType,
-  ELEMENT_COLORS, ELEMENT_NAMES, REACTION_NAMES,
+  ELEMENT_COLORS, ELEMENT_NAMES, REACTION_NAMES, unpackGauge,
 } from './types.js';
 
 export class Renderer {
@@ -100,12 +100,15 @@ export class Renderer {
     }
   }
 
-  // ===== 敌人（元素光环 + 元素量条 + 反应标签） =====
+  // ===== 敌人（元素光环 × 2 + 元素量条 + 反应标签） =====
   private drawEnemy(ctx: CanvasRenderingContext2D, cmd: RenderCommand): void {
-    const { x, y, radius, r, g, b, a, element_type, element_gauge, reaction_type } = cmd;
+    const { x, y, radius, r, g, b, a,
+            element1_type, element2_type,
+            element1_gauge, element2_gauge,
+            reaction_type } = cmd;
     const key = `enemy_${cmd.x}_${cmd.y}`;
 
-    // 身体：根据肉身 RGB 动态算描边（原 RGB 各通道 ×0.6 → 自身的深色描边，不会再写死火红边）
+    // 身体：根据肉身 RGB 动态算描边
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
@@ -117,19 +120,34 @@ export class Renderer {
     ctx.lineWidth = 1.5;
     ctx.stroke();
 
-    // 元素光环
-    if (element_type !== 0 && element_gauge > 0) {
-      const color = ELEMENT_COLORS[element_type] || '#888';
+    // ---------- 元素光环：内圈（slot[0]） + 外圈（slot[1]，共存态）----------
+    const g1 = unpackGauge(element1_gauge);
+    const g2 = unpackGauge(element2_gauge);
+    if (element1_type !== 0 && g1 > 0) {
+      const color = ELEMENT_COLORS[element1_type] || '#888';
       ctx.beginPath();
       ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
       ctx.strokeStyle = color;
       ctx.lineWidth = 2.5;
-      ctx.globalAlpha = 0.55 + Math.min(1, element_gauge) * 0.35;
+      ctx.globalAlpha = 0.55 + Math.min(1, g1) * 0.35;
       ctx.stroke();
       ctx.globalAlpha = 1.0;
     }
+    // 第二圈（共存元素，画在更外侧）
+    if (element2_type !== 0 && g2 > 0) {
+      const color = ELEMENT_COLORS[element2_type] || '#888';
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 11, 0, Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.0;             // 外圈稍薄
+      ctx.globalAlpha = 0.50 + Math.min(1, g2) * 0.30;
+      ctx.setLineDash([4, 3]);        // 虚线：和内圈实线形成视觉区分
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.globalAlpha = 1.0;
+    }
 
-    // 元素量条（随时间衰减的视觉效果）
+    // ---------- 元素量条（显示 1~2 段，两段时并排）----------
     const barW = radius * 2.2;
     const barH = 5;
     const barX = x - barW / 2;
@@ -138,17 +156,38 @@ export class Renderer {
     ctx.fillStyle = '#222';
     ctx.fillRect(barX, barY, barW, barH);
 
-    if (element_type !== 0) {
-      const color = ELEMENT_COLORS[element_type] || '#888';
-      const g = Math.max(0, Math.min(1, element_gauge));
+    const has1 = element1_type !== 0;
+    const has2 = element2_type !== 0;
+    if (has1 && !has2) {
+      // 单元素 → 完整长度
+      const color = ELEMENT_COLORS[element1_type] || '#888';
       ctx.fillStyle = color;
-      ctx.fillRect(barX, barY, barW * g, barH);
-
-      // 元素名
+      ctx.fillRect(barX, barY, barW * g1, barH);
       ctx.fillStyle = color;
       ctx.font = 'bold 10px monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(ELEMENT_NAMES[element_type] || '', barX, barY - 1);
+      ctx.fillText(ELEMENT_NAMES[element1_type] || '', barX, barY - 1);
+    } else if (has1 && has2) {
+      // 双元素 → 左半显示 slot0，右半显示 slot1
+      const color1 = ELEMENT_COLORS[element1_type] || '#888';
+      const color2 = ELEMENT_COLORS[element2_type] || '#888';
+      ctx.fillStyle = color1;
+      ctx.fillRect(barX, barY, (barW / 2) * g1, barH);
+      ctx.fillStyle = color2;
+      ctx.fillRect(barX + barW / 2, barY, (barW / 2) * g2, barH);
+      // 元素名：左名、右名
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'left';
+      ctx.fillStyle = color1;
+      ctx.fillText(ELEMENT_NAMES[element1_type] || '', barX, barY - 1);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = color2;
+      ctx.fillText(ELEMENT_NAMES[element2_type] || '', barX + barW, barY - 1);
+    } else if (has2 && !has1) {
+      // 理论上不会出现（写 slot 时先写 0 再写 1），兜底
+      const color = ELEMENT_COLORS[element2_type] || '#888';
+      ctx.fillStyle = color;
+      ctx.fillRect(barX, barY, barW * g2, barH);
     }
 
     // 反应文字标签（渐隐）
@@ -199,11 +238,11 @@ export class Renderer {
     ctx.textAlign = 'left';
     const curElemName = ELEMENT_NAMES[this.currentElem] || '';
     ctx.fillText(`WASD: 移动   鼠标移动: 改变朝向   鼠标左键: 发射${curElemName}元素子弹`, 10, 22);
-    ctx.fillText('反应: 水+火 → 蒸发(×1.5)   火+水 → 蒸发(×2.0)   数字键1-7: 切换玩家元素', 10, 40);
+    ctx.fillText('数字键1-7: 切换玩家元素', 10, 40);
 
     // ===== 左侧：数字键 ↔ 元素映射面板 =====
     const panelX = 14;                // 面板左上 X
-    const panelY = 70;                // 面板左上 Y（避开顶部两行操作说明
+    const panelY = 70;                // 面板左上 Y
     const rowH = 28;                  // 每行高度
     const entries: Array<{ key: string; elem: ElementType }> = [
       { key: '1', elem: ElementType.Pyro    },
@@ -219,11 +258,10 @@ export class Renderer {
     for (let i = 0; i < entries.length; i++) {
       const { key, elem } = entries[i];
       const y = panelY + i * rowH;
-      const rowW = 142;               // 白框宽度（包下整行）
+      const rowW = 142;
       const name = ELEMENT_NAMES[elem] || '';
       const color = ELEMENT_COLORS[elem] || '#888';
 
-      // 当前元素：白框 + 半透明背景框住整行
       if (elem === this.currentElem) {
         ctx.fillStyle = 'rgba(255,255,255,0.08)';
         ctx.fillRect(panelX, y - 18, rowW, rowH - 2);
@@ -232,16 +270,13 @@ export class Renderer {
         ctx.strokeRect(panelX, y - 18, rowW, rowH - 2);
       }
 
-      // 数字键（左对齐）
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'left';
       ctx.fillText(key, panelX + 8, y);
 
-      // 连接符 -
       ctx.fillStyle = 'rgba(255,255,255,0.4)';
       ctx.fillText('-', panelX + 28, y);
 
-      // 元素色方块 + 元素名（按元素色显示）
       const sqX = panelX + 44;
       const sqY = y - 12;
       ctx.fillStyle = color;

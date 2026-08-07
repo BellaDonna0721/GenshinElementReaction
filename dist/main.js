@@ -32,9 +32,11 @@ var REACTION_NAMES = {
   9: "\u6269\u6563",
   10: "\u7ED3\u6676",
   11: "\u71C3\u70E7",
-  12: "\u7EFD\u653E",
-  13: "\u6FC0\u5316"
+  12: "\u7EFD\u653E"
 };
+function unpackGauge(u8) {
+  return Math.max(0, Math.min(1, u8 / 255));
+}
 
 // web/render.ts
 var Renderer = class {
@@ -117,9 +119,22 @@ var Renderer = class {
       ctx.fill();
     }
   }
-  // ===== 敌人（元素光环 + 元素量条 + 反应标签） =====
+  // ===== 敌人（元素光环 × 2 + 元素量条 + 反应标签） =====
   drawEnemy(ctx, cmd) {
-    const { x, y, radius, r, g, b, a, element_type, element_gauge, reaction_type } = cmd;
+    const {
+      x,
+      y,
+      radius,
+      r,
+      g,
+      b,
+      a,
+      element1_type,
+      element2_type,
+      element1_gauge,
+      element2_gauge,
+      reaction_type
+    } = cmd;
     const key = `enemy_${cmd.x}_${cmd.y}`;
     ctx.beginPath();
     ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -131,14 +146,28 @@ var Renderer = class {
     ctx.strokeStyle = `rgb(${sr},${sg},${sb})`;
     ctx.lineWidth = 1.5;
     ctx.stroke();
-    if (element_type !== 0 && element_gauge > 0) {
-      const color = ELEMENT_COLORS[element_type] || "#888";
+    const g1 = unpackGauge(element1_gauge);
+    const g2 = unpackGauge(element2_gauge);
+    if (element1_type !== 0 && g1 > 0) {
+      const color = ELEMENT_COLORS[element1_type] || "#888";
       ctx.beginPath();
       ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
       ctx.strokeStyle = color;
       ctx.lineWidth = 2.5;
-      ctx.globalAlpha = 0.55 + Math.min(1, element_gauge) * 0.35;
+      ctx.globalAlpha = 0.55 + Math.min(1, g1) * 0.35;
       ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if (element2_type !== 0 && g2 > 0) {
+      const color = ELEMENT_COLORS[element2_type] || "#888";
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 11, 0, Math.PI * 2);
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.globalAlpha = 0.5 + Math.min(1, g2) * 0.3;
+      ctx.setLineDash([4, 3]);
+      ctx.stroke();
+      ctx.setLineDash([]);
       ctx.globalAlpha = 1;
     }
     const barW = radius * 2.2;
@@ -147,15 +176,34 @@ var Renderer = class {
     const barY = y + radius + 10;
     ctx.fillStyle = "#222";
     ctx.fillRect(barX, barY, barW, barH);
-    if (element_type !== 0) {
-      const color = ELEMENT_COLORS[element_type] || "#888";
-      const g2 = Math.max(0, Math.min(1, element_gauge));
+    const has1 = element1_type !== 0;
+    const has2 = element2_type !== 0;
+    if (has1 && !has2) {
+      const color = ELEMENT_COLORS[element1_type] || "#888";
       ctx.fillStyle = color;
-      ctx.fillRect(barX, barY, barW * g2, barH);
+      ctx.fillRect(barX, barY, barW * g1, barH);
       ctx.fillStyle = color;
       ctx.font = "bold 10px monospace";
       ctx.textAlign = "left";
-      ctx.fillText(ELEMENT_NAMES[element_type] || "", barX, barY - 1);
+      ctx.fillText(ELEMENT_NAMES[element1_type] || "", barX, barY - 1);
+    } else if (has1 && has2) {
+      const color1 = ELEMENT_COLORS[element1_type] || "#888";
+      const color2 = ELEMENT_COLORS[element2_type] || "#888";
+      ctx.fillStyle = color1;
+      ctx.fillRect(barX, barY, barW / 2 * g1, barH);
+      ctx.fillStyle = color2;
+      ctx.fillRect(barX + barW / 2, barY, barW / 2 * g2, barH);
+      ctx.font = "bold 10px monospace";
+      ctx.textAlign = "left";
+      ctx.fillStyle = color1;
+      ctx.fillText(ELEMENT_NAMES[element1_type] || "", barX, barY - 1);
+      ctx.textAlign = "right";
+      ctx.fillStyle = color2;
+      ctx.fillText(ELEMENT_NAMES[element2_type] || "", barX + barW, barY - 1);
+    } else if (has2 && !has1) {
+      const color = ELEMENT_COLORS[element2_type] || "#888";
+      ctx.fillStyle = color;
+      ctx.fillRect(barX, barY, barW * g2, barH);
     }
     const cached = this.enemyReactions.get(key) || { type: 0, t: 0 };
     if (reaction_type !== 0) {
@@ -198,7 +246,7 @@ var Renderer = class {
     ctx.textAlign = "left";
     const curElemName = ELEMENT_NAMES[this.currentElem] || "";
     ctx.fillText(`WASD: \u79FB\u52A8   \u9F20\u6807\u79FB\u52A8: \u6539\u53D8\u671D\u5411   \u9F20\u6807\u5DE6\u952E: \u53D1\u5C04${curElemName}\u5143\u7D20\u5B50\u5F39`, 10, 22);
-    ctx.fillText("\u53CD\u5E94: \u6C34+\u706B \u2192 \u84B8\u53D1(\xD71.5)   \u706B+\u6C34 \u2192 \u84B8\u53D1(\xD72.0)   \u6570\u5B57\u952E1-7: \u5207\u6362\u73A9\u5BB6\u5143\u7D20", 10, 40);
+    ctx.fillText("\u6570\u5B57\u952E1-7: \u5207\u6362\u73A9\u5BB6\u5143\u7D20", 10, 40);
     const panelX = 14;
     const panelY = 70;
     const rowH = 28;
@@ -257,6 +305,7 @@ var input = {
   mouseX: 0,
   mouseY: 0,
   mouseClick: false,
+  mouseRightClick: false,
   elemKey: 0
 };
 function onKeyDown(e) {
@@ -342,9 +391,11 @@ function onMouseMove(e) {
 }
 function onMouseDown(e) {
   if (e.button === 0) input.mouseClick = true;
+  if (e.button === 2) input.mouseRightClick = true;
 }
 function onMouseUp(e) {
   if (e.button === 0) input.mouseClick = false;
+  if (e.button === 2) input.mouseRightClick = false;
 }
 function syncInput() {
   wasmModule._wasm_set_input(
@@ -355,6 +406,7 @@ function syncInput() {
     input.mouseX,
     input.mouseY,
     input.mouseClick ? 1 : 0,
+    input.mouseRightClick ? 1 : 0,
     input.elemKey
   );
   input.elemKey = 0;
@@ -378,9 +430,11 @@ function readRenderCommands() {
       b: heap[base + 14],
       a: heap[base + 15],
       entity_type: heap[base + 16],
-      element_type: heap[base + 17],
+      element1_type: heap[base + 17],
       reaction_type: heap[base + 18],
-      element_gauge: f32[(base + 20) / 4],
+      element2_type: heap[base + 19],
+      element1_gauge: heap[base + 20],
+      element2_gauge: heap[base + 21],
       facing_dx: f32[(base + 24) / 4],
       facing_dy: f32[(base + 28) / 4]
     });

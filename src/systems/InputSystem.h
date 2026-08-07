@@ -5,14 +5,15 @@
 
 // 输入状态快照（TS 侧每帧写入，C++ 侧只读）
 struct InputState {
-    bool move_up    = false;  //W 键按下
-    bool move_down  = false;  //S 键按下
-    bool move_left  = false;  //A 键按下
-    bool move_right = false;  //D 键按下
-    float mouse_x   = 0.0f;   //鼠标世界坐标 X（像素）
-    float mouse_y   = 0.0f;   //鼠标世界坐标 Y（像素）
-    bool mouse_click = false; //鼠标左键按下
-    int  element_key = 0;     //数字键 1-7 切角色元素
+    bool move_up         = false;  //W 键按下
+    bool move_down       = false;  //S 键按下
+    bool move_left       = false;  //A 键按下
+    bool move_right      = false;  //D 键按下
+    float mouse_x        = 0.0f;   //鼠标世界坐标 X（像素）
+    float mouse_y        = 0.0f;   //鼠标世界坐标 Y（像素）
+    bool mouse_click     = false;  //鼠标左键按下（Weak 子弹）
+    bool mouse_right_click = false;//鼠标右键按下（Strong 子弹）
+    int  element_key     = 0;      //数字键 1-7 切角色元素
 };
 
 extern InputState g_input;  //全局输入实例（wasm_api.cpp 写，InputSystem 读）
@@ -65,7 +66,9 @@ private:
         ElementType::Dendro,  // 7 草
     };
 
-    // 发射一颗子弹：从 BulletPool 取实体 → 装配 7 个组件
-    //   elem = 子弹携带的元素（决定 ElementPayload + 子弹颜色），来源于玩家 ElementStatus.type
-    void fire(World& world, float from_x, float from_y, float dir_x, float dir_y, ElementType elem);
+    // 发射一颗子弹：从 BulletPool 拿实体 → 装配 7 个组件
+    //   elem     = 子弹携带的元素（决定 ElementPayload + 子弹颜色）
+    //   strength = 元素强度档（Weak / Medium / Strong），默认 Weak 保持左键兼容
+    void fire(World& world, float from_x, float from_y, float dir_x, float dir_y,
+              ElementType elem, ElementStrength strength = ElementStrength::Weak);
 };

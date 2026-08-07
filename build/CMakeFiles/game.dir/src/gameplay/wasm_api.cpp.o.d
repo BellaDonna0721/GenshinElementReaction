@@ -1,5 +1,5 @@
 CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: \
-  D:\study\GenshinElement\src\gameplay\wasm_api.cpp \
+  D:\study\GenshinElementReaction\src\gameplay\wasm_api.cpp \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\emscripten.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\emscripten\emscripten.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\emscripten\em_asm.h \
@@ -30,8 +30,8 @@ CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__type_traits\remove_cv.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\emscripten\version.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\emscripten\wget.h \
-  D:\study\GenshinElement\src\gameplay\..\core\World.h \
-  D:\study\GenshinElement\src\gameplay\..\core\Entity.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\core\World.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\core\Entity.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdint \
   D:\emsdk\upstream\lib\clang\23\include\stdint.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\stdint.h \
@@ -664,15 +664,16 @@ CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wbuffer_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
-  D:\study\GenshinElement\src\gameplay\..\core\ComponentRegistry.h \
-  D:\study\GenshinElement\src\gameplay\..\systems\InputSystem.h \
-  D:\study\GenshinElement\src\gameplay\..\systems\..\core\World.h \
-  D:\study\GenshinElement\src\gameplay\..\systems\..\components\ElementStatus.h \
-  D:\study\GenshinElement\src\gameplay\..\systems\LifetimeSystem.h \
-  D:\study\GenshinElement\src\gameplay\..\systems\MovementSystem.h \
-  D:\study\GenshinElement\src\gameplay\..\systems\CollisionSystem.h \
-  D:\study\GenshinElement\src\gameplay\..\systems\ElementReactionSystem.h \
-  D:\study\GenshinElement\src\gameplay\..\systems\OutputSystem.h \
-  D:\study\GenshinElement\src\gameplay\..\gameplay\SpawnPreset.h \
-  D:\study\GenshinElement\src\gameplay\..\gameplay\..\core\World.h \
-  D:\study\GenshinElement\src\gameplay\..\gameplay\..\components\ElementStatus.h
+  D:\study\GenshinElementReaction\src\gameplay\..\core\ComponentRegistry.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\InputSystem.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\..\core\World.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\..\components\ElementStatus.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\LifetimeSystem.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\MovementSystem.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\CollisionSystem.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\ElementReactionSystem.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\..\importFiles\myUnorderedMap.hpp \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\OutputSystem.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\gameplay\SpawnPreset.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\gameplay\..\core\World.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\gameplay\..\components\ElementStatus.h

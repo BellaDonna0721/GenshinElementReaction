@@ -52,10 +52,10 @@ RM = D:\study\bin\cmake.exe -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = D:\study\GenshinElement
+CMAKE_SOURCE_DIR = D:\study\GenshinElementReaction
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = D:\study\GenshinElement\build
+CMAKE_BINARY_DIR = D:\study\GenshinElementReaction\build
 
 # Include any dependencies generated for this target.
 include CMakeFiles/game.dir/depend.make
@@ -72,136 +72,136 @@ CMakeFiles/game.dir/src/core/World.cpp.o: CMakeFiles/game.dir/flags.make
 CMakeFiles/game.dir/src/core/World.cpp.o: CMakeFiles/game.dir/includes_CXX.rsp
 CMakeFiles/game.dir/src/core/World.cpp.o: ../src/core/World.cpp
 CMakeFiles/game.dir/src/core/World.cpp.o: CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElement\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/game.dir/src/core/World.cpp.o"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/core/World.cpp.o -MF CMakeFiles\game.dir\src\core\World.cpp.o.d -o CMakeFiles\game.dir\src\core\World.cpp.o -c D:\study\GenshinElement\src\core\World.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElementReaction\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/game.dir/src/core/World.cpp.o"
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/core/World.cpp.o -MF CMakeFiles\game.dir\src\core\World.cpp.o.d -o CMakeFiles\game.dir\src\core\World.cpp.o -c D:\study\GenshinElementReaction\src\core\World.cpp
 
 CMakeFiles/game.dir/src/core/World.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/game.dir/src/core/World.cpp.i"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElement\src\core\World.cpp > CMakeFiles\game.dir\src\core\World.cpp.i
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElementReaction\src\core\World.cpp > CMakeFiles\game.dir\src\core\World.cpp.i
 
 CMakeFiles/game.dir/src/core/World.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/game.dir/src/core/World.cpp.s"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElement\src\core\World.cpp -o CMakeFiles\game.dir\src\core\World.cpp.s
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElementReaction\src\core\World.cpp -o CMakeFiles\game.dir\src\core\World.cpp.s
 
 CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o: CMakeFiles/game.dir/flags.make
 CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o: CMakeFiles/game.dir/includes_CXX.rsp
 CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o: ../src/gameplay/SpawnPreset.cpp
 CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o: CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElement\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o -MF CMakeFiles\game.dir\src\gameplay\SpawnPreset.cpp.o.d -o CMakeFiles\game.dir\src\gameplay\SpawnPreset.cpp.o -c D:\study\GenshinElement\src\gameplay\SpawnPreset.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElementReaction\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o"
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o -MF CMakeFiles\game.dir\src\gameplay\SpawnPreset.cpp.o.d -o CMakeFiles\game.dir\src\gameplay\SpawnPreset.cpp.o -c D:\study\GenshinElementReaction\src\gameplay\SpawnPreset.cpp
 
 CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.i"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElement\src\gameplay\SpawnPreset.cpp > CMakeFiles\game.dir\src\gameplay\SpawnPreset.cpp.i
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElementReaction\src\gameplay\SpawnPreset.cpp > CMakeFiles\game.dir\src\gameplay\SpawnPreset.cpp.i
 
 CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.s"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElement\src\gameplay\SpawnPreset.cpp -o CMakeFiles\game.dir\src\gameplay\SpawnPreset.cpp.s
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElementReaction\src\gameplay\SpawnPreset.cpp -o CMakeFiles\game.dir\src\gameplay\SpawnPreset.cpp.s
 
 CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o: CMakeFiles/game.dir/flags.make
 CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o: CMakeFiles/game.dir/includes_CXX.rsp
 CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o: ../src/systems/MovementSystem.cpp
 CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o: CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElement\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\MovementSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\MovementSystem.cpp.o -c D:\study\GenshinElement\src\systems\MovementSystem.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElementReaction\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o"
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\MovementSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\MovementSystem.cpp.o -c D:\study\GenshinElementReaction\src\systems\MovementSystem.cpp
 
 CMakeFiles/game.dir/src/systems/MovementSystem.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/game.dir/src/systems/MovementSystem.cpp.i"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElement\src\systems\MovementSystem.cpp > CMakeFiles\game.dir\src\systems\MovementSystem.cpp.i
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElementReaction\src\systems\MovementSystem.cpp > CMakeFiles\game.dir\src\systems\MovementSystem.cpp.i
 
 CMakeFiles/game.dir/src/systems/MovementSystem.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/game.dir/src/systems/MovementSystem.cpp.s"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElement\src\systems\MovementSystem.cpp -o CMakeFiles\game.dir\src\systems\MovementSystem.cpp.s
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElementReaction\src\systems\MovementSystem.cpp -o CMakeFiles\game.dir\src\systems\MovementSystem.cpp.s
 
 CMakeFiles/game.dir/src/systems/InputSystem.cpp.o: CMakeFiles/game.dir/flags.make
 CMakeFiles/game.dir/src/systems/InputSystem.cpp.o: CMakeFiles/game.dir/includes_CXX.rsp
 CMakeFiles/game.dir/src/systems/InputSystem.cpp.o: ../src/systems/InputSystem.cpp
 CMakeFiles/game.dir/src/systems/InputSystem.cpp.o: CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElement\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/game.dir/src/systems/InputSystem.cpp.o"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/InputSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\InputSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\InputSystem.cpp.o -c D:\study\GenshinElement\src\systems\InputSystem.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElementReaction\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/game.dir/src/systems/InputSystem.cpp.o"
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/InputSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\InputSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\InputSystem.cpp.o -c D:\study\GenshinElementReaction\src\systems\InputSystem.cpp
 
 CMakeFiles/game.dir/src/systems/InputSystem.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/game.dir/src/systems/InputSystem.cpp.i"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElement\src\systems\InputSystem.cpp > CMakeFiles\game.dir\src\systems\InputSystem.cpp.i
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElementReaction\src\systems\InputSystem.cpp > CMakeFiles\game.dir\src\systems\InputSystem.cpp.i
 
 CMakeFiles/game.dir/src/systems/InputSystem.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/game.dir/src/systems/InputSystem.cpp.s"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElement\src\systems\InputSystem.cpp -o CMakeFiles\game.dir\src\systems\InputSystem.cpp.s
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElementReaction\src\systems\InputSystem.cpp -o CMakeFiles\game.dir\src\systems\InputSystem.cpp.s
 
 CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.o: CMakeFiles/game.dir/flags.make
 CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.o: CMakeFiles/game.dir/includes_CXX.rsp
 CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.o: ../src/systems/LifetimeSystem.cpp
 CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.o: CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElement\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.o"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\LifetimeSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\LifetimeSystem.cpp.o -c D:\study\GenshinElement\src\systems\LifetimeSystem.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElementReaction\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.o"
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\LifetimeSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\LifetimeSystem.cpp.o -c D:\study\GenshinElementReaction\src\systems\LifetimeSystem.cpp
 
 CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.i"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElement\src\systems\LifetimeSystem.cpp > CMakeFiles\game.dir\src\systems\LifetimeSystem.cpp.i
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElementReaction\src\systems\LifetimeSystem.cpp > CMakeFiles\game.dir\src\systems\LifetimeSystem.cpp.i
 
 CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.s"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElement\src\systems\LifetimeSystem.cpp -o CMakeFiles\game.dir\src\systems\LifetimeSystem.cpp.s
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElementReaction\src\systems\LifetimeSystem.cpp -o CMakeFiles\game.dir\src\systems\LifetimeSystem.cpp.s
 
 CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.o: CMakeFiles/game.dir/flags.make
 CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.o: CMakeFiles/game.dir/includes_CXX.rsp
 CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.o: ../src/systems/CollisionSystem.cpp
 CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.o: CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElement\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.o"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\CollisionSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\CollisionSystem.cpp.o -c D:\study\GenshinElement\src\systems\CollisionSystem.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElementReaction\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.o"
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\CollisionSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\CollisionSystem.cpp.o -c D:\study\GenshinElementReaction\src\systems\CollisionSystem.cpp
 
 CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.i"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElement\src\systems\CollisionSystem.cpp > CMakeFiles\game.dir\src\systems\CollisionSystem.cpp.i
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElementReaction\src\systems\CollisionSystem.cpp > CMakeFiles\game.dir\src\systems\CollisionSystem.cpp.i
 
 CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.s"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElement\src\systems\CollisionSystem.cpp -o CMakeFiles\game.dir\src\systems\CollisionSystem.cpp.s
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElementReaction\src\systems\CollisionSystem.cpp -o CMakeFiles\game.dir\src\systems\CollisionSystem.cpp.s
 
 CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.o: CMakeFiles/game.dir/flags.make
 CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.o: CMakeFiles/game.dir/includes_CXX.rsp
 CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.o: ../src/systems/ElementReactionSystem.cpp
 CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.o: CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElement\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.o"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\ElementReactionSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\ElementReactionSystem.cpp.o -c D:\study\GenshinElement\src\systems\ElementReactionSystem.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElementReaction\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.o"
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\ElementReactionSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\ElementReactionSystem.cpp.o -c D:\study\GenshinElementReaction\src\systems\ElementReactionSystem.cpp
 
 CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.i"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElement\src\systems\ElementReactionSystem.cpp > CMakeFiles\game.dir\src\systems\ElementReactionSystem.cpp.i
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElementReaction\src\systems\ElementReactionSystem.cpp > CMakeFiles\game.dir\src\systems\ElementReactionSystem.cpp.i
 
 CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.s"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElement\src\systems\ElementReactionSystem.cpp -o CMakeFiles\game.dir\src\systems\ElementReactionSystem.cpp.s
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElementReaction\src\systems\ElementReactionSystem.cpp -o CMakeFiles\game.dir\src\systems\ElementReactionSystem.cpp.s
 
 CMakeFiles/game.dir/src/systems/OutputSystem.cpp.o: CMakeFiles/game.dir/flags.make
 CMakeFiles/game.dir/src/systems/OutputSystem.cpp.o: CMakeFiles/game.dir/includes_CXX.rsp
 CMakeFiles/game.dir/src/systems/OutputSystem.cpp.o: ../src/systems/OutputSystem.cpp
 CMakeFiles/game.dir/src/systems/OutputSystem.cpp.o: CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElement\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/game.dir/src/systems/OutputSystem.cpp.o"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/OutputSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\OutputSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\OutputSystem.cpp.o -c D:\study\GenshinElement\src\systems\OutputSystem.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElementReaction\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Building CXX object CMakeFiles/game.dir/src/systems/OutputSystem.cpp.o"
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/systems/OutputSystem.cpp.o -MF CMakeFiles\game.dir\src\systems\OutputSystem.cpp.o.d -o CMakeFiles\game.dir\src\systems\OutputSystem.cpp.o -c D:\study\GenshinElementReaction\src\systems\OutputSystem.cpp
 
 CMakeFiles/game.dir/src/systems/OutputSystem.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/game.dir/src/systems/OutputSystem.cpp.i"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElement\src\systems\OutputSystem.cpp > CMakeFiles\game.dir\src\systems\OutputSystem.cpp.i
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElementReaction\src\systems\OutputSystem.cpp > CMakeFiles\game.dir\src\systems\OutputSystem.cpp.i
 
 CMakeFiles/game.dir/src/systems/OutputSystem.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/game.dir/src/systems/OutputSystem.cpp.s"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElement\src\systems\OutputSystem.cpp -o CMakeFiles\game.dir\src\systems\OutputSystem.cpp.s
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElementReaction\src\systems\OutputSystem.cpp -o CMakeFiles\game.dir\src\systems\OutputSystem.cpp.s
 
 CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: CMakeFiles/game.dir/flags.make
 CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: CMakeFiles/game.dir/includes_CXX.rsp
 CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: ../src/gameplay/wasm_api.cpp
 CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: CMakeFiles/game.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElement\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o -MF CMakeFiles\game.dir\src\gameplay\wasm_api.cpp.o.d -o CMakeFiles\game.dir\src\gameplay\wasm_api.cpp.o -c D:\study\GenshinElement\src\gameplay\wasm_api.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=D:\study\GenshinElementReaction\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_9) "Building CXX object CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o"
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o -MF CMakeFiles\game.dir\src\gameplay\wasm_api.cpp.o.d -o CMakeFiles\game.dir\src\gameplay\wasm_api.cpp.o -c D:\study\GenshinElementReaction\src\gameplay\wasm_api.cpp
 
 CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.i: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.i"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElement\src\gameplay\wasm_api.cpp > CMakeFiles\game.dir\src\gameplay\wasm_api.cpp.i
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E D:\study\GenshinElementReaction\src\gameplay\wasm_api.cpp > CMakeFiles\game.dir\src\gameplay\wasm_api.cpp.i
 
 CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.s"
-	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElement\src\gameplay\wasm_api.cpp -o CMakeFiles\game.dir\src\gameplay\wasm_api.cpp.s
+	D:\emsdk\upstream\emscripten\em++.exe $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S D:\study\GenshinElementReaction\src\gameplay\wasm_api.cpp -o CMakeFiles\game.dir\src\gameplay\wasm_api.cpp.s
 
 # Object files for target game
 game_OBJECTS = \
@@ -230,12 +230,12 @@ game.js: CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o
 game.js: CMakeFiles/game.dir/build.make
 game.js: CMakeFiles/game.dir/objects1.rsp
 game.js: CMakeFiles/game.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=D:\study\GenshinElement\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX executable game.js"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=D:\study\GenshinElementReaction\build\CMakeFiles --progress-num=$(CMAKE_PROGRESS_10) "Linking CXX executable game.js"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles\game.dir\link.txt --verbose=$(VERBOSE)
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --blue --bold "Copying WASM artifacts to dist/"
-	D:\study\bin\cmake.exe -E make_directory D:/study/GenshinElement/dist
-	D:\study\bin\cmake.exe -E copy_if_different D:/study/GenshinElement/build/game.wasm D:/study/GenshinElement/dist/game.wasm
-	D:\study\bin\cmake.exe -E copy_if_different D:/study/GenshinElement/build/game.js D:/study/GenshinElement/dist/game.js
+	D:\study\bin\cmake.exe -E make_directory D:/study/GenshinElementReaction/dist
+	D:\study\bin\cmake.exe -E copy_if_different D:/study/GenshinElementReaction/build/game.wasm D:/study/GenshinElementReaction/dist/game.wasm
+	D:\study\bin\cmake.exe -E copy_if_different D:/study/GenshinElementReaction/build/game.js D:/study/GenshinElementReaction/dist/game.js
 
 # Rule to build all files generated by this target.
 CMakeFiles/game.dir/build: game.js
@@ -246,6 +246,6 @@ CMakeFiles/game.dir/clean:
 .PHONY : CMakeFiles/game.dir/clean
 
 CMakeFiles/game.dir/depend:
-	$(CMAKE_COMMAND) -E cmake_depends "MinGW Makefiles" D:\study\GenshinElement D:\study\GenshinElement D:\study\GenshinElement\build D:\study\GenshinElement\build D:\study\GenshinElement\build\CMakeFiles\game.dir\DependInfo.cmake --color=$(COLOR)
+	$(CMAKE_COMMAND) -E cmake_depends "MinGW Makefiles" D:\study\GenshinElementReaction D:\study\GenshinElementReaction D:\study\GenshinElementReaction\build D:\study\GenshinElementReaction\build D:\study\GenshinElementReaction\build\CMakeFiles\game.dir\DependInfo.cmake --color=$(COLOR)
 .PHONY : CMakeFiles/game.dir/depend
 

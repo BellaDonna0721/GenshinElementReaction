@@ -24,12 +24,9 @@ Entity spawn_player(World& world, float x, float y) {
     vel.vy = 0.0f;
     world.add_component<Velocity>(e, vel);
 
-    // 3. 元素状态（玩家本身属 Pyro，初始身上没附着元素 gauge=0）
+    // 3. 元素状态（玩家初始身上无附着元素；射击元素默认 Pyro，可通过数字键 1~8 切换）
     ElementStatus elem;
-    elem.type       = ElementType::Pyro;
-    elem.gauge      = 0.0f;
-    elem.duration   = 0.0f;
-    elem.decay_rate = 0.5f;
+    elem.current_player_elem = ElementType::Pyro;
     world.add_component<ElementStatus>(e, elem);
 
     // 4. 朝向（初始朝右，InputSystem 每帧跟随鼠标覆盖）

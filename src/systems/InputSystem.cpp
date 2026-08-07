@@ -88,9 +88,7 @@ void InputSystem::update(World& world, float dt) {
         if (g_input.element_key >= 1 && g_input.element_key <= 7) {
             ElementType new_elem = s_key_to_elem[g_input.element_key];
             if (new_elem != ElementType::None) {
-                // 复用玩家已有的 ElementStatus：把类型改成新元素
-                // (gauge/duration/decay_rate 暂时不碰，切元素只改变"身份+颜色"，不强制改存量
-                pe->type = new_elem;
+                pe->current_player_elem = new_elem;
 
                 // 同步改 RenderInfo 颜色（视觉跟着变）
                 ElementColor c = get_element_color(new_elem);
@@ -119,16 +117,25 @@ void InputSystem::update(World& world, float dt) {
             face->dy = dy / dlen;
         }
 
-        // --- 射击：鼠标点击，有冷却，沿朝向发射；子弹元素=玩家当前元素 ---
-        if (g_input.mouse_click && m_fire_cooldown <= 0.0f) {
+        // --- 射击：鼠标点击，有冷却，沿朝向发射；子弹元素=玩家当前选中元素 ---
+        //   左键 → Weak 强度（0.8 实际量）
+        //   右键 → Strong 强度（1.6 实际量，对应"元素量为2"的理论 GU）
+        bool want_fire = g_input.mouse_click || g_input.mouse_right_click;
+        if (want_fire && m_fire_cooldown <= 0.0f) {
             m_fire_cooldown = FIRE_INTERVAL;
-            ElementType elem = (pe && pe->type != ElementType::None) ? pe->type : ElementType::Pyro;
-            fire(world, t->x, t->y, face->dx, face->dy, elem);
+            ElementType elem = (pe && pe->current_player_elem != ElementType::None)
+                                 ? pe->current_player_elem
+                                 : ElementType::Pyro;
+            ElementStrength strength = g_input.mouse_right_click
+                                         ? ElementStrength::Strong
+                                         : ElementStrength::Weak;
+            fire(world, t->x, t->y, face->dx, face->dy, elem, strength);
         }
     }
 }
 
-void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, float dir_y, ElementType elem) {
+void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, float dir_y,
+                       ElementType elem, ElementStrength strength) {
     Entity e = g_bullet_pool.acquire();
     if (e == INVALID_ENTITY) return;
 
@@ -150,10 +157,10 @@ void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, fl
     life.remaining = 2.5f;
     world.add_component<Lifetime>(e, life);
 
-    // 关键：子弹元素=玩家当前元素，强度固定 Weak（对应 0.8 实际 + 9.5s）
+    // 关键：子弹元素=玩家当前元素，强度=调用方传入（左键Weak / 右键Strong）
     ElementPayload payload;
     payload.element  = elem;
-    payload.strength = ElementStrength::Weak;
+    payload.strength = strength;
     world.add_component<ElementPayload>(e, payload);
 
     Collider col;

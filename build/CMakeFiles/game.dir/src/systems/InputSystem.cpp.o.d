@@ -1,8 +1,8 @@
 CMakeFiles/game.dir/src/systems/InputSystem.cpp.o: \
-  D:\study\GenshinElement\src\systems\InputSystem.cpp \
-  D:\study\GenshinElement\src\systems\InputSystem.h \
-  D:\study\GenshinElement\src\systems\..\core\World.h \
-  D:\study\GenshinElement\src\systems\..\core\Entity.h \
+  D:\study\GenshinElementReaction\src\systems\InputSystem.cpp \
+  D:\study\GenshinElementReaction\src\systems\InputSystem.h \
+  D:\study\GenshinElementReaction\src\systems\..\core\World.h \
+  D:\study\GenshinElementReaction\src\systems\..\core\Entity.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdint \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__config \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__config_site \
@@ -653,15 +653,15 @@ CMakeFiles/game.dir/src/systems/InputSystem.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wbuffer_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
-  D:\study\GenshinElement\src\systems\..\core\ComponentRegistry.h \
-  D:\study\GenshinElement\src\systems\..\components\ElementStatus.h \
-  D:\study\GenshinElement\src\systems\..\components\Transform.h \
-  D:\study\GenshinElement\src\systems\..\components\Velocity.h \
-  D:\study\GenshinElement\src\systems\..\components\Lifetime.h \
-  D:\study\GenshinElement\src\systems\..\components\ElementPayload.h \
-  D:\study\GenshinElement\src\systems\..\components\Collider.h \
-  D:\study\GenshinElement\src\systems\..\components\IdentityTag.h \
-  D:\study\GenshinElement\src\systems\..\components\RenderInfo.h \
-  D:\study\GenshinElement\src\systems\..\components\FacingDirection.h \
-  D:\study\GenshinElement\src\systems\..\utils\element_color.h \
-  D:\study\GenshinElement\src\systems\..\utils\..\components\ElementStatus.h
+  D:\study\GenshinElementReaction\src\systems\..\core\ComponentRegistry.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\ElementStatus.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\Transform.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\Velocity.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\Lifetime.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\ElementPayload.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\Collider.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\IdentityTag.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\RenderInfo.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\FacingDirection.h \
+  D:\study\GenshinElementReaction\src\systems\..\utils\element_color.h \
+  D:\study\GenshinElementReaction\src\systems\..\utils\..\components\ElementStatus.h
