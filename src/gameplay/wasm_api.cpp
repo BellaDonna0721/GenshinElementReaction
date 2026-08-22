@@ -7,6 +7,7 @@
 #include "../systems/ElementReactionSystem.h"
 #include "../systems/OutputSystem.h"
 #include "../gameplay/SpawnPreset.h"
+#include "../gameplay/BulletPool.h"
 
 static World* g_world = nullptr;
 

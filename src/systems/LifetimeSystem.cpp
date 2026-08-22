@@ -1,7 +1,7 @@
 #include "LifetimeSystem.h"
 #include "../components/Lifetime.h"
 #include "../components/IdentityTag.h"
-#include "InputSystem.h"
+#include "../gameplay/BulletPool.h"
 
 void LifetimeSystem::update(World& world, float dt) {
     std::vector<Entity> expired;

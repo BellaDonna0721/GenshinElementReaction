@@ -1,6 +1,7 @@
 #include "OutputSystem.h"
 #include "../components/Transform.h"
 #include "../components/ElementStatus.h"
+#include "../components/ElementPayload.h"
 #include "../components/RenderInfo.h"
 #include "../components/FacingDirection.h"
 
@@ -41,7 +42,8 @@ void OutputSystem::update(World& world, float dt) {
         cmd.element2_type  = 0;
         cmd.element1_gauge = 0;
         cmd.element2_gauge = 0;
-        cmd.reaction_type  = 0;
+        cmd.reaction_mask_lo = 0;
+        cmd.reaction_mask_hi = 0;
         cmd.facing_dx = 0.0f;
         cmd.facing_dy = 0.0f;
 
@@ -53,14 +55,14 @@ void OutputSystem::update(World& world, float dt) {
                 // 元素1（内实心环）= 第一个有效光环（主显示）
                 // 元素2（外虚线环）= 第二个有效光环（仅共存时存在）
                 //
-                // 防止"量条显示异常"问题：当 slots[0] 被清空
-                // （例如雷被超载消耗掉）而水在 slots[1] 时，如果不紧凑，
+                // 防止"量条显示异常"问题：当 attached_slots[0] 被清空
+                // （例如雷被超载消耗掉）而水在 attached_slots[1] 时，如果不紧凑，
                 // 仅剩的那个光环只会出现在外虚线环，内圈为空，视觉上很奇怪。
                 // ==============================================================
                 const AttachedSlot* valid[2] = {nullptr, nullptr};
                 int n_valid = 0;
                 for (int i = 0; i < 2 && n_valid < 2; ++i) {
-                    const AttachedSlot& s = elem->slots[i];
+                    const AttachedSlot& s = elem->attached_slots[i];
                     if (!s.is_valid()) continue;
                     if (!is_attachable_element(s.type)) continue;
                     valid[n_valid++] = &s;
@@ -74,10 +76,12 @@ void OutputSystem::update(World& world, float dt) {
                     cmd.element2_gauge = pack_progress_ratio(*valid[1]);
                 }
 
-                // 消费一次性 pending_reaction 脉冲
-                ReactionType rt = elem->consume_reaction();
-                if (rt != ReactionType::None) {
-                    cmd.reaction_type = static_cast<uint8_t>(rt);
+                // 消费本帧所有已标记的反应脉冲（uint16 位掩码）
+                // 拆成低 8 位 + 高 8 位写入 RenderCommand 两个字节，TS 侧拼成完整掩码
+                uint16_t mask = elem->consume_reactions();
+                if (mask != 0) {
+                    cmd.reaction_mask_lo = static_cast<uint8_t>(mask & 0xFF);
+                    cmd.reaction_mask_hi = static_cast<uint8_t>((mask >> 8) & 0xFF);
                 }
             }
         }
@@ -86,6 +90,15 @@ void OutputSystem::update(World& world, float dt) {
         if (face && ri->entity_type == Identity::Player) {
             cmd.facing_dx = face->dx;
             cmd.facing_dy = face->dy;
+        }
+
+        // 子弹特效标记：如果是子弹且带 ElementPayload → 写入 bullet_strength
+        // 渲染层据此画外层火焰环（仅 Strong/ExtraStrong 有特效）
+        if (ri->entity_type == Identity::Bullet) {
+            auto* payload = world.get_component<ElementPayload>(e);
+            if (payload) {
+                cmd.bullet_strength = static_cast<uint8_t>(payload->strength);
+            }
         }
 
         g_render_commands.push_back(cmd);

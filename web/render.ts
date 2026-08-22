@@ -8,8 +8,9 @@ export class Renderer {
   private width: number;
   private height: number;
 
-  // 每个敌人上次触发的反应 + 标签渐隐计时器
-  private enemyReactions: Map<string, { type: number; t: number }> = new Map();
+  // 每个敌人本帧仍在飘字的反应列表（支持一帧多个反应堆叠显示）
+  // 每个元素 { type, t }：type 为 ReactionType 枚举，t 为剩余显示时长 s
+  private enemyReactions: Map<string, { items: Array<{ type: number; t: number }> }> = new Map();
 
   // UI：左侧元素面板高亮的当前选中元素（默认 Pyro，和初始 spawn_player 一致）
   private currentElem: ElementType = ElementType.Pyro;
@@ -105,7 +106,7 @@ export class Renderer {
     const { x, y, radius, r, g, b, a,
             element1_type, element2_type,
             element1_gauge, element2_gauge,
-            reaction_type } = cmd;
+            reaction_mask_lo, reaction_mask_hi } = cmd;
     const key = `enemy_${cmd.x}_${cmd.y}`;
 
     // 身体：根据肉身 RGB 动态算描边
@@ -190,36 +191,106 @@ export class Renderer {
       ctx.fillRect(barX, barY, barW * g2, barH);
     }
 
-    // 反应文字标签（渐隐）
-    const cached = this.enemyReactions.get(key) || { type: 0, t: 0 };
-    if (reaction_type !== 0) {
-      cached.type = reaction_type;
-      cached.t = 1.5;
-    }
-    if (cached.t > 0) {
-      cached.t -= 1 / 60;
-      const name = REACTION_NAMES[cached.type] || '';
-      if (name) {
-        ctx.font = 'bold 14px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillStyle = '#ffdd33';
-        ctx.globalAlpha = Math.min(1, cached.t);
-        ctx.fillText(name, x, y - radius - 18 - (1.5 - cached.t) * 20);
-        ctx.globalAlpha = 1.0;
+    // 反应文字标签（渐隐 + 堆叠，一帧多反应垂直排列）
+    const cached = this.enemyReactions.get(key) || { items: [] };
+
+    // 1) 把本帧位掩码里标记过的新反应，全部 push 进 cache（每项独立渐隐）
+    //    位索引 i = ReactionType；bit=1 表示本帧该反应实际发生过
+    const mask: number = (reaction_mask_lo & 0xFF) | ((reaction_mask_hi & 0xFF) << 8);
+    for (let i = 1; i <= 16; i++) {
+      if ((mask & (1 << i)) !== 0) {
+        cached.items.push({ type: i, t: 1.5 });
       }
+    }
+
+    // 2) 每帧扣减剩余时长，过滤掉已过期的；再按"剩余时间从大到小"保持堆叠顺序稳定
+    const dtFrame = 1 / 60;
+    cached.items = cached.items
+      .map(it => ({ ...it, t: it.t - dtFrame }))
+      .filter(it => it.t > 0)
+      .sort((a, b) => b.t - a.t);
+
+    // 3) 依次画出每一条：新反应（剩余时间大）在下，老的在上（越飞越上）
+    //    效果：本帧同时触发的两条，从同一高度起步向上飘；旧的在上方继续渐隐
+    if (cached.items.length > 0) {
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#ffdd33';
+      const lineHeight = 18;
+      for (let i = 0; i < cached.items.length; i++) {
+        const it = cached.items[i];
+        const name = REACTION_NAMES[it.type] || '';
+        if (!name) continue;
+        ctx.globalAlpha = Math.min(1, it.t);
+        // 基础起点在头顶上方，每项之间上下错开一行
+        const baseY = y - radius - 18;
+        const rise  = (1.5 - it.t) * 20;
+        const offset = i * lineHeight;
+        ctx.fillText(name, x, baseY - rise - offset);
+      }
+      ctx.globalAlpha = 1.0;
     }
     this.enemyReactions.set(key, cached);
   }
 
   // ===== 子弹 =====
   private drawBullet(ctx: CanvasRenderingContext2D, cmd: RenderCommand): void {
-    const { x, y, radius, r, g, b, a } = cmd;
+    const { x, y, radius, r, g, b, a, bullet_strength } = cmd;
 
-    // 尾焰 + 核心
+    // ---- Strong(2) / ExtraStrong(3) 专用：外层夸张火焰环 ----
+    // 比普通子弹多：1) 更粗的径向渐变光晕  2) 8瓣火焰舌  3) 元素色外描边
+    if (bullet_strength >= 2) {
+      // 使用加色混合（lighter）让多层火焰叠加后更亮、更有发光感
+      const prevComposite = ctx.globalCompositeOperation;
+      ctx.globalCompositeOperation = 'lighter';
+
+      // 1) 超大外层光晕（加亮 alpha）
+      const bigGlow = ctx.createRadialGradient(x, y, 0, x, y, radius + 20);
+      bigGlow.addColorStop(0,    `rgba(${r},${g},${b},0.90)`);
+      bigGlow.addColorStop(0.30, `rgba(${r},${g},${b},0.55)`);
+      bigGlow.addColorStop(0.65, `rgba(${r},${g},${b},0.25)`);
+      bigGlow.addColorStop(1,    `rgba(${r},${g},${b},0)`);
+      ctx.fillStyle = bigGlow;
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 20, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 2) 8 瓣火焰舌（锯齿环绕，视觉上像燃烧的火焰星芒）
+      const tongues = 8;
+      const innerR = radius + 5;
+      const outerR = radius + 15;
+      const phase = ((x * 0.13 + y * 0.07) % (Math.PI * 2));
+      ctx.beginPath();
+      for (let i = 0; i < tongues * 2; i++) {
+        const ang = phase + (i * Math.PI) / tongues;
+        const rr  = (i % 2 === 0) ? outerR : innerR;
+        const px  = x + Math.cos(ang) * rr;
+        const py  = y + Math.sin(ang) * rr;
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      const flameGrad = ctx.createRadialGradient(x, y, radius, x, y, outerR);
+      flameGrad.addColorStop(0, `rgba(${r},${g},${b},0.90)`);
+      flameGrad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      ctx.fillStyle = flameGrad;
+      ctx.fill();
+
+      // 恢复默认混合模式，避免影响核心绘制
+      ctx.globalCompositeOperation = prevComposite;
+
+      // 3) 元素色外描边（亮边+加粗，不使用 lighter 以免过曝）
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${r},${g},${b},1.0)`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
+
+    // ---- 所有子弹共通：基础光晕 + 核心圆 ----
     const grad = ctx.createRadialGradient(x, y, 0, x, y, radius + 6);
-    grad.addColorStop(0, `rgba(${r},${g},${b},220)`);
-    grad.addColorStop(0.6, `rgba(${r},${g},${b},120)`);
-    grad.addColorStop(1, 'rgba(100,180,255,0)');
+    grad.addColorStop(0,   `rgba(${r},${g},${b},220)`);
+    grad.addColorStop(0.6, `rgba(${r},${g},${b},140)`);
+    grad.addColorStop(1,   'rgba(100,180,255,0)');
     ctx.fillStyle = grad;
     ctx.beginPath();
     ctx.arc(x, y, radius + 6, 0, Math.PI * 2);
@@ -229,6 +300,14 @@ export class Renderer {
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
     ctx.fill();
+
+    // Strong：核心白色高光点（更亮更大）
+    if (bullet_strength >= 2) {
+      ctx.beginPath();
+      ctx.arc(x, y, radius * 0.42, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.fill();
+    }
   }
 
   private drawUI(ctx: CanvasRenderingContext2D): void {
@@ -237,7 +316,7 @@ export class Renderer {
     ctx.font = '13px monospace';
     ctx.textAlign = 'left';
     const curElemName = ELEMENT_NAMES[this.currentElem] || '';
-    ctx.fillText(`WASD: 移动   鼠标移动: 改变朝向   鼠标左键: 发射${curElemName}元素子弹`, 10, 22);
+    ctx.fillText(`WASD: 移动   鼠标移动: 改变朝向   鼠标左键: 发射${curElemName}(弱)   鼠标右键: 发射${curElemName}(强·带火焰)`, 10, 22);
     ctx.fillText('数字键1-7: 切换玩家元素', 10, 40);
 
     // ===== 左侧：数字键 ↔ 元素映射面板 =====

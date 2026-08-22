@@ -1,6 +1,8 @@
 file(REMOVE_RECURSE
   "CMakeFiles/game.dir/src/core/World.cpp.o"
   "CMakeFiles/game.dir/src/core/World.cpp.o.d"
+  "CMakeFiles/game.dir/src/gameplay/BulletPool.cpp.o"
+  "CMakeFiles/game.dir/src/gameplay/BulletPool.cpp.o.d"
   "CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o"
   "CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o.d"
   "CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o"

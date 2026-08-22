@@ -665,9 +665,12 @@ CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
   D:\study\GenshinElementReaction\src\gameplay\..\core\ComponentRegistry.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\core\..\components\ElementStatus.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\InputSystem.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\..\core\World.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\..\components\ElementStatus.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\..\gameplay\BulletPool.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\..\gameplay\..\core\World.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\LifetimeSystem.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\MovementSystem.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\CollisionSystem.h \
@@ -676,4 +679,5 @@ CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\OutputSystem.h \
   D:\study\GenshinElementReaction\src\gameplay\..\gameplay\SpawnPreset.h \
   D:\study\GenshinElementReaction\src\gameplay\..\gameplay\..\core\World.h \
-  D:\study\GenshinElementReaction\src\gameplay\..\gameplay\..\components\ElementStatus.h
+  D:\study\GenshinElementReaction\src\gameplay\..\gameplay\..\components\ElementStatus.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\gameplay\BulletPool.h

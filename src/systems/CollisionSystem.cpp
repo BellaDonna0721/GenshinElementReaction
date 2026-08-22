@@ -4,7 +4,7 @@
 #include "../components/IdentityTag.h"
 #include "../components/ElementPayload.h"
 #include "../components/ElementStatus.h"
-#include "InputSystem.h"
+#include "../gameplay/BulletPool.h"
 
 void CollisionSystem::update(World& world, float dt) {
     (void)dt;
@@ -30,19 +30,25 @@ void CollisionSystem::update(World& world, float dt) {
 
         for (auto en : enemies) {
             // enemies 已经用 Identity::Enemy 过滤了，无需再判断类型
-            auto* et = world.get_component<Transform>(en);
-            auto* ec = world.get_component<Collider>(en);
+            auto* et  = world.get_component<Transform>(en);
+            auto* ec  = world.get_component<Collider>(en);
             float dx = bt->x - et->x;
             float dy = bt->y - et->y;
             // 碰撞半径完全用 Collider.radius 计算（与 RenderInfo.radius 解耦）
             float r  = bc->radius + ec->radius;
 
             if (dx*dx + dy*dy <= r * r) {
-                // 命中：把子弹携带的元素类型 + 强度档写到敌人的 pending 槽
-                auto* es = world.get_component<ElementStatus>(en);
+                auto* es  = world.get_component<ElementStatus>(en);
+                auto* icd = world.get_component<ElementICDStatus>(en);
                 if (payload && es) {
-                    es->pending_element  = payload->element;
-                    es->pending_strength = payload->strength;
+                    // ——— ICD 判定：按 (触发元素 × 档位) 二元组查独立槽位
+                    //     通过才允许写入 pending；否则挂元素+反应全跳过（用户选B）
+                    bool allow = true;
+                    if (icd) allow = ::icd_hit_allowed(*icd, payload->element, payload->strength);
+                    if (allow) {
+                        es->pending_element  = payload->element;
+                        es->pending_strength = payload->strength;
+                    }
                 }
                 hit = true;
                 break;

@@ -1,6 +1,7 @@
 #pragma once
 #include "Entity.h"
 #include "ComponentRegistry.h"
+#include "../components/ElementStatus.h"  // ElementType
 #include <memory>
 #include <type_traits>
 #include <vector>
@@ -96,6 +97,10 @@ public:
     void add_system(std::unique_ptr<System> system);
     void update(float dt);
 
+    // ===== 全局玩家状态：当前选中的射击元素（唯一实例，不归属于任何实体组件）=====
+    ElementType get_player_current_element() const { return m_player_current_element; }
+    void set_player_current_element(ElementType t) { m_player_current_element = t; }
+
 private:
     template<typename T>
     ComponentPool<T>& get_pool();
@@ -106,6 +111,9 @@ private:
     Entity m_next_id = 1; // 下一个可用的实体 ID
 
     std::vector<std::unique_ptr<System>> m_systems; // 系统列表
+
+    // 玩家当前选中的射击元素（初始默认 Pyro）
+    ElementType m_player_current_element = ElementType::Pyro;
 };
 
 template<typename T>

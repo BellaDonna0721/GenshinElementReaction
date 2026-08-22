@@ -12,60 +12,6 @@
 #include <cmath>
 
 InputState g_input;
-BulletPool g_bullet_pool;
-
-// ========== BulletPool ==========
-
-void BulletPool::preallocate(World& world) {
-    m_entities.clear();
-    m_in_use.clear();
-    for (int i = 0; i < POOL_SIZE; ++i) {
-        m_entities.push_back(world.create_entity());
-        m_in_use.push_back(false);
-    }
-}
-
-Entity BulletPool::acquire() {
-    for (int i = 0; i < (int)m_entities.size(); ++i) {
-        if (!m_in_use[i]) {
-            m_in_use[i] = true;
-            return m_entities[i];
-        }
-    }
-    return INVALID_ENTITY;
-}
-
-void BulletPool::release(Entity e) {
-    for (int i = 0; i < (int)m_entities.size(); ++i) {
-        if (m_entities[i] == e && m_in_use[i]) {
-            m_in_use[i] = false;
-            return;
-        }
-    }
-}
-
-bool BulletPool::is_pooled(Entity e) const {
-    for (auto id : m_entities) if (id == e) return true;
-    return false;
-}
-
-// ========== 共享工具：归还子弹实体到对象池 ==========
-
-void release_bullet_entity(World& world, Entity e) {
-    if (!g_bullet_pool.is_pooled(e)) {
-        world.destroy_entity(e);
-        return;
-    }
-    // 移除子弹发射时 add 的 7 个组件（Transform/Velocity/Lifetime/ElementPayload/Collider/IdentityTag/RenderInfo）
-    world.remove_component<Transform>(e);
-    world.remove_component<Velocity>(e);
-    world.remove_component<Lifetime>(e);
-    world.remove_component<ElementPayload>(e);
-    world.remove_component<Collider>(e);
-    world.remove_component<IdentityTag>(e);
-    world.remove_component<RenderInfo>(e);
-    g_bullet_pool.release(e);
-}
 
 // ========== InputSystem ==========
 
@@ -73,14 +19,13 @@ void InputSystem::update(World& world, float dt) {
     if (m_fire_cooldown > 0.0f) m_fire_cooldown -= dt;
 
     // 用 IdentityTag 过滤玩家：逻辑层不读 RenderInfo.entity_type
-    for (auto e : world.query<Transform, Velocity, FacingDirection, ElementStatus, IdentityTag, RenderInfo>()) {
+    for (auto e : world.query<Transform, Velocity, FacingDirection, IdentityTag, RenderInfo>()) {
         auto* id = world.get_component<IdentityTag>(e);
         if (id->identity_type != Identity::Player) continue;
 
         auto* t    = world.get_component<Transform>(e);
         auto* v    = world.get_component<Velocity>(e);
         auto* face = world.get_component<FacingDirection>(e);
-        auto* pe   = world.get_component<ElementStatus>(e);
         auto* ri   = world.get_component<RenderInfo>(e);
 
         // ========== ① 数字键切换玩家元素（1~7）==========
@@ -88,7 +33,7 @@ void InputSystem::update(World& world, float dt) {
         if (g_input.element_key >= 1 && g_input.element_key <= 7) {
             ElementType new_elem = s_key_to_elem[g_input.element_key];
             if (new_elem != ElementType::None) {
-                pe->current_player_elem = new_elem;
+                world.set_player_current_element(new_elem);
 
                 // 同步改 RenderInfo 颜色（视觉跟着变）
                 ElementColor c = get_element_color(new_elem);
@@ -123,9 +68,8 @@ void InputSystem::update(World& world, float dt) {
         bool want_fire = g_input.mouse_click || g_input.mouse_right_click;
         if (want_fire && m_fire_cooldown <= 0.0f) {
             m_fire_cooldown = FIRE_INTERVAL;
-            ElementType elem = (pe && pe->current_player_elem != ElementType::None)
-                                 ? pe->current_player_elem
-                                 : ElementType::Pyro;
+            ElementType elem = world.get_player_current_element();
+            if (elem == ElementType::None) elem = ElementType::Pyro;  // 兜底
             ElementStrength strength = g_input.mouse_right_click
                                          ? ElementStrength::Strong
                                          : ElementStrength::Weak;

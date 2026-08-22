@@ -101,11 +101,12 @@ function syncInput(): void {
 //  [12,16)  r, g, b, a                  (u8 × 4)
 //  [16]     entity_type                 (u8)
 //  [17]     element1_type (内圈附着元素) (u8, ElementType enum, 0=None)
-//  [18]     reaction_type               (u8, ReactionType enum, 脉冲一次性)
+//  [18]     reaction_mask_lo            (u8, 位掩码低 8 位，bit i → ReactionType#i)
 //  [19]     element2_type (外圈共存元素) (u8, ElementType enum, 0=None)
-//  [20]     element1_gauge              (u8, 0-255 线性 → 0-4.0f actual_gauge)
-//  [21]     element2_gauge              (u8, 0-255 线性 → 0-4.0f actual_gauge)
-//  [22,24)  _pad2, _pad3                (u8 × 2, 对齐填充)
+//  [20]     element1_gauge              (u8, 0-255 线性 → 进度 0-100%)
+//  [21]     element2_gauge              (u8, 0-255 线性 → 进度 0-100%)
+//  [22]     bullet_strength             (u8, ElementStrength: 0Weak 1Medium 2Strong 3Extra; 敌人玩家填0)
+//  [23]     reaction_mask_hi            (u8, 位掩码高 8 位，与 [18] 合并)
 //  [24,28)  facing_dx                   (f32)
 //  [28,32)  facing_dy                   (f32)
 const STRIDE = 32;
@@ -130,10 +131,12 @@ function readRenderCommands(): import('./types.js').RenderCommand[] {
       a:              heap[base + 15],
       entity_type:    heap[base + 16],
       element1_type:  heap[base + 17],
-      reaction_type:  heap[base + 18],
+      reaction_mask_lo: heap[base + 18],
       element2_type:  heap[base + 19],
       element1_gauge: heap[base + 20],
       element2_gauge: heap[base + 21],
+      bullet_strength:heap[base + 22],
+      reaction_mask_hi: heap[base + 23],
       facing_dx:      f32[(base + 24)   / 4],
       facing_dy:      f32[(base + 28)   / 4],
     });

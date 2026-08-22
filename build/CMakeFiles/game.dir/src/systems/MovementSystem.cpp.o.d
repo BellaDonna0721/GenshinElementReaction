@@ -654,8 +654,9 @@ CMakeFiles/game.dir/src/systems/MovementSystem.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
   D:\study\GenshinElementReaction\src\systems\..\core\ComponentRegistry.h \
+  D:\study\GenshinElementReaction\src\systems\..\core\..\components\ElementStatus.h \
   D:\study\GenshinElementReaction\src\systems\..\components\Transform.h \
   D:\study\GenshinElementReaction\src\systems\..\components\Velocity.h \
   D:\study\GenshinElementReaction\src\systems\..\components\IdentityTag.h \
-  D:\study\GenshinElementReaction\src\systems\InputSystem.h \
-  D:\study\GenshinElementReaction\src\systems\..\components\ElementStatus.h
+  D:\study\GenshinElementReaction\src\systems\..\gameplay\BulletPool.h \
+  D:\study\GenshinElementReaction\src\systems\..\gameplay\..\core\World.h

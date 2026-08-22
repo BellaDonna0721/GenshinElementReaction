@@ -84,11 +84,11 @@ static TestReactionRule g_test_rules[] = {
     // Superconduct
     {ElementType::Cryo,  ElementType::Electro,ReactionType::Superconduct,    true, true, 1.0f},
     {ElementType::Electro,ElementType::Cryo,  ReactionType::Superconduct,    true, true, 1.0f},
-    // Swirl
-    {ElementType::Anemo, ElementType::Pyro,   ReactionType::Swirl,           true, true, 1.0f},
-    {ElementType::Anemo, ElementType::Hydro,  ReactionType::Swirl,           true, true, 1.0f},
-    {ElementType::Anemo, ElementType::Electro,ReactionType::Swirl,           true, true, 1.0f},
-    {ElementType::Anemo, ElementType::Cryo,   ReactionType::Swirl,           true, true, 1.0f},
+    // Swirl（四种元素各自独立扩散枚举）
+    {ElementType::Anemo, ElementType::Pyro,   ReactionType::SwirlPyro,       true,false, 1.0f},
+    {ElementType::Anemo, ElementType::Hydro,  ReactionType::SwirlHydro,      true,false, 1.0f},
+    {ElementType::Anemo, ElementType::Electro,ReactionType::SwirlElectro,    true,false, 1.0f},
+    {ElementType::Anemo, ElementType::Cryo,   ReactionType::SwirlCryo,       true,false, 1.0f},
     // Crystallize
     {ElementType::Geo,   ElementType::Pyro,   ReactionType::Crystallize,     true, true, 1.0f},
     {ElementType::Geo,   ElementType::Hydro,  ReactionType::Crystallize,     true, true, 1.0f},

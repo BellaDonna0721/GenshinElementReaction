@@ -24,10 +24,16 @@ Entity spawn_player(World& world, float x, float y) {
     vel.vy = 0.0f;
     world.add_component<Velocity>(e, vel);
 
-    // 3. 元素状态（玩家初始身上无附着元素；射击元素默认 Pyro，可通过数字键 1~8 切换）
+    // 3. 元素状态（玩家初始身上无附着元素）
     ElementStatus elem;
-    elem.current_player_elem = ElementType::Pyro;
     world.add_component<ElementStatus>(e, elem);
+
+    // 3b. 元素附着 ICD（玩家自身也带，因为规则⑤要求 ICD 对所有 ElementStatus 实体生效）
+    ElementICDStatus icd;
+    world.add_component<ElementICDStatus>(e, icd);
+
+    // 玩家初始射击元素默认 Pyro（存放在 World 级全局状态）
+    world.set_player_current_element(ElementType::Pyro);
 
     // 4. 朝向（初始朝右，InputSystem 每帧跟随鼠标覆盖）
     FacingDirection face;
@@ -79,6 +85,10 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     ElementStatus elem;
     attach_element(elem, preset.element, preset.strength);
     world.add_component<ElementStatus>(e, elem);
+
+    // 3b. 元素附着 ICD（每个敌人独立一套 Weak/Strong 计数+计时）
+    ElementICDStatus icd;
+    world.add_component<ElementICDStatus>(e, icd);
 
     // 4. 渲染信息（颜色+半径来自 preset）
     RenderInfo ri;

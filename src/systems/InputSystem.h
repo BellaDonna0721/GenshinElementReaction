@@ -1,7 +1,7 @@
 #pragma once
 #include "../core/World.h"
 #include "../components/ElementStatus.h"
-#include <vector>
+#include "../gameplay/BulletPool.h"
 
 // 输入状态快照（TS 侧每帧写入，C++ 侧只读）
 struct InputState {
@@ -18,31 +18,6 @@ struct InputState {
 
 extern InputState g_input;  //全局输入实例（wasm_api.cpp 写，InputSystem 读）
 
-// 子弹对象池：预分配一批实体 ID，运行时 acquire/release，避免 malloc/free
-class BulletPool {
-public:
-    static constexpr int POOL_SIZE = 40;  //池子容量（同屏最多子弹数）
-
-    BulletPool() = default;
-
-    void preallocate(World& world);        //初始化：创建 40 个空实体 + 全部销毁态
-    Entity acquire();                      //拿一个空闲实体（满则返回 INVALID_ENTITY）
-    void release(Entity e);                //归还实体（标记空闲，等下次复用）
-    bool is_pooled(Entity e) const;        //判断某实体是否属于该池
-
-private:
-    std::vector<Entity> m_entities;        //全部池化实体 ID（长度固定 POOL_SIZE）
-    std::vector<bool>   m_in_use;          //对应下标是否已被占用（true=在用）
-};
-
-extern BulletPool g_bullet_pool;  //全局子弹池（InputSystem 拿，其他系统归还）
-
-// 共享工具：把一个子弹实体归还到对象池
-//   - 池子成员：移除全部子弹组件 + pool.release
-//   - 非池子成员(fallback)：直接 world.destroy_entity
-// 调用者：LifetimeSystem(寿命到) / CollisionSystem(命中) / MovementSystem(飞出边界)
-void release_bullet_entity(World& world, Entity e);
-
 // 输入系统：第 1 步流水线（每帧第一个跑）
 //   读 g_input → 写玩家 Velocity/FacingDirection → 点击冷却 → fire() 生成子弹
 class InputSystem : public System {
@@ -51,7 +26,7 @@ public:
 
 private:
     float m_fire_cooldown = 0.0f;                //发射冷却剩余时间（秒），<=0 才能射
-    static constexpr float FIRE_INTERVAL = 0.15f;//发射间隔（秒），≈每秒 6.6 发
+    static constexpr float FIRE_INTERVAL = 0.5f;//发射间隔（秒），每 0.5s 发射一颗
 
     // 数字键 1-7 → 对应 ElementType 枚举值（数组下标即按键，索引 0=不用）
     // 1=Pyro火 2=Hydro水 3=Electro雷 4=Cryo冰 5=Anemo风 6=Geo岩 7=Dendro草

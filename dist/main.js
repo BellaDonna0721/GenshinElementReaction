@@ -29,10 +29,13 @@ var REACTION_NAMES = {
   6: "\u611F\u7535",
   7: "\u51BB\u7ED3",
   8: "\u8D85\u5BFC",
-  9: "\u6269\u6563",
-  10: "\u7ED3\u6676",
-  11: "\u71C3\u70E7",
-  12: "\u7EFD\u653E"
+  9: "\u706B\u6269\u6563",
+  10: "\u6C34\u6269\u6563",
+  11: "\u96F7\u6269\u6563",
+  12: "\u51B0\u6269\u6563",
+  13: "\u7ED3\u6676",
+  14: "\u71C3\u70E7",
+  15: "\u7EFD\u653E"
 };
 function unpackGauge(u8) {
   return Math.max(0, Math.min(1, u8 / 255));
@@ -43,7 +46,8 @@ var Renderer = class {
   ctx;
   width;
   height;
-  // 每个敌人上次触发的反应 + 标签渐隐计时器
+  // 每个敌人本帧仍在飘字的反应列表（支持一帧多个反应堆叠显示）
+  // 每个元素 { type, t }：type 为 ReactionType 枚举，t 为剩余显示时长 s
   enemyReactions = /* @__PURE__ */ new Map();
   // UI：左侧元素面板高亮的当前选中元素（默认 Pyro，和初始 spawn_player 一致）
   currentElem = 1 /* Pyro */;
@@ -133,7 +137,8 @@ var Renderer = class {
       element2_type,
       element1_gauge,
       element2_gauge,
-      reaction_type
+      reaction_mask_lo,
+      reaction_mask_hi
     } = cmd;
     const key = `enemy_${cmd.x}_${cmd.y}`;
     ctx.beginPath();
@@ -205,31 +210,78 @@ var Renderer = class {
       ctx.fillStyle = color;
       ctx.fillRect(barX, barY, barW * g2, barH);
     }
-    const cached = this.enemyReactions.get(key) || { type: 0, t: 0 };
-    if (reaction_type !== 0) {
-      cached.type = reaction_type;
-      cached.t = 1.5;
-    }
-    if (cached.t > 0) {
-      cached.t -= 1 / 60;
-      const name = REACTION_NAMES[cached.type] || "";
-      if (name) {
-        ctx.font = "bold 14px monospace";
-        ctx.textAlign = "center";
-        ctx.fillStyle = "#ffdd33";
-        ctx.globalAlpha = Math.min(1, cached.t);
-        ctx.fillText(name, x, y - radius - 18 - (1.5 - cached.t) * 20);
-        ctx.globalAlpha = 1;
+    const cached = this.enemyReactions.get(key) || { items: [] };
+    const mask = reaction_mask_lo & 255 | (reaction_mask_hi & 255) << 8;
+    for (let i = 1; i <= 16; i++) {
+      if ((mask & 1 << i) !== 0) {
+        cached.items.push({ type: i, t: 1.5 });
       }
+    }
+    const dtFrame = 1 / 60;
+    cached.items = cached.items.map((it) => ({ ...it, t: it.t - dtFrame })).filter((it) => it.t > 0).sort((a2, b2) => b2.t - a2.t);
+    if (cached.items.length > 0) {
+      ctx.font = "bold 14px monospace";
+      ctx.textAlign = "center";
+      ctx.fillStyle = "#ffdd33";
+      const lineHeight = 18;
+      for (let i = 0; i < cached.items.length; i++) {
+        const it = cached.items[i];
+        const name = REACTION_NAMES[it.type] || "";
+        if (!name) continue;
+        ctx.globalAlpha = Math.min(1, it.t);
+        const baseY = y - radius - 18;
+        const rise = (1.5 - it.t) * 20;
+        const offset = i * lineHeight;
+        ctx.fillText(name, x, baseY - rise - offset);
+      }
+      ctx.globalAlpha = 1;
     }
     this.enemyReactions.set(key, cached);
   }
   // ===== 子弹 =====
   drawBullet(ctx, cmd) {
-    const { x, y, radius, r, g, b, a } = cmd;
+    const { x, y, radius, r, g, b, a, bullet_strength } = cmd;
+    if (bullet_strength >= 2) {
+      const prevComposite = ctx.globalCompositeOperation;
+      ctx.globalCompositeOperation = "lighter";
+      const bigGlow = ctx.createRadialGradient(x, y, 0, x, y, radius + 20);
+      bigGlow.addColorStop(0, `rgba(${r},${g},${b},0.90)`);
+      bigGlow.addColorStop(0.3, `rgba(${r},${g},${b},0.55)`);
+      bigGlow.addColorStop(0.65, `rgba(${r},${g},${b},0.25)`);
+      bigGlow.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      ctx.fillStyle = bigGlow;
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 20, 0, Math.PI * 2);
+      ctx.fill();
+      const tongues = 8;
+      const innerR = radius + 5;
+      const outerR = radius + 15;
+      const phase = (x * 0.13 + y * 0.07) % (Math.PI * 2);
+      ctx.beginPath();
+      for (let i = 0; i < tongues * 2; i++) {
+        const ang = phase + i * Math.PI / tongues;
+        const rr = i % 2 === 0 ? outerR : innerR;
+        const px = x + Math.cos(ang) * rr;
+        const py = y + Math.sin(ang) * rr;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      const flameGrad = ctx.createRadialGradient(x, y, radius, x, y, outerR);
+      flameGrad.addColorStop(0, `rgba(${r},${g},${b},0.90)`);
+      flameGrad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+      ctx.fillStyle = flameGrad;
+      ctx.fill();
+      ctx.globalCompositeOperation = prevComposite;
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 3, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${r},${g},${b},1.0)`;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+    }
     const grad = ctx.createRadialGradient(x, y, 0, x, y, radius + 6);
     grad.addColorStop(0, `rgba(${r},${g},${b},220)`);
-    grad.addColorStop(0.6, `rgba(${r},${g},${b},120)`);
+    grad.addColorStop(0.6, `rgba(${r},${g},${b},140)`);
     grad.addColorStop(1, "rgba(100,180,255,0)");
     ctx.fillStyle = grad;
     ctx.beginPath();
@@ -239,13 +291,19 @@ var Renderer = class {
     ctx.arc(x, y, radius, 0, Math.PI * 2);
     ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
     ctx.fill();
+    if (bullet_strength >= 2) {
+      ctx.beginPath();
+      ctx.arc(x, y, radius * 0.42, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
+      ctx.fill();
+    }
   }
   drawUI(ctx) {
     ctx.fillStyle = "rgba(255,255,255,0.75)";
     ctx.font = "13px monospace";
     ctx.textAlign = "left";
     const curElemName = ELEMENT_NAMES[this.currentElem] || "";
-    ctx.fillText(`WASD: \u79FB\u52A8   \u9F20\u6807\u79FB\u52A8: \u6539\u53D8\u671D\u5411   \u9F20\u6807\u5DE6\u952E: \u53D1\u5C04${curElemName}\u5143\u7D20\u5B50\u5F39`, 10, 22);
+    ctx.fillText(`WASD: \u79FB\u52A8   \u9F20\u6807\u79FB\u52A8: \u6539\u53D8\u671D\u5411   \u9F20\u6807\u5DE6\u952E: \u53D1\u5C04${curElemName}(\u5F31)   \u9F20\u6807\u53F3\u952E: \u53D1\u5C04${curElemName}(\u5F3A\xB7\u5E26\u706B\u7130)`, 10, 22);
     ctx.fillText("\u6570\u5B57\u952E1-7: \u5207\u6362\u73A9\u5BB6\u5143\u7D20", 10, 40);
     const panelX = 14;
     const panelY = 70;
@@ -431,10 +489,12 @@ function readRenderCommands() {
       a: heap[base + 15],
       entity_type: heap[base + 16],
       element1_type: heap[base + 17],
-      reaction_type: heap[base + 18],
+      reaction_mask_lo: heap[base + 18],
       element2_type: heap[base + 19],
       element1_gauge: heap[base + 20],
       element2_gauge: heap[base + 21],
+      bullet_strength: heap[base + 22],
+      reaction_mask_hi: heap[base + 23],
       facing_dx: f32[(base + 24) / 4],
       facing_dy: f32[(base + 28) / 4]
     });

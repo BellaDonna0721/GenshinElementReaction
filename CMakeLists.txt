@@ -10,6 +10,7 @@ set(CORE_SOURCES
 
 set(GAMEPLAY_SOURCES
     src/gameplay/SpawnPreset.cpp
+    src/gameplay/BulletPool.cpp
 )
 
 set(SYSTEM_SOURCES

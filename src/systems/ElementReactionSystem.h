@@ -29,7 +29,7 @@ public:
     void update(World& world, float dt) override;
 
 private:
-    //使用改良unordered_map提升缓冲命中率 对比标准库有近40%提升
+    // 改良 unordered_map 提升缓存命中率，对比标准库近 40% 提升
     myUnorderedMap<
         std::pair<ElementType, ElementType>,
         ReactionRule,
@@ -37,4 +37,13 @@ private:
     > m_rule_map;
 
     const ReactionRule* find_rule(ElementType trigger, ElementType target) const;
+
+    // 每个附着槽独立自然衰减（阶段 1）
+    void decay_slots(ElementStatus& elem, float dt);
+
+    // 感电 1s DoT 节拍：水-0.4、雷-0.4，写脉冲反应标签（阶段 2）
+    void tick_electrocharged_dot(ElementStatus& elem, float dt);
+
+    // 构建目标元素槽优先级队列：雷优先、其他按序；n 个槽指针写入 ordered_out
+    int build_priority_slots(ElementStatus& elem, AttachedSlot** ordered_out);
 };

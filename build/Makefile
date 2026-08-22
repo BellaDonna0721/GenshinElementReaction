@@ -152,6 +152,30 @@ src/core/World.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/core/World.cpp.s
 .PHONY : src/core/World.cpp.s
 
+src/gameplay/BulletPool.o: src/gameplay/BulletPool.cpp.o
+.PHONY : src/gameplay/BulletPool.o
+
+# target to build an object file
+src/gameplay/BulletPool.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/gameplay/BulletPool.cpp.o
+.PHONY : src/gameplay/BulletPool.cpp.o
+
+src/gameplay/BulletPool.i: src/gameplay/BulletPool.cpp.i
+.PHONY : src/gameplay/BulletPool.i
+
+# target to preprocess a source file
+src/gameplay/BulletPool.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/gameplay/BulletPool.cpp.i
+.PHONY : src/gameplay/BulletPool.cpp.i
+
+src/gameplay/BulletPool.s: src/gameplay/BulletPool.cpp.s
+.PHONY : src/gameplay/BulletPool.s
+
+# target to generate assembly for a file
+src/gameplay/BulletPool.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/gameplay/BulletPool.cpp.s
+.PHONY : src/gameplay/BulletPool.cpp.s
+
 src/gameplay/SpawnPreset.o: src/gameplay/SpawnPreset.cpp.o
 .PHONY : src/gameplay/SpawnPreset.o
 
@@ -356,6 +380,9 @@ help:
 	@echo ... src/core/World.o
 	@echo ... src/core/World.i
 	@echo ... src/core/World.s
+	@echo ... src/gameplay/BulletPool.o
+	@echo ... src/gameplay/BulletPool.i
+	@echo ... src/gameplay/BulletPool.s
 	@echo ... src/gameplay/SpawnPreset.o
 	@echo ... src/gameplay/SpawnPreset.i
 	@echo ... src/gameplay/SpawnPreset.s
