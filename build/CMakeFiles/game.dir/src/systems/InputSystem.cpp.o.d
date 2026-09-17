@@ -654,17 +654,18 @@ CMakeFiles/game.dir/src/systems/InputSystem.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
   D:\study\GenshinElementReaction\src\systems\..\core\ComponentRegistry.h \
-  D:\study\GenshinElementReaction\src\systems\..\core\..\components\ElementStatus.h \
-  D:\study\GenshinElementReaction\src\systems\..\components\ElementStatus.h \
+  D:\study\GenshinElementReaction\src\systems\..\core\..\utils\ElementType.h \
+  D:\study\GenshinElementReaction\src\systems\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\systems\..\gameplay\BulletPool.h \
   D:\study\GenshinElementReaction\src\systems\..\gameplay\..\core\World.h \
   D:\study\GenshinElementReaction\src\systems\..\components\Transform.h \
   D:\study\GenshinElementReaction\src\systems\..\components\Velocity.h \
   D:\study\GenshinElementReaction\src\systems\..\components\Lifetime.h \
   D:\study\GenshinElementReaction\src\systems\..\components\ElementPayload.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\systems\..\components\Collider.h \
   D:\study\GenshinElementReaction\src\systems\..\components\IdentityTag.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\ElementStatus.h \
   D:\study\GenshinElementReaction\src\systems\..\components\RenderInfo.h \
   D:\study\GenshinElementReaction\src\systems\..\components\FacingDirection.h \
-  D:\study\GenshinElementReaction\src\systems\..\utils\element_color.h \
-  D:\study\GenshinElementReaction\src\systems\..\utils\..\components\ElementStatus.h
+  D:\study\GenshinElementReaction\src\systems\..\utils\element_color.h

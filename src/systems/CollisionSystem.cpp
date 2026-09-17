@@ -4,6 +4,7 @@
 #include "../components/IdentityTag.h"
 #include "../components/ElementPayload.h"
 #include "../components/ElementStatus.h"
+#include "../components/ElementICDStatus.h"
 #include "../gameplay/BulletPool.h"
 
 void CollisionSystem::update(World& world, float dt) {

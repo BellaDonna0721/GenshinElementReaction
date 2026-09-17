@@ -1,5 +1,5 @@
 #pragma once
-#include "../components/ElementStatus.h"
+#include "ElementType.h"
 #include <cstdint>
 
 // 七元素颜色映射

@@ -1,7 +1,7 @@
 #pragma once
 #include "Entity.h"
 #include "ComponentRegistry.h"
-#include "../components/ElementStatus.h"  // ElementType
+#include "../utils/ElementType.h"
 #include <memory>
 #include <type_traits>
 #include <vector>

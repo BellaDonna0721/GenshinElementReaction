@@ -1,6 +1,6 @@
 #pragma once
 #include "../core/World.h"
-#include "../components/ElementStatus.h"
+#include "../utils/ElementType.h"
 #include <cstdint>
 
 // 敌人生成预设：把"不同种类敌人"的差异全部抽成配置数据（ECS 组合优于继承）

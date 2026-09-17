@@ -1,5 +1,5 @@
 #pragma once
-#include "ElementStatus.h"
+#include "../utils/ElementType.h"
 
 // 投射物携带的元素载荷（发射时固化的元素类型 + 元素强度档）
 // 与敌人身上的 ElementStatus 是不同概念：

@@ -654,7 +654,7 @@ CMakeFiles/game.dir/src/systems/LifetimeSystem.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
   D:\study\GenshinElementReaction\src\systems\..\core\ComponentRegistry.h \
-  D:\study\GenshinElementReaction\src\systems\..\core\..\components\ElementStatus.h \
+  D:\study\GenshinElementReaction\src\systems\..\core\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\systems\..\components\Lifetime.h \
   D:\study\GenshinElementReaction\src\systems\..\components\IdentityTag.h \
   D:\study\GenshinElementReaction\src\systems\..\gameplay\BulletPool.h \

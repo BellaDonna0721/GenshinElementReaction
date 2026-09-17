@@ -654,12 +654,12 @@ CMakeFiles/game.dir/src/gameplay/BulletPool.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
   D:\study\GenshinElementReaction\src\gameplay\..\core\ComponentRegistry.h \
-  D:\study\GenshinElementReaction\src\gameplay\..\core\..\components\ElementStatus.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\core\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\Transform.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\Velocity.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\Lifetime.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\ElementPayload.h \
-  D:\study\GenshinElementReaction\src\gameplay\..\components\ElementStatus.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\Collider.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\IdentityTag.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\RenderInfo.h

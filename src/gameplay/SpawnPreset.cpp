@@ -2,6 +2,7 @@
 #include "../components/Transform.h"
 #include "../components/Velocity.h"
 #include "../components/ElementStatus.h"
+#include "../components/ElementICDStatus.h"
 #include "../components/RenderInfo.h"
 #include "../components/FacingDirection.h"
 #include "../components/Collider.h"

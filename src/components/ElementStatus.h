@@ -1,83 +1,19 @@
 #pragma once
 #include <cstdint>
-#include <cmath>
 #include <algorithm>
+#include "../utils/ElementType.h"
 
-// 元素类型（七元素 + 空）
-enum class ElementType : uint8_t {
-    None    = 0,  // 无元素
-    Pyro,         // 火元素
-    Hydro,        // 水元素
-    Electro,      // 雷元素
-    Cryo,         // 冰元素
-    Anemo,        // 风元素
-    Geo,          // 岩元素
-    Dendro,       // 草元素
-};
-
-// 元素反应类型
-// 注意：枚举值 = 位掩码 index，取值范围 0~15（刚好放进 uint16_t pending_reaction_mask）
-//   将来扩反应（烈绽放/超绽放/激化等）继续 16、17…就超过 uint16，届时同步把 ElementStatus::pending_reaction_mask
-//   与 RenderCommand 的 reaction_mask 字段扩展为 uint32（lo/hi/2/3 共 4 字节，仍有 _pad 空间可复用）。
-enum class ReactionType : uint8_t {
-    None             = 0,  // 无反应
-    Vaporize,              // 蒸发：水 + 火  → 水打火，倍率 ×1.5
-    ReverseVaporize,       // 蒸发：火 + 水  → 火打水，倍率 ×2.0
-    Melt,                  // 融化：火 + 冰  → 火打冰，倍率 ×2.0
-    ReverseMelt,           // 融化：冰 + 火  → 冰打火，倍率 ×1.5
-    Overload,              // 超载：火 + 雷  → 范围爆炸伤害 + 击飞
-    ElectroCharged,        // 感电：雷 + 水  → 共存态 + 每 1s 各扣 0.4 DoT
-    Frozen,                // 冻结：冰 + 水  → 控制静止
-    Superconduct,          // 超导：冰 + 雷  → 减物抗 + 范围冰伤
-    SwirlPyro,             // 火扩散：风 + 火 → 扩散火范围伤害
-    SwirlHydro,            // 水扩散：风 + 水 → 扩散水范围伤害
-    SwirlElectro,          // 雷扩散：风 + 雷 → 扩散雷范围伤害
-    SwirlCryo,             // 冰扩散：风 + 冰 → 扩散冰范围伤害
-    Crystallize,           // 结晶：岩 + 其他元素 → 生成对应元素护盾
-    Burning,               // 燃烧：火 + 草  → 持续火伤
-    Bloom,                 // 绽放：水 + 草  → 生成草原核
-};
-
-// ==================== 元素强度分级 ====================
-enum class ElementStrength : uint8_t {
-    Weak          = 0,   // 1   理论 GU → 0.8 实际 → 9.5s
-    Medium        = 1,   // 1.5 理论 GU → 1.2 实际 → 10.75s
-    Strong        = 2,   // 2   理论 GU → 1.6 实际 → 12s
-    ExtraStrong   = 3,   // 4   理论 GU → 3.2 实际 → 17s
-};
-
-// 元素强度参数（按用户给定表格 1:1 对应，包含 20% 附着瞬间折扣）
-struct ElementStrengthParams {
-    float theoretical_gauge;   // 理论 GU（子弹 payload、预设配置都用这个值）
-    float actual_gauge;        // 真实初始附着量 = theoretical × 0.8
-    float duration;            // 持续时间（秒，按原神非线性拟合值）
-    float decay_rate;          // 每秒衰减速率 = actual_gauge / duration
-};
-
-// 根据强度等级查参数
-inline ElementStrengthParams get_element_strength_params(ElementStrength s) {
-    ElementStrengthParams p = {};
-    switch (s) {
-        case ElementStrength::Weak:
-            p.theoretical_gauge = 1.0f;  p.actual_gauge = 0.8f;
-            p.duration = 9.5f;   p.decay_rate = p.actual_gauge / p.duration;
-            return p;
-        case ElementStrength::Medium:
-            p.theoretical_gauge = 1.5f;  p.actual_gauge = 1.2f;
-            p.duration = 10.75f; p.decay_rate = p.actual_gauge / p.duration;
-            return p;
-        case ElementStrength::Strong:
-            p.theoretical_gauge = 2.0f;  p.actual_gauge = 1.6f;
-            p.duration = 12.0f;  p.decay_rate = p.actual_gauge / p.duration;
-            return p;
-        case ElementStrength::ExtraStrong:
-            p.theoretical_gauge = 4.0f;  p.actual_gauge = 3.2f;
-            p.duration = 17.0f;  p.decay_rate = p.actual_gauge / p.duration;
-            return p;
-        default:
-            return p;
-    }
-}
+// =====================================================================
+//  ElementStatus —— "元素附着光环"组件（只关心目标身上挂了什么元素）
+//
+//  单一职责：
+//    · 双槽附着元素（水雷共存用）的 gauge/duration 数据
+//    · 待处理命中元素（碰撞写入，本帧统一结算）
+//    · 反应脉冲位掩码（OutputSystem 消费后渲染飘字）
+//
+//  不再承载 ICD 命中冷却（见 ElementICDStatus.h）—— 两者是正交关注点：
+//  改光环规则只动本文件，改 ICD 规则只动 ElementICDStatus.h。
+// =====================================================================
 
 // 单个附着元素槽
 struct AttachedSlot {
@@ -185,68 +121,4 @@ inline bool is_attachable_element(ElementType type) {
            type == ElementType::Electro ||
            type == ElementType::Cryo    ||
            type == ElementType::Dendro;
-}
-
-// ==================== 元素附着 ICD（Internal Cooldown）====================
-// 规则：
-//   · 分组 key = (触发元素类型 × 攻击档位) 二元组 —— 彼此完全独立（新修复规格）
-//     - 7 种元素：Pyro/Hydro/Electro/Cryo/Anemo/Geo/Dendro（0-6 下标，含风岩）
-//     - 2 种档位：Weak/Medium → 档 0；Strong/ExtraStrong → 档 1
-//     → 每实体 7×2=14 组独立 {timer, counter}
-//   · 每组各自：
-//     · timer==0 停表；首次命中立刻启动新一轮（timer=2.5s, counter=0）规则⑥
-//     · 每次命中 counter += 1（拦截也计入）
-//     · 放行条件 counter%3==1 → 序列 1,4,7,10…（规则②③合并）
-//     · 周期到点 timer<=0 → counter=0 且 timer 归零停表，下次命中重启新一轮
-//   · 每个目标实体（玩家/敌人）独立持有这 14 组（规则⑤）
-//   · 命中若被 ICD 拦截：既不挂元素也不触发反应（用户选 B 规则①）
-struct ElementICDStatus {
-    // None=0, Pyro=1..Dendro=7 → 直接用枚举值当下标
-    static constexpr int ELEM_DIM = 8;
-    static constexpr int GEAR_DIM = 2;  // 2 档（Weak=0 / Strong=1）
-
-    struct CounterSlot {
-        float timer   = 0.0f;
-        int   counter = 0;
-    };
-    CounterSlot icd_counters[ELEM_DIM][GEAR_DIM];  // [直接枚举值][gear]
-
-    static constexpr float CYCLE_SECONDS = 2.5f;
-
-};
-
-// ==================== ICD 公开工具函数 ====================
-// ① 每帧衰减：从 1..7（None=0 不用循环）
-inline void icd_decay_tick(ElementICDStatus& icd, float dt) {
-    for (int ei = 1; ei < ElementICDStatus::ELEM_DIM; ++ei) {
-        for (int gi = 0; gi < ElementICDStatus::GEAR_DIM; ++gi) {
-            ElementICDStatus::CounterSlot& s = icd.icd_counters[ei][gi];
-            if (s.timer > 0.0f) {
-                s.timer -= dt;
-                if (s.timer <= 0.0f) {
-                    s.timer   = 0.0f;
-                    s.counter = 0;
-                }
-            }
-        }
-    }
-}
-
-// ② 命中判定
-//   - ElementType::None（ei=0）→ 直接放行（ICD 不约束无元素的攻击）
-inline bool icd_hit_allowed(ElementICDStatus& icd, ElementType trigger, ElementStrength strength) {
-    int ei = static_cast<int>(trigger);
-    if (ei <= 0 || ei >= ElementICDStatus::ELEM_DIM) return true;
-    int gi = (strength == ElementStrength::Strong) ? 1 : 0;
-
-    ElementICDStatus::CounterSlot& s = icd.icd_counters[ei][gi];
-
-    // 新一轮启动
-    if (s.timer <= 0.0f) {
-        s.timer   = ElementICDStatus::CYCLE_SECONDS;
-        s.counter = 0;
-    }
-
-    s.counter += 1;
-    return (s.counter % 3 == 1);
 }

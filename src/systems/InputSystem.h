@@ -1,6 +1,6 @@
 #pragma once
 #include "../core/World.h"
-#include "../components/ElementStatus.h"
+#include "../utils/ElementType.h"
 #include "../gameplay/BulletPool.h"
 
 // 输入状态快照（TS 侧每帧写入，C++ 侧只读）

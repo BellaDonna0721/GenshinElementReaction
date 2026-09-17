@@ -1,4 +1,5 @@
 #include "ElementReactionSystem.h"
+#include "../components/ElementICDStatus.h"
 #include <cstdio>
 #include <utility>
 
