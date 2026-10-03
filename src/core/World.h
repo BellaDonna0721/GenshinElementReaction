@@ -1,74 +1,23 @@
 #pragma once
 #include "Entity.h"
 #include "ComponentRegistry.h"
+#include "ComponentPool.h"
+#include "../systems/System.h"
 #include "../utils/ElementType.h"
 #include <memory>
-#include <type_traits>
 #include <vector>
-class IComponentPool {
-public:
-    virtual ~IComponentPool() = default;
-    virtual void remove(Entity e) = 0;
-    virtual bool has(Entity e) const = 0;
-};
 
-template<typename T>
-class ComponentPool : public IComponentPool {
-    static constexpr int MAX_ENTITIES = 2048;
-
-    std::vector<int>    m_sparse;
-    std::vector<Entity> m_dense;
-    std::vector<T>      m_components;
-
-public:
-    ComponentPool() {
-        m_sparse.assign(MAX_ENTITIES, -1);
-    }
-
-    void add(Entity e, const T& comp) {
-        if (e >= MAX_ENTITIES) return;
-        int idx = m_sparse[e];
-        if (idx >= 0) {
-            m_components[idx] = comp;
-            return;
-        }
-        m_sparse[e] = static_cast<int>(m_dense.size());
-        m_dense.push_back(e);
-        m_components.push_back(comp);
-    }
-
-    void remove(Entity e) override {
-        if (e >= MAX_ENTITIES) return;
-        int idx = m_sparse[e];
-        if (idx < 0) return;
-
-        int last = static_cast<int>(m_dense.size()) - 1;
-        if (idx != last) {
-            m_dense[idx] = m_dense[last];
-            m_components[idx] = std::move(m_components[last]);
-            m_sparse[m_dense[idx]] = idx;
-        }
-        m_dense.pop_back();
-        m_components.pop_back();
-        m_sparse[e] = -1;
-    }
-
-    bool has(Entity e) const override {
-        return e < MAX_ENTITIES && m_sparse[e] >= 0;
-    }
-
-    T* get(Entity e) {
-        if (e >= MAX_ENTITIES) return nullptr;
-        int idx = m_sparse[e];
-        return idx >= 0 ? &m_components[idx] : nullptr;
-    }
-};
-
-class System {
-public:
-    virtual ~System() = default;
-    virtual void update(class World& world, float dt) = 0;
-};
+// =====================================================================
+//  World —— ECS 协调器（Coordinator）
+//
+//  职责：
+//    · 实体生命周期（create/destroy）
+//    · 组件增删查（委托给各 ComponentPool<T>）
+//    · 组件掩码查询（query<T...> 按位筛选实体）
+//    · 系统注册与每帧调度
+//    · 全局玩家射击元素状态
+//
+// =====================================================================
 
 class World {
 public:
