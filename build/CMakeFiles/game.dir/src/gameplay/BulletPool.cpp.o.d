@@ -654,6 +654,8 @@ CMakeFiles/game.dir/src/gameplay/BulletPool.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
   D:\study\GenshinElementReaction\src\gameplay\..\core\ComponentRegistry.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\core\ComponentPool.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\core\..\systems\System.h \
   D:\study\GenshinElementReaction\src\gameplay\..\core\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\Transform.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\Velocity.h \

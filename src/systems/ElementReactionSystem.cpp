@@ -153,19 +153,21 @@ void ElementReactionSystem::update(World& world, float dt) {
             ElementStrength pending_S = elem->pending_strength;
             float actual_T = get_element_strength_params(pending_S).actual_gauge;
 
-            // 同元素刷新（非共存）：命中相同元素必须刷新已有槽（取更大的量 + 重设持续时间基线）
-            // 绝不能落入下方"无规则匹配 → 附着新槽"分支，否则重复的水会写入 slot[1]
+            // 同元素刷新（非共存）：命中相同元素必须刷新已有槽，绝不能写入第二槽
+            // 规则：量取较大者（补充量 <= 剩余量时不更新）；但更新量不改变主元素的衰减速度，
+            //       decay_rate 保持首次附着时的值，仅反算 duration 使 gauge == decay_rate×duration 恒成立。
             if (AttachedSlot* s = elem->find_slot(pending_T)) {
                 ElementStrengthParams const& p = get_element_strength_params(pending_S);
-                // 量：取较大者（新的弱命中不稀释原有光环）
+                // 量：二者选其多（补充量 > 剩余量才更新）
                 if (p.actual_gauge > s->gauge) {
                     s->gauge         = p.actual_gauge;
-                    s->initial_gauge = p.actual_gauge;   // 新基线 = 新附着的量
+                    s->initial_gauge = p.actual_gauge;   // UI 基线同步刷新为新量
                 }
-                // 持续时间：按新强度基线对最终量重新换算，保持 gauge == decay_rate × duration 不变
-                float const r = s->gauge / p.actual_gauge;
-                s->duration   = p.duration * r;
-                s->decay_rate = p.decay_rate;
+                // 衰减速度：保持主元素（首次附着）的 decay_rate 不变
+                // 仅重算 duration 以维持 gauge == decay_rate × duration 不变量
+                if (s->decay_rate > 0.0f) {
+                    s->duration = s->gauge / s->decay_rate;
+                }
                 elem->clear_pending();
                 continue;
             }

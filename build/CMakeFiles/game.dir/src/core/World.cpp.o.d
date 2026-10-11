@@ -653,4 +653,6 @@ CMakeFiles/game.dir/src/core/World.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
   D:\study\GenshinElementReaction\src\core\ComponentRegistry.h \
+  D:\study\GenshinElementReaction\src\core\ComponentPool.h \
+  D:\study\GenshinElementReaction\src\core\..\systems\System.h \
   D:\study\GenshinElementReaction\src\core\..\utils\ElementType.h

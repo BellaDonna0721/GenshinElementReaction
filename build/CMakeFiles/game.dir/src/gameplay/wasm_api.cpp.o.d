@@ -665,6 +665,8 @@ CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\__locale_dir\wstring_convert.h \
   D:\emsdk\upstream\emscripten\cache\sysroot\include\c++\v1\cstdarg \
   D:\study\GenshinElementReaction\src\gameplay\..\core\ComponentRegistry.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\core\ComponentPool.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\core\..\systems\System.h \
   D:\study\GenshinElementReaction\src\gameplay\..\core\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\InputSystem.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\..\core\World.h \
