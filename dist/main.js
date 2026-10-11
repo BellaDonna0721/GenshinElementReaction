@@ -51,6 +51,12 @@ var Renderer = class {
   enemyReactions = /* @__PURE__ */ new Map();
   // UI：左侧元素面板高亮的当前选中元素（默认 Pyro，和初始 spawn_player 一致）
   currentElem = 1 /* Pyro */;
+  // 敌人贴图（水史莱姆），圆形裁剪后绘制
+  enemySprite = null;
+  spriteLoaded = false;
+  // 玩家贴图（派蒙），圆形裁剪后绘制
+  playerSprite = null;
+  playerSpriteLoaded = false;
   // 设置当前选中的元素（按键按下时由 main.ts 调用，立即更新白框高亮）
   setCurrentElement(elem) {
     this.currentElem = elem;
@@ -59,6 +65,16 @@ var Renderer = class {
     this.ctx = canvas2.getContext("2d");
     this.width = canvas2.width;
     this.height = canvas2.height;
+    this.enemySprite = new Image();
+    this.enemySprite.onload = () => {
+      this.spriteLoaded = true;
+    };
+    this.enemySprite.src = "assets/hydro_slime.png";
+    this.playerSprite = new Image();
+    this.playerSprite.onload = () => {
+      this.playerSpriteLoaded = true;
+    };
+    this.playerSprite.src = "assets/paimon.png";
   }
   draw(commands) {
     const ctx = this.ctx;
@@ -94,13 +110,26 @@ var Renderer = class {
   // ===== 玩家（含朝向箭头） =====
   drawPlayer(ctx, cmd) {
     const { x, y, radius, r, g, b, a, facing_dx, facing_dy } = cmd;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
-    ctx.fill();
-    ctx.strokeStyle = "#ffffff";
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    if (this.playerSpriteLoaded && this.playerSprite) {
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      const size = radius * 2;
+      ctx.drawImage(this.playerSprite, x - radius, y - radius, size, size);
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+      ctx.fill();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
     if (facing_dx !== 0 || facing_dy !== 0) {
       const len = radius + 14;
       const tipX = x + facing_dx * len;
@@ -141,16 +170,29 @@ var Renderer = class {
       reaction_mask_hi
     } = cmd;
     const key = `enemy_${cmd.x}_${cmd.y}`;
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
-    ctx.fill();
-    const sr = Math.max(0, Math.floor(r * 0.6));
-    const sg = Math.max(0, Math.floor(g * 0.6));
-    const sb = Math.max(0, Math.floor(b * 0.6));
-    ctx.strokeStyle = `rgb(${sr},${sg},${sb})`;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    if (this.spriteLoaded && this.enemySprite) {
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      const size = radius * 2;
+      ctx.drawImage(this.enemySprite, x - radius, y - radius, size, size);
+      ctx.restore();
+    } else {
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+      ctx.fill();
+      const sr = Math.max(0, Math.floor(r * 0.6));
+      const sg = Math.max(0, Math.floor(g * 0.6));
+      const sb = Math.max(0, Math.floor(b * 0.6));
+      ctx.strokeStyle = `rgb(${sr},${sg},${sb})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
     const g1 = unpackGauge(element1_gauge);
     const g2 = unpackGauge(element2_gauge);
     if (element1_type !== 0 && g1 > 0) {

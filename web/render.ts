@@ -15,6 +15,14 @@ export class Renderer {
   // UI：左侧元素面板高亮的当前选中元素（默认 Pyro，和初始 spawn_player 一致）
   private currentElem: ElementType = ElementType.Pyro;
 
+  // 敌人贴图（水史莱姆），圆形裁剪后绘制
+  private enemySprite: HTMLImageElement | null = null;
+  private spriteLoaded: boolean = false;
+
+  // 玩家贴图（派蒙），圆形裁剪后绘制
+  private playerSprite: HTMLImageElement | null = null;
+  private playerSpriteLoaded: boolean = false;
+
   // 设置当前选中的元素（按键按下时由 main.ts 调用，立即更新白框高亮）
   setCurrentElement(elem: ElementType): void {
     this.currentElem = elem;
@@ -24,6 +32,16 @@ export class Renderer {
     this.ctx = canvas.getContext('2d')!;
     this.width = canvas.width;
     this.height = canvas.height;
+
+    // 预加载敌人贴图
+    this.enemySprite = new Image();
+    this.enemySprite.onload = () => { this.spriteLoaded = true; };
+    this.enemySprite.src = 'assets/hydro_slime.png';
+
+    // 预加载玩家贴图
+    this.playerSprite = new Image();
+    this.playerSprite.onload = () => { this.playerSpriteLoaded = true; };
+    this.playerSprite.src = 'assets/paimon.png';
   }
 
   draw(commands: RenderCommand[]): void {
@@ -67,14 +85,28 @@ export class Renderer {
   private drawPlayer(ctx: CanvasRenderingContext2D, cmd: RenderCommand): void {
     const { x, y, radius, r, g, b, a, facing_dx, facing_dy } = cmd;
 
-    // 身体
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
-    ctx.fill();
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
+    // 身体：贴图优先（圆形裁剪），加载失败则回退到原圆形色块
+    if (this.playerSpriteLoaded && this.playerSprite) {
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      const size = radius * 2;
+      ctx.drawImage(this.playerSprite, x - radius, y - radius, size, size);
+      ctx.restore();
+    } else {
+      // 回退：纯色圆形 + 白描边
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
 
     // 朝向小三角（显示面朝方向）
     if ((facing_dx !== 0 || facing_dy !== 0)) {
@@ -109,17 +141,32 @@ export class Renderer {
             reaction_mask_lo, reaction_mask_hi } = cmd;
     const key = `enemy_${cmd.x}_${cmd.y}`;
 
-    // 身体：根据肉身 RGB 动态算描边
-    ctx.beginPath();
-    ctx.arc(x, y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
-    ctx.fill();
-    const sr = Math.max(0, Math.floor(r * 0.6));
-    const sg = Math.max(0, Math.floor(g * 0.6));
-    const sb = Math.max(0, Math.floor(b * 0.6));
-    ctx.strokeStyle = `rgb(${sr},${sg},${sb})`;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    // 身体：贴图优先（圆形裁剪），加载失败则回退到原圆形色块
+    if (this.spriteLoaded && this.enemySprite) {
+      ctx.save();
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      const size = radius * 2;
+      ctx.drawImage(this.enemySprite, x - radius, y - radius, size, size);
+      ctx.restore();
+      // 注：贴图自带边缘，不再额外画描边圆圈
+    } else {
+      // 回退：纯色圆形
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+      ctx.fill();
+      const sr = Math.max(0, Math.floor(r * 0.6));
+      const sg = Math.max(0, Math.floor(g * 0.6));
+      const sb = Math.max(0, Math.floor(b * 0.6));
+      ctx.strokeStyle = `rgb(${sr},${sg},${sb})`;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
 
     // ---------- 元素光环：内圈（slot[0]） + 外圈（slot[1]，共存态）----------
     const g1 = unpackGauge(element1_gauge);
