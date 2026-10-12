@@ -44,6 +44,7 @@ struct ElementStatus {
     // —— 待处理命中元素（碰撞写，本帧统一处理）——
     ElementType     pending_element  = ElementType::None;
     ElementStrength pending_strength = ElementStrength::Weak;
+    float           pending_base_damage = 0.0f;  // 触发攻击的基础伤害（增幅反应倍率计算用，CollisionSystem 写入）
 
     // —— 反应脉冲位掩码（OutputSystem 每帧消费一次，16 位最多同时标记 16 种反应）
     //   位 index = static_cast<int>(ReactionType)：
@@ -82,8 +83,9 @@ struct ElementStatus {
 
     // =============== 写工具 ===============
     void clear_pending() {
-        pending_element  = ElementType::None;
-        pending_strength = ElementStrength::Weak;
+        pending_element       = ElementType::None;
+        pending_strength      = ElementStrength::Weak;
+        pending_base_damage   = 0.0f;
     }
 
     // 标记一个反应发生过（OR 进位掩码；同反应重复标记不叠加）

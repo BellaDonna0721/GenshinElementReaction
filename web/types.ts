@@ -108,3 +108,33 @@ export const REACTION_NAMES: Record<number, string> = {
 export function unpackGauge(u8: number): number {
   return Math.max(0, Math.min(1, u8 / 255));
 }
+
+// 血条数据（独立于 RenderCommand 的 32 字节协议，走单独通道）
+// 与 C++ 侧 HealthBarInfo 对齐：
+//   [0,4)  x       (f32)  血条中心 X
+//   [4,8)  y       (f32)  血条中心 Y
+//   [8,12) width   (f32)  血条总宽度
+//   [12]   ratio   (u8)   血量比例 0-255 → 0-100%
+export interface HealthBarInfo {
+  x: number;
+  y: number;
+  width: number;
+  ratio: number;
+}
+
+// 伤害飘字数据（独立通道）
+// 与 C++ 侧 DamageNumberInfo 对齐：
+//   [0,4)  x       (f32)
+//   [4,8)  y       (f32)
+//   [8,12) amount  (i32)  整数伤害
+//   [12]   r       (u8)
+//   [13]   g       (u8)
+//   [14]   b       (u8)
+export interface DamageNumberInfo {
+  x: number;
+  y: number;
+  amount: number;
+  r: number;
+  g: number;
+  b: number;
+}

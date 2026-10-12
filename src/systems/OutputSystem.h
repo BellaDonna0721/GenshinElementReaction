@@ -23,6 +23,31 @@ struct RenderCommand {
 
 extern std::vector<RenderCommand> g_render_commands;
 
+// =====================================================================
+//  血条数据（独立于 32 字节 RenderCommand，走单独通道）
+//  OutputSystem 填充，TS 侧读取并在实体头顶绘制血条
+// =====================================================================
+struct HealthBarInfo {
+    float   x, y;       // 血条中心坐标（TS 侧据此定位，通常在实体头顶）
+    float   width;      // 血条总宽度（像素）
+    uint8_t ratio;      // 当前血量比例 0~255 线性对应 0%~100%
+};
+
+extern std::vector<HealthBarInfo> g_health_bars;
+
+// =====================================================================
+//  伤害飘字数据（独立通道）
+//  DamageSystem 写入 DamageNumberQueue，OutputSystem 转存到全局数组供 TS 读取
+//  TS 侧负责渐隐 + 上浮动画（复用反应飘字的客户端缓存模式）
+// =====================================================================
+struct DamageNumberInfo {
+    float   x, y;       // 出现位置（怪物坐标）
+    int     amount;     // 整数伤害
+    uint8_t r, g, b;    // 元素颜色
+};
+
+extern std::vector<DamageNumberInfo> g_damage_numbers;
+
 class OutputSystem : public System {
 public:
     void update(World& world, float dt) override;

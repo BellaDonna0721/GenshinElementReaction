@@ -660,4 +660,6 @@ CMakeFiles/game.dir/src/systems/ElementReactionSystem.cpp.o: \
   D:\study\GenshinElementReaction\src\systems\..\components\ElementStatus.h \
   D:\study\GenshinElementReaction\src\systems\..\components\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\systems\..\importFiles\myUnorderedMap.hpp \
-  D:\study\GenshinElementReaction\src\systems\..\components\ElementICDStatus.h
+  D:\study\GenshinElementReaction\src\systems\..\components\ElementICDStatus.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\DamageQueue.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\..\core\Entity.h

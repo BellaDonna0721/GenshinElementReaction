@@ -1,5 +1,5 @@
 import {
-  InputState, ElementType,
+  InputState, ElementType, HealthBarInfo, DamageNumberInfo,
 } from './types.js';
 import { Renderer } from './render.js';
 
@@ -13,9 +13,18 @@ interface GameModule {
   ) => void;
   _wasm_get_render_data: () => number;
   _wasm_get_render_count: () => number;
+  _wasm_get_health_data: () => number;
+  _wasm_get_health_count: () => number;
+  _wasm_get_damage_numbers: () => number;
+  _wasm_get_damage_number_count: () => number;
+  _wasm_spawn_enemy: (preset_id: number, x: number, y: number) => number;
+  _wasm_remove_enemy: (entity_id: number) => void;
+  _wasm_clear_enemies: () => void;
+  _wasm_get_alive_enemy_count: () => number;
   _wasm_reset: () => void;
   HEAPF32: Float32Array;
   HEAPU8: Uint8Array;
+  HEAP32: Int32Array;
 }
 
 let wasmModule: GameModule;
@@ -144,6 +153,65 @@ function readRenderCommands(): import('./types.js').RenderCommand[] {
   return result;
 }
 
+// 读取血条数据（HealthBarInfo，16 字节 stride）
+//   [0,4)  x       (f32)
+//   [4,8)  y       (f32)
+//   [8,12) width   (f32)
+//   [12]   ratio   (u8, 0-255 → 0-100%)
+const HEALTH_STRIDE = 16;
+function readHealthBars(): HealthBarInfo[] {
+  const count = wasmModule._wasm_get_health_count();
+  if (count <= 0) return [];
+
+  const ptr = wasmModule._wasm_get_health_data();
+  const heap = wasmModule.HEAPU8;
+  const f32  = new Float32Array(heap.buffer);
+  const result: HealthBarInfo[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const base = ptr + i * HEALTH_STRIDE;
+    result.push({
+      x:     f32[ base        / 4],
+      y:     f32[(base + 4)  / 4],
+      width: f32[(base + 8)  / 4],
+      ratio: heap[base + 12],
+    });
+  }
+  return result;
+}
+
+// 读取伤害飘字数据（DamageNumberInfo，16 字节 stride）
+//   [0,4)  x       (f32)
+//   [4,8)  y       (f32)
+//   [8,12) amount  (i32)
+//   [12]   r       (u8)
+//   [13]   g       (u8)
+//   [14]   b       (u8)
+const DAMAGE_STRIDE = 16;
+function readDamageNumbers(): DamageNumberInfo[] {
+  const count = wasmModule._wasm_get_damage_number_count();
+  if (count <= 0) return [];
+
+  const ptr = wasmModule._wasm_get_damage_numbers();
+  const heap = wasmModule.HEAPU8;
+  const f32  = new Float32Array(heap.buffer);
+  const i32  = new Int32Array(heap.buffer);
+  const result: DamageNumberInfo[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const base = ptr + i * DAMAGE_STRIDE;
+    result.push({
+      x:      f32[ base        / 4],
+      y:      f32[(base + 4)  / 4],
+      amount: i32[(base + 8)  / 4],
+      r:      heap[base + 12],
+      g:      heap[base + 13],
+      b:      heap[base + 14],
+    });
+  }
+  return result;
+}
+
 function gameLoop(timestamp: number): void {
   if (!running) return;
   const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
@@ -151,7 +219,7 @@ function gameLoop(timestamp: number): void {
 
   syncInput();
   wasmModule._wasm_update(dt);
-  renderer.draw(readRenderCommands());
+  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers());
 
   requestAnimationFrame(gameLoop);
 }
@@ -159,8 +227,8 @@ function gameLoop(timestamp: number): void {
 async function init(): Promise<void> {
   canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
   if (!canvas) throw new Error('Canvas not found');
-  canvas.width = 800;
-  canvas.height = 600;
+  canvas.width = 1000;
+  canvas.height = 700;
   renderer = new Renderer(canvas);
 
   // @ts-ignore

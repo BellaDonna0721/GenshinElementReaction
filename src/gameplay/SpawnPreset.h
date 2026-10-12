@@ -10,6 +10,9 @@ struct EnemyPreset {
     ElementType     element;   // 初始附着的元素类型（Hydro / Pyro / Cryo / Electro / None）
     ElementStrength strength;  // 元素强度（Weak / Medium / Strong / ExtraStrong）
 
+    // 战斗数值
+    float           max_hp;    // 最大血量（Health 组件初始值）
+
     // 外形
     float       radius;        // 半径（像素）：默认碰撞和视觉一致
 
@@ -25,6 +28,7 @@ struct EnemyPreset {
 inline const EnemyPreset ENEMY_PYRO = {
     ElementType::Pyro,
     ElementStrength::Weak,
+    50.0f,       // max_hp
     20.0f,
     255, 255, 255
 };
@@ -33,6 +37,7 @@ inline const EnemyPreset ENEMY_PYRO = {
 inline const EnemyPreset ENEMY_HYDRO = {
     ElementType::Hydro,
     ElementStrength::Weak,
+    50.0f,       // max_hp
     20.0f,
     255, 255, 255
 };
@@ -41,6 +46,7 @@ inline const EnemyPreset ENEMY_HYDRO = {
 inline const EnemyPreset ENEMY_CRYO = {
     ElementType::Cryo,
     ElementStrength::Medium,
+    80.0f,       // max_hp
     22.0f,
     255, 255, 255
 };

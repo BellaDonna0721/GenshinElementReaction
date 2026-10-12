@@ -670,4 +670,5 @@ CMakeFiles/game.dir/src/systems/InputSystem.cpp.o: \
   D:\study\GenshinElementReaction\src\systems\..\components\ElementStatus.h \
   D:\study\GenshinElementReaction\src\systems\..\components\RenderInfo.h \
   D:\study\GenshinElementReaction\src\systems\..\components\FacingDirection.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\AttackPower.h \
   D:\study\GenshinElementReaction\src\systems\..\utils\element_color.h

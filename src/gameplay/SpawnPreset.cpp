@@ -7,6 +7,8 @@
 #include "../components/FacingDirection.h"
 #include "../components/Collider.h"
 #include "../components/IdentityTag.h"
+#include "../components/Health.h"
+#include "../components/AttackPower.h"
 
 // ========== 玩家工厂（标准配置，目前没有多种玩家变体） ==========
 
@@ -62,6 +64,12 @@ Entity spawn_player(World& world, float x, float y) {
     id.identity_type = Identity::Player;
     world.add_component<IdentityTag>(e, id);
 
+    // 8. 血量（预留：当前没有系统对玩家造成伤害，组件就位便于未来扩展）
+    Health hp;
+    hp.max_hp     = 100.0f;
+    hp.current_hp = 100.0f;
+    world.add_component<Health>(e, hp);
+
     return e;
 }
 
@@ -110,6 +118,17 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     IdentityTag id;
     id.identity_type = Identity::Enemy;
     world.add_component<IdentityTag>(e, id);
+
+    // 7. 血量（按预设配置）
+    Health hp;
+    hp.max_hp     = preset.max_hp;
+    hp.current_hp = preset.max_hp;
+    world.add_component<Health>(e, hp);
+
+    // 8. 攻击力（预留：未来敌人接触伤害玩家时使用；当前无系统读取敌人的 AttackPower）
+    AttackPower atk;
+    atk.base_damage = 10.0f;
+    world.add_component<AttackPower>(e, atk);
 
     return e;
 }

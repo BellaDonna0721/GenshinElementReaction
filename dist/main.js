@@ -49,6 +49,9 @@ var Renderer = class {
   // 每个敌人本帧仍在飘字的反应列表（支持一帧多个反应堆叠显示）
   // 每个元素 { type, t }：type 为 ReactionType 枚举，t 为剩余显示时长 s
   enemyReactions = /* @__PURE__ */ new Map();
+  // 伤害飘字缓存（客户端管理渐隐 + 上浮动画）
+  // 每项 { x, y, amount, r, g, b, t }：t 为剩余显示时长
+  damageNumbers = [];
   // UI：左侧元素面板高亮的当前选中元素（默认 Pyro，和初始 spawn_player 一致）
   currentElem = 1 /* Pyro */;
   // 敌人贴图（水史莱姆），圆形裁剪后绘制
@@ -76,7 +79,7 @@ var Renderer = class {
     };
     this.playerSprite.src = "assets/paimon.png";
   }
-  draw(commands) {
+  draw(commands, healthBars, damageNumbers) {
     const ctx = this.ctx;
     ctx.fillStyle = "#1a1a2e";
     ctx.fillRect(0, 0, this.width, this.height);
@@ -105,7 +108,55 @@ var Renderer = class {
     for (const c of bullets) this.drawBullet(ctx, c);
     for (const c of enemies) this.drawEnemy(ctx, c);
     for (const c of player) this.drawPlayer(ctx, c);
+    this.drawHealthBars(ctx, healthBars);
+    this.drawDamageNumbers(ctx, damageNumbers);
     this.drawUI(ctx);
+  }
+  // ===== 血条 =====
+  drawHealthBars(ctx, bars) {
+    const barH = 5;
+    for (const bar of bars) {
+      const ratio = unpackGauge(bar.ratio);
+      const bx = bar.x - bar.width / 2;
+      const by = bar.y;
+      ctx.fillStyle = "#333";
+      ctx.fillRect(bx, by, bar.width, barH);
+      let hpColor;
+      if (ratio > 0.5) hpColor = "#4ade80";
+      else if (ratio > 0.25) hpColor = "#facc15";
+      else hpColor = "#ef4444";
+      ctx.fillStyle = hpColor;
+      ctx.fillRect(bx, by, bar.width * ratio, barH);
+      ctx.strokeStyle = "rgba(0,0,0,0.6)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx, by, bar.width, barH);
+    }
+  }
+  // ===== 伤害飘字（客户端管理渐隐 + 上浮） =====
+  drawDamageNumbers(ctx, newNumbers) {
+    const dtFrame = 1 / 60;
+    for (const dn of newNumbers) {
+      this.damageNumbers.push({
+        x: dn.x,
+        y: dn.y,
+        amount: dn.amount,
+        r: dn.r,
+        g: dn.g,
+        b: dn.b,
+        t: 1
+        // 显示 1 秒
+      });
+    }
+    this.damageNumbers = this.damageNumbers.map((d) => ({ ...d, t: d.t - dtFrame })).filter((d) => d.t > 0);
+    ctx.font = "bold 16px monospace";
+    ctx.textAlign = "center";
+    for (const d of this.damageNumbers) {
+      const rise = (1 - d.t) * 30;
+      ctx.globalAlpha = Math.min(1, d.t);
+      ctx.fillStyle = `rgb(${d.r},${d.g},${d.b})`;
+      ctx.fillText(String(d.amount), d.x, d.y - 20 - rise);
+    }
+    ctx.globalAlpha = 1;
   }
   // ===== 玩家（含朝向箭头） =====
   drawPlayer(ctx, cmd) {
@@ -263,18 +314,18 @@ var Renderer = class {
     cached.items = cached.items.map((it) => ({ ...it, t: it.t - dtFrame })).filter((it) => it.t > 0).sort((a2, b2) => b2.t - a2.t);
     if (cached.items.length > 0) {
       ctx.font = "bold 14px monospace";
-      ctx.textAlign = "center";
+      ctx.textAlign = "left";
       ctx.fillStyle = "#ffdd33";
       const lineHeight = 18;
+      const baseX = x + radius + 8;
+      const baseY = y;
       for (let i = 0; i < cached.items.length; i++) {
         const it = cached.items[i];
         const name = REACTION_NAMES[it.type] || "";
         if (!name) continue;
         ctx.globalAlpha = Math.min(1, it.t);
-        const baseY = y - radius - 18;
-        const rise = (1.5 - it.t) * 20;
         const offset = i * lineHeight;
-        ctx.fillText(name, x, baseY - rise - offset);
+        ctx.fillText(name, baseX, baseY - offset);
       }
       ctx.globalAlpha = 1;
     }
@@ -345,10 +396,10 @@ var Renderer = class {
     ctx.font = "13px monospace";
     ctx.textAlign = "left";
     const curElemName = ELEMENT_NAMES[this.currentElem] || "";
-    ctx.fillText(`WASD: \u79FB\u52A8   \u9F20\u6807\u79FB\u52A8: \u6539\u53D8\u671D\u5411   \u9F20\u6807\u5DE6\u952E: \u53D1\u5C04${curElemName}(\u5F31)   \u9F20\u6807\u53F3\u952E: \u53D1\u5C04${curElemName}(\u5F3A\xB7\u5E26\u706B\u7130)`, 10, 22);
-    ctx.fillText("\u6570\u5B57\u952E1-7: \u5207\u6362\u73A9\u5BB6\u5143\u7D20", 10, 40);
-    const panelX = 14;
-    const panelY = 70;
+    ctx.fillText(`WASD: \u79FB\u52A8   \u9F20\u6807\u79FB\u52A8: \u6539\u53D8\u671D\u5411   \u9F20\u6807\u5DE6\u952E: \u53D1\u5C04${curElemName}(\u5F31)   \u9F20\u6807\u53F3\u952E: \u53D1\u5C04${curElemName}(\u5F3A\xB7\u5E26\u706B\u7130)`, 16, 24);
+    ctx.fillText("\u6570\u5B57\u952E1-7: \u5207\u6362\u73A9\u5BB6\u5143\u7D20", 16, 44);
+    const panelX = 18;
+    const panelY = 76;
     const rowH = 28;
     const entries = [
       { key: "1", elem: 1 /* Pyro */ },
@@ -543,20 +594,61 @@ function readRenderCommands() {
   }
   return result;
 }
+var HEALTH_STRIDE = 16;
+function readHealthBars() {
+  const count = wasmModule._wasm_get_health_count();
+  if (count <= 0) return [];
+  const ptr = wasmModule._wasm_get_health_data();
+  const heap = wasmModule.HEAPU8;
+  const f32 = new Float32Array(heap.buffer);
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    const base = ptr + i * HEALTH_STRIDE;
+    result.push({
+      x: f32[base / 4],
+      y: f32[(base + 4) / 4],
+      width: f32[(base + 8) / 4],
+      ratio: heap[base + 12]
+    });
+  }
+  return result;
+}
+var DAMAGE_STRIDE = 16;
+function readDamageNumbers() {
+  const count = wasmModule._wasm_get_damage_number_count();
+  if (count <= 0) return [];
+  const ptr = wasmModule._wasm_get_damage_numbers();
+  const heap = wasmModule.HEAPU8;
+  const f32 = new Float32Array(heap.buffer);
+  const i32 = new Int32Array(heap.buffer);
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    const base = ptr + i * DAMAGE_STRIDE;
+    result.push({
+      x: f32[base / 4],
+      y: f32[(base + 4) / 4],
+      amount: i32[(base + 8) / 4],
+      r: heap[base + 12],
+      g: heap[base + 13],
+      b: heap[base + 14]
+    });
+  }
+  return result;
+}
 function gameLoop(timestamp) {
   if (!running) return;
   const dt = Math.min((timestamp - lastTime) / 1e3, 0.1);
   lastTime = timestamp;
   syncInput();
   wasmModule._wasm_update(dt);
-  renderer.draw(readRenderCommands());
+  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers());
   requestAnimationFrame(gameLoop);
 }
 async function init() {
   canvas = document.getElementById("gameCanvas");
   if (!canvas) throw new Error("Canvas not found");
-  canvas.width = 800;
-  canvas.height = 600;
+  canvas.width = 1e3;
+  canvas.height = 700;
   renderer = new Renderer(canvas);
   wasmModule = await window.GameModule();
   wasmModule._wasm_init();

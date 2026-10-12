@@ -1,7 +1,20 @@
 #include "ElementReactionSystem.h"
 #include "../components/ElementICDStatus.h"
+#include "../components/DamageQueue.h"
 #include <cstdio>
 #include <utility>
+
+// 增幅反应倍率表（仅蒸发/融化；其余反应 0 表示当前版本不造成反应伤害）
+// 预留：剧变反应（超载/感电/超导/扩散/绽放/燃烧）未来在此加固定值
+static float get_amplifying_multiplier(ReactionType rt) {
+    switch (rt) {
+        case ReactionType::Vaporize:        return 2.0f;  // 水打火
+        case ReactionType::ReverseVaporize: return 1.5f;  // 火打水
+        case ReactionType::Melt:            return 2.0f;  // 火打冰
+        case ReactionType::ReverseMelt:     return 1.5f;  // 冰打火
+        default:                            return 0.0f;  // 非增幅反应
+    }
+}
 
 // 构造函数：注册所有元素反应规则
 ElementReactionSystem::ElementReactionSystem() {
@@ -132,6 +145,9 @@ int ElementReactionSystem::build_priority_slots(ElementStatus& elem, AttachedSlo
 
 // update() — 四阶段主流水线
 void ElementReactionSystem::update(World& world, float dt) {
+    // 全局伤害队列（挂 Entity 0）：增幅反应触发时写入反应伤害事件
+    DamageQueue* dmg_queue = world.get_component<DamageQueue>(0);
+
     // 规则⑤：对所有带 ElementStatus + ElementICDStatus 的实体生效（玩家/敌人统一处理）
     for (auto e : world.query<ElementStatus, ElementICDStatus>()) {
         auto* elem = world.get_component<ElementStatus>(e);
@@ -153,6 +169,10 @@ void ElementReactionSystem::update(World& world, float dt) {
             ElementStrength pending_S = elem->pending_strength;
             float actual_T = get_element_strength_params(pending_S).actual_gauge;
 
+            // 伤害倍率：默认 1.0（直射伤害），触发增幅反应时覆盖为对应倍率
+            // 统一在 clear_pending 前推送一次伤害，保证每次命中只产生一个飘字
+            float damage_mult = 1.0f;
+
             // 同元素刷新（非共存）：命中相同元素必须刷新已有槽，绝不能写入第二槽
             // 规则：量取较大者（补充量 <= 剩余量时不更新）；但更新量不改变主元素的衰减速度，
             //       decay_rate 保持首次附着时的值，仅反算 duration 使 gauge == decay_rate×duration 恒成立。
@@ -168,67 +188,80 @@ void ElementReactionSystem::update(World& world, float dt) {
                 if (s->decay_rate > 0.0f) {
                     s->duration = s->gauge / s->decay_rate;
                 }
-                elem->clear_pending();
-                continue;
-            }
-
-            int attached = elem->attached_count();
-
-            if (attached == 0) {
-                // 3-A 无元素附着 → 直接附着（若可附着）
-                if (is_attachable_element(pending_T)) {
-                    attach_element(*elem, pending_T, pending_S);
-                }
+                // 同元素刷新：无反应，damage_mult 保持 1.0
             } else {
-                // 3-C 通用：单元素或共存目标 + 任意触发元素
-                AttachedSlot* ordered[2] = {nullptr, nullptr};
-                int n = build_priority_slots(*elem, ordered);
-                float remaining = actual_T;
+                int attached = elem->attached_count();
 
-                for (int k = 0; k < n && remaining > 0.001f; ++k) {
-                    AttachedSlot* s = ordered[k];
-                    if (!s || !s->is_valid()) continue;
-                    const ReactionRule* rule = find_rule(pending_T, s->type);
-                    if (!rule) continue;
-
-                    // 感电分支：共存模式 — 不消耗目标，把待处理元素写入第二槽
-                    if (rule->result == ReactionType::ElectroCharged) {
-                        if (elem->find_empty_slot()) {
-                            attach_element(*elem, pending_T, pending_S);
-                        }
-                        elem->mark_reaction(rule->result);
-                        // 首次建立感电时启动 DoT 计时
-                        if (elem->electrocharged_cooldown <= 0.0f)
-                            elem->electrocharged_cooldown = 1.0f;
-                        remaining = 0.0f;
-                        break;
+                if (attached == 0) {
+                    // 3-A 无元素附着 → 直接附着（若可附着）
+                    if (is_attachable_element(pending_T)) {
+                        attach_element(*elem, pending_T, pending_S);
                     }
+                    // 首次附着：无反应，damage_mult 保持 1.0
+                } else {
+                    // 3-C 通用：单元素或共存目标 + 任意触发元素
+                    AttachedSlot* ordered[2] = {nullptr, nullptr};
+                    int n = build_priority_slots(*elem, ordered);
+                    float remaining = actual_T;
 
-                    // 普通反应：按比例消耗目标
-                    // for 循环天然支持"雷→水优先级顺序连续消耗 remaining"：
-                    //   k=0 先和雷反应，remaining 被扣后进入 k=1 继续和水反应，
-                    //   最终 remaining 即使仍 >0 也直接丢弃（后手元素绝不能作为残留光环挂上）
-                    //   —— 每一次真正执行过消耗的反应都要独立标记脉冲，方便叠加显示多个飘字
-                    float cost = rule->target_cost_per_trigger;
-                    float max_target_from_trigger = remaining * cost;
-                    float consume_target = std::min(s->gauge, max_target_from_trigger);
-                    float consume_trigger = (cost > 0.0f) ? consume_target / cost : 0.0f;
+                    for (int k = 0; k < n && remaining > 0.001f; ++k) {
+                        AttachedSlot* s = ordered[k];
+                        if (!s || !s->is_valid()) continue;
+                        const ReactionRule* rule = find_rule(pending_T, s->type);
+                        if (!rule) continue;
 
-                    if (consume_trigger > 0.0f) {
-                        if (rule->consumes_target) {
-                            s->gauge -= consume_target;
-                            if (s->gauge <= 0.0f) s->clear();
+                        // 感电分支：共存模式 — 不消耗目标，把待处理元素写入第二槽
+                        if (rule->result == ReactionType::ElectroCharged) {
+                            if (elem->find_empty_slot()) {
+                                attach_element(*elem, pending_T, pending_S);
+                            }
+                            elem->mark_reaction(rule->result);
+                            // 首次建立感电时启动 DoT 计时
+                            if (elem->electrocharged_cooldown <= 0.0f)
+                                elem->electrocharged_cooldown = 1.0f;
+                            remaining = 0.0f;
+                            break;
                         }
-                        remaining -= consume_trigger;
-                        elem->mark_reaction(rule->result);
+
+                        // 普通反应：按比例消耗目标
+                        float cost = rule->target_cost_per_trigger;
+                        float max_target_from_trigger = remaining * cost;
+                        float consume_target = std::min(s->gauge, max_target_from_trigger);
+                        float consume_trigger = (cost > 0.0f) ? consume_target / cost : 0.0f;
+
+                        if (consume_trigger > 0.0f) {
+                            if (rule->consumes_target) {
+                                s->gauge -= consume_target;
+                                if (s->gauge <= 0.0f) s->clear();
+                            }
+                            remaining -= consume_trigger;
+                            elem->mark_reaction(rule->result);
+
+                            // 增幅反应：记录倍率（蒸发/融化），最终伤害 = base_damage × mult
+                            float mult = get_amplifying_multiplier(rule->result);
+                            if (mult > 0.0f) {
+                                damage_mult = mult;
+                            }
+                        }
                     }
+                    // 无规则匹配：已有附着光环 + 待处理元素不反应 → 直接丢弃触发元素
+                    // 共存只允许水+雷（已在上方感电分支处理）。
                 }
-
-                // 无规则匹配：已有附着光环 + 待处理元素不反应 → 直接丢弃触发元素
-                // 共存只允许水+雷（已在上方感电分支处理）。
-                // 例如：草元素遇到不反应的冰光环，绝不能让两者共存。
-                // "attached == 0 → 首次附着" 的情况已在 3-A 处理。
             }
+
+            // —— 统一推送一次伤害事件 ——
+            //   无反应：amount = base_damage × 1.0
+            //   增幅反应：amount = base_damage × mult
+            //   保证每次命中只产生一个伤害飘字
+            if (dmg_queue && elem->pending_base_damage > 0.0f) {
+                DamageEvent rev;
+                rev.target   = e;
+                rev.amount   = elem->pending_base_damage * damage_mult;
+                rev.element  = pending_T;
+                rev.reaction = (damage_mult > 1.0f) ? ReactionType::Vaporize : ReactionType::None;
+                dmg_queue->events.push_back(rev);
+            }
+
             // 消费待处理输入
             elem->clear_pending();
         }

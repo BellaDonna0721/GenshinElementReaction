@@ -680,8 +680,15 @@ CMakeFiles/game.dir/src/gameplay/wasm_api.cpp.o: \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\..\components\ElementStatus.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\..\components\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\..\importFiles\myUnorderedMap.hpp \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\DamageSystem.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\systems\..\systems\System.h \
   D:\study\GenshinElementReaction\src\gameplay\..\systems\OutputSystem.h \
   D:\study\GenshinElementReaction\src\gameplay\..\gameplay\SpawnPreset.h \
   D:\study\GenshinElementReaction\src\gameplay\..\gameplay\..\core\World.h \
   D:\study\GenshinElementReaction\src\gameplay\..\gameplay\..\utils\ElementType.h \
-  D:\study\GenshinElementReaction\src\gameplay\..\gameplay\BulletPool.h
+  D:\study\GenshinElementReaction\src\gameplay\..\gameplay\BulletPool.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\gameplay\EnemyManager.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\DamageQueue.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\..\core\Entity.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\..\utils\ElementType.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\DamageNumberQueue.h

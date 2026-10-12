@@ -7,8 +7,8 @@
 void MovementSystem::update(World& world, float dt) {
     const float PLAYER_SPEED   = 200.0f;
     const float BULLET_SPEED   = 520.0f;
-    const float WORLD_W        = 800.0f;
-    const float WORLD_H        = 600.0f;
+    const float WORLD_W        = 1000.0f;
+    const float WORLD_H        = 700.0f;
 
     std::vector<Entity> out_of_bounds;
 

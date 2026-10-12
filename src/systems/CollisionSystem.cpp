@@ -5,6 +5,7 @@
 #include "../components/ElementPayload.h"
 #include "../components/ElementStatus.h"
 #include "../components/ElementICDStatus.h"
+#include "../components/AttackPower.h"
 #include "../gameplay/BulletPool.h"
 
 void CollisionSystem::update(World& world, float dt) {
@@ -27,6 +28,7 @@ void CollisionSystem::update(World& world, float dt) {
         auto* bt      = world.get_component<Transform>(b);
         auto* bc      = world.get_component<Collider>(b);
         auto* payload = world.get_component<ElementPayload>(b);
+        auto* atk     = world.get_component<AttackPower>(b);
         bool  hit     = false;
 
         for (auto en : enemies) {
@@ -49,8 +51,15 @@ void CollisionSystem::update(World& world, float dt) {
                     if (allow) {
                         es->pending_element  = payload->element;
                         es->pending_strength = payload->strength;
+                        // 记录触发攻击的基础伤害，供反应系统统一结算伤害用
+                        es->pending_base_damage = atk ? atk->base_damage : 0.0f;
                     }
                 }
+
+                // 伤害结算统一交给 ElementReactionSystem：
+                //   它根据 pending 是否触发增幅反应，决定推送 base_damage 还是 base_damage × mult，
+                //   保证每次命中只产生一个伤害飘字，不会出现直射+反应两个数字叠加。
+
                 hit = true;
                 break;
             }

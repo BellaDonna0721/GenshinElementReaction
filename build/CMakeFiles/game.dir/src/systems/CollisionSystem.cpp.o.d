@@ -664,5 +664,6 @@ CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.o: \
   D:\study\GenshinElementReaction\src\systems\..\components\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\systems\..\components\ElementStatus.h \
   D:\study\GenshinElementReaction\src\systems\..\components\ElementICDStatus.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\AttackPower.h \
   D:\study\GenshinElementReaction\src\systems\..\gameplay\BulletPool.h \
   D:\study\GenshinElementReaction\src\systems\..\gameplay\..\core\World.h

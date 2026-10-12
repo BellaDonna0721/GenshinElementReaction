@@ -1,4 +1,5 @@
 #pragma once
+#include <cstdint>
 
 // 实体身份类型枚举（逻辑层内部使用，不暴露给 TS/渲染层）
 // 与 RenderInfo.entity_type 语义一致但物理分离：逻辑层只读取 IdentityTag

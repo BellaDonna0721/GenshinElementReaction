@@ -1,6 +1,7 @@
 import {
   RenderCommand, EntityType, ElementType,
   ELEMENT_COLORS, ELEMENT_NAMES, REACTION_NAMES, unpackGauge,
+  HealthBarInfo, DamageNumberInfo,
 } from './types.js';
 
 export class Renderer {
@@ -11,6 +12,10 @@ export class Renderer {
   // 每个敌人本帧仍在飘字的反应列表（支持一帧多个反应堆叠显示）
   // 每个元素 { type, t }：type 为 ReactionType 枚举，t 为剩余显示时长 s
   private enemyReactions: Map<string, { items: Array<{ type: number; t: number }> }> = new Map();
+
+  // 伤害飘字缓存（客户端管理渐隐 + 上浮动画）
+  // 每项 { x, y, amount, r, g, b, t }：t 为剩余显示时长
+  private damageNumbers: Array<{ x: number; y: number; amount: number; r: number; g: number; b: number; t: number }> = [];
 
   // UI：左侧元素面板高亮的当前选中元素（默认 Pyro，和初始 spawn_player 一致）
   private currentElem: ElementType = ElementType.Pyro;
@@ -44,7 +49,7 @@ export class Renderer {
     this.playerSprite.src = 'assets/paimon.png';
   }
 
-  draw(commands: RenderCommand[]): void {
+  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumberInfo[]): void {
     const ctx = this.ctx;
 
     // 背景
@@ -78,7 +83,72 @@ export class Renderer {
     for (const c of enemies)     this.drawEnemy(ctx, c);
     for (const c of player)      this.drawPlayer(ctx, c);
 
+    // 血条（在实体之上绘制）
+    this.drawHealthBars(ctx, healthBars);
+
+    // 伤害飘字（最顶层）
+    this.drawDamageNumbers(ctx, damageNumbers);
+
     this.drawUI(ctx);
+  }
+
+  // ===== 血条 =====
+  private drawHealthBars(ctx: CanvasRenderingContext2D, bars: HealthBarInfo[]): void {
+    const barH = 5;
+    for (const bar of bars) {
+      const ratio = unpackGauge(bar.ratio);
+      const bx = bar.x - bar.width / 2;
+      const by = bar.y;
+
+      // 背景
+      ctx.fillStyle = '#333';
+      ctx.fillRect(bx, by, bar.width, barH);
+
+      // 前景（血量）
+      // 颜色随血量变化：绿 → 黄 → 红
+      let hpColor: string;
+      if (ratio > 0.5)      hpColor = '#4ade80';  // 绿
+      else if (ratio > 0.25) hpColor = '#facc15';  // 黄
+      else                   hpColor = '#ef4444';  // 红
+      ctx.fillStyle = hpColor;
+      ctx.fillRect(bx, by, bar.width * ratio, barH);
+
+      // 边框
+      ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(bx, by, bar.width, barH);
+    }
+  }
+
+  // ===== 伤害飘字（客户端管理渐隐 + 上浮） =====
+  private drawDamageNumbers(ctx: CanvasRenderingContext2D, newNumbers: DamageNumberInfo[]): void {
+    const dtFrame = 1 / 60;
+
+    // 1) 把本帧新产生的伤害数字 push 进缓存
+    for (const dn of newNumbers) {
+      this.damageNumbers.push({
+        x: dn.x, y: dn.y,
+        amount: dn.amount,
+        r: dn.r, g: dn.g, b: dn.b,
+        t: 1.0,  // 显示 1 秒
+      });
+    }
+
+    // 2) 每帧扣减剩余时长，过滤已过期
+    this.damageNumbers = this.damageNumbers
+      .map(d => ({ ...d, t: d.t - dtFrame }))
+      .filter(d => d.t > 0);
+
+    // 3) 绘制：上浮 + 渐隐
+    ctx.font = 'bold 16px monospace';
+    ctx.textAlign = 'center';
+    for (const d of this.damageNumbers) {
+      const rise = (1.0 - d.t) * 30;  // 向上飘 30px
+      ctx.globalAlpha = Math.min(1, d.t);
+      ctx.fillStyle = `rgb(${d.r},${d.g},${d.b})`;
+      ctx.fillText(String(d.amount), d.x, d.y - 20 - rise);
+    }
+    ctx.globalAlpha = 1.0;
   }
 
   // ===== 玩家（含朝向箭头） =====
@@ -257,23 +327,23 @@ export class Renderer {
       .filter(it => it.t > 0)
       .sort((a, b) => b.t - a.t);
 
-    // 3) 依次画出每一条：新反应（剩余时间大）在下，老的在上（越飞越上）
-    //    效果：本帧同时触发的两条，从同一高度起步向上飘；旧的在上方继续渐隐
+    // 3) 依次画出每一条：统一显示在怪物右侧，垂直堆叠，渐隐
     if (cached.items.length > 0) {
       ctx.font = 'bold 14px monospace';
-      ctx.textAlign = 'center';
+      ctx.textAlign = 'left';
       ctx.fillStyle = '#ffdd33';
       const lineHeight = 18;
+      // 起点在怪物右侧
+      const baseX = x + radius + 8;
+      const baseY = y;
       for (let i = 0; i < cached.items.length; i++) {
         const it = cached.items[i];
         const name = REACTION_NAMES[it.type] || '';
         if (!name) continue;
         ctx.globalAlpha = Math.min(1, it.t);
-        // 基础起点在头顶上方，每项之间上下错开一行
-        const baseY = y - radius - 18;
-        const rise  = (1.5 - it.t) * 20;
+        // 垂直堆叠，新的在下，老的在上
         const offset = i * lineHeight;
-        ctx.fillText(name, x, baseY - rise - offset);
+        ctx.fillText(name, baseX, baseY - offset);
       }
       ctx.globalAlpha = 1.0;
     }
@@ -363,12 +433,12 @@ export class Renderer {
     ctx.font = '13px monospace';
     ctx.textAlign = 'left';
     const curElemName = ELEMENT_NAMES[this.currentElem] || '';
-    ctx.fillText(`WASD: 移动   鼠标移动: 改变朝向   鼠标左键: 发射${curElemName}(弱)   鼠标右键: 发射${curElemName}(强·带火焰)`, 10, 22);
-    ctx.fillText('数字键1-7: 切换玩家元素', 10, 40);
+    ctx.fillText(`WASD: 移动   鼠标移动: 改变朝向   鼠标左键: 发射${curElemName}(弱)   鼠标右键: 发射${curElemName}(强·带火焰)`, 16, 24);
+    ctx.fillText('数字键1-7: 切换玩家元素', 16, 44);
 
     // ===== 左侧：数字键 ↔ 元素映射面板 =====
-    const panelX = 14;                // 面板左上 X
-    const panelY = 70;                // 面板左上 Y
+    const panelX = 18;                // 面板左上 X
+    const panelY = 76;                // 面板左上 Y
     const rowH = 28;                  // 每行高度
     const entries: Array<{ key: string; elem: ElementType }> = [
       { key: '1', elem: ElementType.Pyro    },

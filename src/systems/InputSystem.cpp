@@ -8,6 +8,7 @@
 #include "../components/ElementStatus.h"
 #include "../components/RenderInfo.h"
 #include "../components/FacingDirection.h"
+#include "../components/AttackPower.h"
 #include "../utils/element_color.h"   //get_element_color()：7种元素RGB统一映射
 #include <cmath>
 
@@ -106,6 +107,11 @@ void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, fl
     payload.element  = elem;
     payload.strength = strength;
     world.add_component<ElementPayload>(e, payload);
+
+    // 攻击力：左右键统一为 10（元素强度档仍区分 Weak/Strong，影响附着量而非伤害）
+    AttackPower atk;
+    atk.base_damage = 10.0f;
+    world.add_component<AttackPower>(e, atk);
 
     Collider col;
     col.radius = 6.0f;

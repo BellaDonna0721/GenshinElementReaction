@@ -4,8 +4,13 @@
 #include "../components/ElementPayload.h"
 #include "../components/RenderInfo.h"
 #include "../components/FacingDirection.h"
+#include "../components/Health.h"
+#include "../components/IdentityTag.h"
+#include "../components/DamageNumberQueue.h"
 
-std::vector<RenderCommand> g_render_commands;
+std::vector<RenderCommand>   g_render_commands;
+std::vector<HealthBarInfo>   g_health_bars;
+std::vector<DamageNumberInfo> g_damage_numbers;
 
 namespace {
     // 量 → uint8 量条比例（0~255 = 0% ~ 100%）。
@@ -19,11 +24,22 @@ namespace {
         if (ratio >= 1.0f) return 255;
         return static_cast<uint8_t>(ratio * 255.0f);
     }
+
+    // 血量比例 → uint8（0~255 线性对应 0%~100%）
+    inline uint8_t pack_hp_ratio(float current, float max_hp) {
+        if (max_hp <= 0.0001f) return 0;
+        float ratio = current / max_hp;
+        if (ratio <= 0.0f) return 0;
+        if (ratio >= 1.0f) return 255;
+        return static_cast<uint8_t>(ratio * 255.0f);
+    }
 }
 
 void OutputSystem::update(World& world, float dt) {
     (void)dt;
     g_render_commands.clear();
+    g_health_bars.clear();
+    g_damage_numbers.clear();
 
     for (auto e : world.query<Transform, RenderInfo>()) {
         auto* t  = world.get_component<Transform>(e);
@@ -86,6 +102,17 @@ void OutputSystem::update(World& world, float dt) {
             }
         }
 
+        // —— 血条：仅敌人显示（玩家血条预留，未来可在 UI 面板单独展示）——
+        Health* hp = world.get_component<Health>(e);
+        if (hp && ri->entity_type == Identity::Enemy) {
+            HealthBarInfo hbi;
+            hbi.x     = t->x;
+            hbi.y     = t->y - ri->radius - 12.0f;  // 头顶上方
+            hbi.width = ri->radius * 2.0f;            // 宽度=敌人直径
+            hbi.ratio = pack_hp_ratio(hp->current_hp, hp->max_hp);
+            g_health_bars.push_back(hbi);
+        }
+
         auto* face = world.get_component<FacingDirection>(e);
         if (face && ri->entity_type == Identity::Player) {
             cmd.facing_dx = face->dx;
@@ -102,5 +129,22 @@ void OutputSystem::update(World& world, float dt) {
         }
 
         g_render_commands.push_back(cmd);
+    }
+
+    // —— 伤害飘字：从 DamageNumberQueue 转存到全局数组供 TS 读取 ——
+    DamageNumberQueue* num_queue = world.get_component<DamageNumberQueue>(0);
+    if (num_queue) {
+        for (const auto& dn : num_queue->numbers) {
+            DamageNumberInfo info;
+            info.x      = dn.x;
+            info.y      = dn.y;
+            info.amount = dn.amount;
+            info.r      = dn.r;
+            info.g      = dn.g;
+            info.b      = dn.b;
+            g_damage_numbers.push_back(info);
+        }
+        // 消费后清空（OutputSystem 是唯一消费者）
+        num_queue->numbers.clear();
     }
 }

@@ -176,6 +176,30 @@ src/gameplay/BulletPool.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/gameplay/BulletPool.cpp.s
 .PHONY : src/gameplay/BulletPool.cpp.s
 
+src/gameplay/EnemyManager.o: src/gameplay/EnemyManager.cpp.o
+.PHONY : src/gameplay/EnemyManager.o
+
+# target to build an object file
+src/gameplay/EnemyManager.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/gameplay/EnemyManager.cpp.o
+.PHONY : src/gameplay/EnemyManager.cpp.o
+
+src/gameplay/EnemyManager.i: src/gameplay/EnemyManager.cpp.i
+.PHONY : src/gameplay/EnemyManager.i
+
+# target to preprocess a source file
+src/gameplay/EnemyManager.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/gameplay/EnemyManager.cpp.i
+.PHONY : src/gameplay/EnemyManager.cpp.i
+
+src/gameplay/EnemyManager.s: src/gameplay/EnemyManager.cpp.s
+.PHONY : src/gameplay/EnemyManager.s
+
+# target to generate assembly for a file
+src/gameplay/EnemyManager.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/gameplay/EnemyManager.cpp.s
+.PHONY : src/gameplay/EnemyManager.cpp.s
+
 src/gameplay/SpawnPreset.o: src/gameplay/SpawnPreset.cpp.o
 .PHONY : src/gameplay/SpawnPreset.o
 
@@ -247,6 +271,30 @@ src/systems/CollisionSystem.s: src/systems/CollisionSystem.cpp.s
 src/systems/CollisionSystem.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.s
 .PHONY : src/systems/CollisionSystem.cpp.s
+
+src/systems/DamageSystem.o: src/systems/DamageSystem.cpp.o
+.PHONY : src/systems/DamageSystem.o
+
+# target to build an object file
+src/systems/DamageSystem.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/systems/DamageSystem.cpp.o
+.PHONY : src/systems/DamageSystem.cpp.o
+
+src/systems/DamageSystem.i: src/systems/DamageSystem.cpp.i
+.PHONY : src/systems/DamageSystem.i
+
+# target to preprocess a source file
+src/systems/DamageSystem.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/systems/DamageSystem.cpp.i
+.PHONY : src/systems/DamageSystem.cpp.i
+
+src/systems/DamageSystem.s: src/systems/DamageSystem.cpp.s
+.PHONY : src/systems/DamageSystem.s
+
+# target to generate assembly for a file
+src/systems/DamageSystem.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\game.dir\build.make CMakeFiles/game.dir/src/systems/DamageSystem.cpp.s
+.PHONY : src/systems/DamageSystem.cpp.s
 
 src/systems/ElementReactionSystem.o: src/systems/ElementReactionSystem.cpp.o
 .PHONY : src/systems/ElementReactionSystem.o
@@ -383,6 +431,9 @@ help:
 	@echo ... src/gameplay/BulletPool.o
 	@echo ... src/gameplay/BulletPool.i
 	@echo ... src/gameplay/BulletPool.s
+	@echo ... src/gameplay/EnemyManager.o
+	@echo ... src/gameplay/EnemyManager.i
+	@echo ... src/gameplay/EnemyManager.s
 	@echo ... src/gameplay/SpawnPreset.o
 	@echo ... src/gameplay/SpawnPreset.i
 	@echo ... src/gameplay/SpawnPreset.s
@@ -392,6 +443,9 @@ help:
 	@echo ... src/systems/CollisionSystem.o
 	@echo ... src/systems/CollisionSystem.i
 	@echo ... src/systems/CollisionSystem.s
+	@echo ... src/systems/DamageSystem.o
+	@echo ... src/systems/DamageSystem.i
+	@echo ... src/systems/DamageSystem.s
 	@echo ... src/systems/ElementReactionSystem.o
 	@echo ... src/systems/ElementReactionSystem.i
 	@echo ... src/systems/ElementReactionSystem.s
