@@ -44,21 +44,22 @@ void CollisionSystem::update(World& world, float dt) {
                 auto* es  = world.get_component<ElementStatus>(en);
                 auto* icd = world.get_component<ElementICDStatus>(en);
                 if (payload && es) {
-                    // ——— ICD 判定：按 (触发元素 × 档位) 二元组查独立槽位
-                    //     通过才允许写入 pending；否则挂元素+反应全跳过（用户选B）
+                    // 伤害与元素附着完全解耦：每次命中都记录基础伤害（不受 ICD 限制）
+                    es->pending_base_damage = atk ? atk->base_damage : 0.0f;
+
+                    // ——— ICD 判定：仅限制元素附着，不影响伤害 ———
+                    //     通过才允许写入 pending_element；否则只造成直射伤害、不触发反应。
                     bool allow = true;
                     if (icd) allow = ::icd_hit_allowed(*icd, payload->element, payload->strength);
                     if (allow) {
                         es->pending_element  = payload->element;
                         es->pending_strength = payload->strength;
-                        // 记录触发攻击的基础伤害，供反应系统统一结算伤害用
-                        es->pending_base_damage = atk ? atk->base_damage : 0.0f;
                     }
                 }
 
                 // 伤害结算统一交给 ElementReactionSystem：
-                //   它根据 pending 是否触发增幅反应，决定推送 base_damage 还是 base_damage × mult，
-                //   保证每次命中只产生一个伤害飘字，不会出现直射+反应两个数字叠加。
+                //   根据是否触发增幅反应，推送 base_damage 或 base_damage × mult，
+                //   保证每次命中只产生一个伤害飘字（直射与增伤合并显示）。
 
                 hit = true;
                 break;

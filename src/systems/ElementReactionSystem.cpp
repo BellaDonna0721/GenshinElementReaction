@@ -163,15 +163,19 @@ void ElementReactionSystem::update(World& world, float dt) {
         // 阶段 2：感电 1 秒共存 DoT 节拍
         tick_electrocharged_dot(*elem, dt);
 
-        // 阶段 3：解析碰撞命中写入的待处理元素
-        if (elem->has_pending()) {
+        // 阶段 3：解析碰撞命中写入的待处理元素 + 直射伤害
+        //   注意：pending_base_damage 每次命中都写入（不受 ICD 限制），
+        //         pending_element 仅在 ICD 通过时写入。
+        //   结算规则：触发增幅反应 → damage_mult = 反应倍率；否则 → 1.0（直射）。
+        //   最终统一推送一次 base_damage × damage_mult，保证每次命中只产生一个飘字。
+        if (elem->pending_base_damage > 0.0f) {
             ElementType pending_T = elem->pending_element;
             ElementStrength pending_S = elem->pending_strength;
             float actual_T = get_element_strength_params(pending_S).actual_gauge;
 
             // 伤害倍率：默认 1.0（直射伤害），触发增幅反应时覆盖为对应倍率
-            // 统一在 clear_pending 前推送一次伤害，保证每次命中只产生一个飘字
             float damage_mult = 1.0f;
+            ReactionType damage_reaction = ReactionType::None;  // 记录实际触发的反应类型
 
             // 同元素刷新（非共存）：命中相同元素必须刷新已有槽，绝不能写入第二槽
             // 规则：量取较大者（补充量 <= 剩余量时不更新）；但更新量不改变主元素的衰减速度，
@@ -241,6 +245,7 @@ void ElementReactionSystem::update(World& world, float dt) {
                             float mult = get_amplifying_multiplier(rule->result);
                             if (mult > 0.0f) {
                                 damage_mult = mult;
+                                damage_reaction = rule->result;
                             }
                         }
                     }
@@ -258,7 +263,7 @@ void ElementReactionSystem::update(World& world, float dt) {
                 rev.target   = e;
                 rev.amount   = elem->pending_base_damage * damage_mult;
                 rev.element  = pending_T;
-                rev.reaction = (damage_mult > 1.0f) ? ReactionType::Vaporize : ReactionType::None;
+                rev.reaction = damage_reaction;
                 dmg_queue->events.push_back(rev);
             }
 

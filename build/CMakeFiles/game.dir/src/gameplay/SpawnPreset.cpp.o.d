@@ -667,5 +667,4 @@ CMakeFiles/game.dir/src/gameplay/SpawnPreset.cpp.o: \
   D:\study\GenshinElementReaction\src\gameplay\..\components\IdentityTag.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\FacingDirection.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\Collider.h \
-  D:\study\GenshinElementReaction\src\gameplay\..\components\Health.h \
-  D:\study\GenshinElementReaction\src\gameplay\..\components\AttackPower.h
+  D:\study\GenshinElementReaction\src\gameplay\..\components\Health.h
