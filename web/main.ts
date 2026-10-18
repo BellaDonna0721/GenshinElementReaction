@@ -245,6 +245,8 @@ async function init(): Promise<void> {
 
   document.getElementById('btnReset')?.addEventListener('click', () => {
     wasmModule._wasm_reset();
+    // 重置后 C++ 侧玩家元素回到默认 Pyro，同步前端 UI 高亮，避免显示与实际发射不一致
+    renderer.setCurrentElement(ElementType.Pyro);
   });
 
   running = true;

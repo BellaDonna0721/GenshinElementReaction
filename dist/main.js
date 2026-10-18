@@ -218,9 +218,12 @@ var Renderer = class {
       element1_gauge,
       element2_gauge,
       reaction_mask_lo,
-      reaction_mask_hi
+      reaction_mask_hi,
+      bullet_strength
     } = cmd;
     const key = `enemy_${cmd.x}_${cmd.y}`;
+    const isFrozen = bullet_strength === 1;
+    const FROZEN_COLOR = "#BFFFFF";
     if (this.spriteLoaded && this.enemySprite) {
       ctx.save();
       ctx.imageSmoothingEnabled = true;
@@ -244,10 +247,18 @@ var Renderer = class {
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
+    if (isFrozen) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(180, 240, 255, 0.35)";
+      ctx.fill();
+      ctx.restore();
+    }
     const g1 = unpackGauge(element1_gauge);
     const g2 = unpackGauge(element2_gauge);
     if (element1_type !== 0 && g1 > 0) {
-      const color = ELEMENT_COLORS[element1_type] || "#888";
+      const color = isFrozen ? FROZEN_COLOR : ELEMENT_COLORS[element1_type] || "#888";
       ctx.beginPath();
       ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
       ctx.strokeStyle = color;
@@ -277,15 +288,15 @@ var Renderer = class {
     const has1 = element1_type !== 0;
     const has2 = element2_type !== 0;
     if (has1 && !has2) {
-      const color = ELEMENT_COLORS[element1_type] || "#888";
+      const color = isFrozen ? FROZEN_COLOR : ELEMENT_COLORS[element1_type] || "#888";
       ctx.fillStyle = color;
       ctx.fillRect(barX, barY, barW * g1, barH);
       ctx.fillStyle = color;
       ctx.font = "bold 10px monospace";
       ctx.textAlign = "left";
-      ctx.fillText(ELEMENT_NAMES[element1_type] || "", barX, barY - 1);
+      ctx.fillText(isFrozen ? "\u51BB" : ELEMENT_NAMES[element1_type] || "", barX, barY - 1);
     } else if (has1 && has2) {
-      const color1 = ELEMENT_COLORS[element1_type] || "#888";
+      const color1 = isFrozen ? FROZEN_COLOR : ELEMENT_COLORS[element1_type] || "#888";
       const color2 = ELEMENT_COLORS[element2_type] || "#888";
       ctx.fillStyle = color1;
       ctx.fillRect(barX, barY, barW / 2 * g1, barH);
@@ -294,7 +305,7 @@ var Renderer = class {
       ctx.font = "bold 10px monospace";
       ctx.textAlign = "left";
       ctx.fillStyle = color1;
-      ctx.fillText(ELEMENT_NAMES[element1_type] || "", barX, barY - 1);
+      ctx.fillText(isFrozen ? "\u51BB" : ELEMENT_NAMES[element1_type] || "", barX, barY - 1);
       ctx.textAlign = "right";
       ctx.fillStyle = color2;
       ctx.fillText(ELEMENT_NAMES[element2_type] || "", barX + barW, barY - 1);
@@ -661,6 +672,7 @@ async function init() {
   canvas.addEventListener("contextmenu", (e) => e.preventDefault());
   document.getElementById("btnReset")?.addEventListener("click", () => {
     wasmModule._wasm_reset();
+    renderer.setCurrentElement(1 /* Pyro */);
   });
   running = true;
   lastTime = performance.now();

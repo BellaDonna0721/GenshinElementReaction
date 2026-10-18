@@ -58,13 +58,14 @@ ElementReactionSystem::ElementReactionSystem() {
     add_rule(ElementType::Cryo,   ElementType::Electro,ReactionType::Superconduct,     true,true, 1.0f);
     add_rule(ElementType::Electro,ElementType::Cryo,   ReactionType::Superconduct,     true,true, 1.0f);
     // 扩散（风 × 4，每种元素一个独立 SwirlXxx → 位掩码可同时标记多个）
+    // 消耗比例 2:1（风:目标）：1 单位风消耗 0.5 单位目标元素
     // 关键：consumes_trigger = false → 触发方（Anemo）不被按比例扣除 remaining，
     //       这样水雷共存目标先 k=0 扩散雷后，仍有足够 remaining 继续 k=1 扩散水，
     //       最终两个扩散都会被 mark_reaction → 同时飘字"雷扩散 + 水扩散"。
-    add_rule(ElementType::Anemo,  ElementType::Pyro,   ReactionType::SwirlPyro,        true,false, 1.0f);
-    add_rule(ElementType::Anemo,  ElementType::Hydro,  ReactionType::SwirlHydro,       true,false, 1.0f);
-    add_rule(ElementType::Anemo,  ElementType::Electro,ReactionType::SwirlElectro,     true,false, 1.0f);
-    add_rule(ElementType::Anemo,  ElementType::Cryo,   ReactionType::SwirlCryo,        true,false, 1.0f);
+    add_rule(ElementType::Anemo,  ElementType::Pyro,   ReactionType::SwirlPyro,        true,false, 0.5f);
+    add_rule(ElementType::Anemo,  ElementType::Hydro,  ReactionType::SwirlHydro,       true,false, 0.5f);
+    add_rule(ElementType::Anemo,  ElementType::Electro,ReactionType::SwirlElectro,     true,false, 0.5f);
+    add_rule(ElementType::Anemo,  ElementType::Cryo,   ReactionType::SwirlCryo,        true,false, 0.5f);
     // 结晶（岩 × 4）
     add_rule(ElementType::Geo,    ElementType::Pyro,   ReactionType::Crystallize,      true,true, 1.0f);
     add_rule(ElementType::Geo,    ElementType::Hydro,  ReactionType::Crystallize,      true,true, 1.0f);
@@ -86,7 +87,7 @@ const ReactionRule* ElementReactionSystem::find_rule(
     return p ? &p->second : nullptr;
 }
 
-// 阶段 1：每个附着槽独立自然衰减
+// 阶段 1：每个附着槽独立自然衰减 + 冻元素动态衰减
 void ElementReactionSystem::decay_slots(ElementStatus& elem, float dt) {
     for (int i = 0; i < 2; ++i) {
         AttachedSlot& s = elem.attached_slots[i];
@@ -97,6 +98,31 @@ void ElementReactionSystem::decay_slots(ElementStatus& elem, float dt) {
         s.gauge    -= s.decay_rate * dt;
         if (s.gauge <= 0.0f || s.duration <= 0.0f) {
             s.clear();
+        }
+    }
+
+    // —— 冻元素衰减 ——
+    // 冻结中：初始 0.4/s，每秒 +0.1（递增衰减）
+    // 解除后：每秒 -0.2 回归 0.4（为下一次冻结的初始速率做准备）
+    FrozenState& fz = elem.frozen;
+    if (fz.is_frozen) {
+        fz.gauge -= fz.decay_rate * dt;
+        fz.decay_timer += dt;
+        while (fz.decay_timer >= 1.0f) {
+            fz.decay_rate += 0.1f;
+            fz.decay_timer -= 1.0f;
+        }
+        if (fz.gauge <= 0.0f) {
+            fz.gauge = 0.0f;
+            fz.initial_gauge = 0.0f;
+            fz.is_frozen = false;
+        }
+    } else if (fz.decay_rate > 0.4f) {
+        // 解除冻结后，衰减速率逐步回归初始值 0.4
+        fz.decay_timer += dt;
+        while (fz.decay_timer >= 1.0f && fz.decay_rate > 0.4f) {
+            fz.decay_rate = std::max(0.4f, fz.decay_rate - 0.2f);
+            fz.decay_timer -= 1.0f;
         }
     }
 }
@@ -171,16 +197,160 @@ void ElementReactionSystem::update(World& world, float dt) {
         if (elem->pending_base_damage > 0.0f) {
             ElementType pending_T = elem->pending_element;
             ElementStrength pending_S = elem->pending_strength;
-            float actual_T = get_element_strength_params(pending_S).actual_gauge;
+            // 后手触发元素量：用 theoretical_gauge（不 ×0.8），全额参与反应
+            // 0.8 附着损耗仅适用于先手附着（attach_element / 同元素刷新），不适用于后手触发
+            float trigger_gauge = get_element_strength_params(pending_S).theoretical_gauge;
 
             // 伤害倍率：默认 1.0（直射伤害），触发增幅反应时覆盖为对应倍率
             float damage_mult = 1.0f;
             ReactionType damage_reaction = ReactionType::None;  // 记录实际触发的反应类型
 
-            // 同元素刷新（非共存）：命中相同元素必须刷新已有槽，绝不能写入第二槽
-            // 规则：量取较大者（补充量 <= 剩余量时不更新）；但更新量不改变主元素的衰减速度，
-            //       decay_rate 保持首次附着时的值，仅反算 duration 使 gauge == decay_rate×duration 恒成立。
-            if (AttachedSlot* s = elem->find_slot(pending_T)) {
+            // ===== 冻结状态专用反应逻辑 =====
+            // 冻元素表现为冰附着，反应优先级不同于普通附着：
+            //   水/冰：有对立藏元素 → 1:1 反应生成冻元素(2×量)，后手不残留；
+            //          无对立藏元素 → 不与冻反应，附着为藏元素（同元素刷新）
+            //   火/雷：藏冰优先与藏冰反应，余量再与冻反应；藏水/无藏直接与冻反应
+            //   风：冻冰共存只扩散冰；冻水共存扩散冰(冻)+水
+            //   草：与冻共存不反应
+            if (elem->frozen.is_frozen && elem->frozen.gauge > 0.0f) {
+                AttachedSlot* hidden_hydro = elem->find_slot(ElementType::Hydro);
+                AttachedSlot* hidden_cryo  = elem->find_slot(ElementType::Cryo);
+                float remaining = trigger_gauge;
+
+                if (pending_T == ElementType::Hydro || pending_T == ElementType::Cryo) {
+                    // 水/冰打冻结目标：
+                    //   有对立藏元素 → 1:1 反应生成冻元素（2× 消耗量），后手余量不残留
+                    //   无对立藏元素 → 水/冰不与冻反应，附着为藏元素（同元素则刷新）
+                    AttachedSlot* opposite = (pending_T == ElementType::Hydro) ? hidden_cryo : hidden_hydro;
+                    if (opposite) {
+                        float react = std::min(opposite->gauge, remaining);
+                        opposite->gauge -= react;
+                        remaining -= react;
+                        elem->frozen.gauge += 2.0f * react;  // 冻元素量 = 2 × 消耗量
+                        elem->frozen.initial_gauge = std::max(elem->frozen.initial_gauge, elem->frozen.gauge);
+                        if (opposite->gauge <= 0.0f) opposite->clear();
+                        elem->mark_reaction(ReactionType::Frozen);
+                        remaining = 0.0f;  // 后手不残留
+                    } else {
+                        // 无对立藏元素：水/冰不与冻反应，附着为藏元素
+                        AttachedSlot* same = (pending_T == ElementType::Hydro) ? hidden_hydro : hidden_cryo;
+                        if (same) {
+                            // 同元素刷新：量取较大者，衰减速率不变
+                            ElementStrengthParams const& p = get_element_strength_params(pending_S);
+                            if (p.actual_gauge > same->gauge) {
+                                same->gauge         = p.actual_gauge;
+                                same->initial_gauge = p.actual_gauge;
+                            }
+                            if (same->decay_rate > 0.0f) {
+                                same->duration = same->gauge / same->decay_rate;
+                            }
+                        } else {
+                            attach_element(*elem, pending_T, pending_S);
+                        }
+                        remaining = 0.0f;
+                    }
+                } else if (pending_T == ElementType::Pyro || pending_T == ElementType::Electro) {
+                    // 火/雷打冻结目标：藏冰优先，再冻元素
+                    if (hidden_cryo) {
+                        const ReactionRule* rule = find_rule(pending_T, ElementType::Cryo);
+                        if (rule) {
+                            float cost = rule->target_cost_per_trigger;
+                            float consume_target = std::min(hidden_cryo->gauge, remaining * cost);
+                            float consume_trigger = (cost > 0.0f) ? consume_target / cost : 0.0f;
+                            if (consume_trigger > 0.0f) {
+                                hidden_cryo->gauge -= consume_target;
+                                if (hidden_cryo->gauge <= 0.0f) hidden_cryo->clear();
+                                remaining -= consume_trigger;
+                                elem->mark_reaction(rule->result);
+                                float mult = get_amplifying_multiplier(rule->result);
+                                if (mult > 0.0f) { damage_mult = mult; damage_reaction = rule->result; }
+                            }
+                        }
+                    }
+                    // 余量与冻元素反应（冻元素视为冰）
+                    if (remaining > 0.001f) {
+                        const ReactionRule* rule = find_rule(pending_T, ElementType::Cryo);
+                        if (rule) {
+                            float cost = rule->target_cost_per_trigger;
+                            float consume_target = std::min(elem->frozen.gauge, remaining * cost);
+                            float consume_trigger = (cost > 0.0f) ? consume_target / cost : 0.0f;
+                            if (consume_trigger > 0.0f) {
+                                elem->frozen.gauge -= consume_target;
+                                remaining -= consume_trigger;
+                                elem->mark_reaction(rule->result);
+                                float mult = get_amplifying_multiplier(rule->result);
+                                if (mult > 0.0f) { damage_mult = mult; damage_reaction = rule->result; }
+                                if (elem->frozen.gauge <= 0.0f) {
+                                    elem->frozen.gauge = 0.0f;
+                                    elem->frozen.initial_gauge = 0.0f;
+                                    elem->frozen.is_frozen = false;
+                                }
+                            }
+                        }
+                    }
+                } else if (pending_T == ElementType::Anemo) {
+                    // 风扩散：优先扩散藏元素，再扩散冻元素（原神原版优先级）
+                    // 扩散消耗目标元素量（按规则表比例），风不残留
+                    // 注：风自身不被扣除（consumes_trigger=false），因此可同时扩散藏元素+冻元素
+
+                    // 1. 先扩散藏元素（藏水或藏冰）
+                    AttachedSlot* hidden = hidden_hydro ? hidden_hydro : hidden_cryo;
+                    if (hidden) {
+                        const ReactionRule* rule = find_rule(ElementType::Anemo, hidden->type);
+                        if (rule) {
+                            float cost = rule->target_cost_per_trigger;
+                            float consume_target = std::min(hidden->gauge, remaining * cost);
+                            if (consume_target > 0.0f) {
+                                hidden->gauge -= consume_target;
+                                if (hidden->gauge <= 0.0f) hidden->clear();
+                                elem->mark_reaction(rule->result);
+                            }
+                        }
+                    }
+
+                    // 2. 再扩散冻元素（表现为冰）
+                    if (elem->frozen.gauge > 0.0f) {
+                        const ReactionRule* rule = find_rule(ElementType::Anemo, ElementType::Cryo);
+                        if (rule) {
+                            float cost = rule->target_cost_per_trigger;
+                            float consume_target = std::min(elem->frozen.gauge, remaining * cost);
+                            if (consume_target > 0.0f) {
+                                elem->frozen.gauge -= consume_target;
+                                elem->mark_reaction(ReactionType::SwirlCryo);
+                                if (elem->frozen.gauge <= 0.0f) {
+                                    elem->frozen.gauge = 0.0f;
+                                    elem->frozen.initial_gauge = 0.0f;
+                                    elem->frozen.is_frozen = false;
+                                }
+                            }
+                        }
+                    }
+
+                    remaining = 0.0f;  // 风后手不残留
+                } else if (pending_T == ElementType::Dendro) {
+                    // 草与冻共存，不反应
+                    remaining = 0.0f;
+                } else if (pending_T == ElementType::Geo) {
+                    // 岩结晶：与冻元素（冰）结晶
+                    const ReactionRule* rule = find_rule(ElementType::Geo, ElementType::Cryo);
+                    if (rule) {
+                        float consume_target = std::min(elem->frozen.gauge, remaining);
+                        elem->frozen.gauge -= consume_target;
+                        remaining -= consume_target;
+                        elem->mark_reaction(ReactionType::Crystallize);
+                        if (elem->frozen.gauge <= 0.0f) {
+                            elem->frozen.gauge = 0.0f;
+                            elem->frozen.initial_gauge = 0.0f;
+                            elem->frozen.is_frozen = false;
+                        }
+                    }
+                }
+                // 未消耗完的触发元素不残留
+                (void)remaining;
+            } else if (AttachedSlot* s = elem->find_slot(pending_T)) {
+                // 同元素刷新（非共存）：命中相同元素必须刷新已有槽，绝不能写入第二槽
+                // 规则：量取较大者（补充量 <= 剩余量时不更新）；但更新量不改变主元素的衰减速度，
+                //       decay_rate 保持首次附着时的值，仅反算 duration 使 gauge == decay_rate×duration 恒成立。
                 ElementStrengthParams const& p = get_element_strength_params(pending_S);
                 // 量：二者选其多（补充量 > 剩余量才更新）
                 if (p.actual_gauge > s->gauge) {
@@ -206,7 +376,7 @@ void ElementReactionSystem::update(World& world, float dt) {
                     // 3-C 通用：单元素或共存目标 + 任意触发元素
                     AttachedSlot* ordered[2] = {nullptr, nullptr};
                     int n = build_priority_slots(*elem, ordered);
-                    float remaining = actual_T;
+                    float remaining = trigger_gauge;
 
                     for (int k = 0; k < n && remaining > 0.001f; ++k) {
                         AttachedSlot* s = ordered[k];
@@ -224,6 +394,33 @@ void ElementReactionSystem::update(World& world, float dt) {
                             if (elem->electrocharged_cooldown <= 0.0f)
                                 elem->electrocharged_cooldown = 1.0f;
                             remaining = 0.0f;
+                            break;
+                        }
+
+                        // 冻结分支：水冰 1:1 消耗生成冻元素，冻元素量 = 2 × 消耗量，剩余成为藏元素
+                        if (rule->result == ReactionType::Frozen) {
+                            if (!elem->frozen.can_freeze) {
+                                // 不可冻结：冻元素立即消失，水冰按 1:1 消耗但不生成冻
+                                float cost = 1.0f;
+                                float consume_target = std::min(s->gauge, remaining * cost);
+                                float consume_trigger = consume_target / cost;
+                                s->gauge -= consume_target;
+                                if (s->gauge <= 0.0f) s->clear();
+                                remaining -= consume_trigger;
+                            } else {
+                                // 1:1 消耗生成冻元素，冻元素量 = 2 × 消耗量（原神原版规则）
+                                float frozen_gain = std::min(s->gauge, remaining);
+                                s->gauge -= frozen_gain;
+                                remaining -= frozen_gain;
+                                elem->frozen.gauge += 2.0f * frozen_gain;
+                                elem->frozen.initial_gauge = std::max(elem->frozen.initial_gauge, elem->frozen.gauge);
+                                elem->frozen.is_frozen = true;
+                                elem->mark_reaction(ReactionType::Frozen);
+                                // 目标槽被完全消耗 → 清除；否则剩余成为藏元素（保留在槽中）
+                                if (s->gauge <= 0.0f) s->clear();
+                                // 后手余量也不残留
+                                remaining = 0.0f;
+                            }
                             break;
                         }
 

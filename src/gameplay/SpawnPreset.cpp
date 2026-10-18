@@ -92,6 +92,7 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     // 3. 元素状态（从 preset.element + preset.strength 统一查表：×0.8 八折、duration、decay_rate 全是原神模型）
     ElementStatus elem;
     attach_element(elem, preset.element, preset.strength);
+    elem.frozen.can_freeze = preset.can_be_frozen;  // 冻结免疫配置
     world.add_component<ElementStatus>(e, elem);
 
     // 3b. 元素附着 ICD（每个敌人独立一套 Weak/Strong 计数+计时）

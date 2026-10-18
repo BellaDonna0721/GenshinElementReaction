@@ -20,6 +20,9 @@ struct EnemyPreset {
     uint8_t     color_r;       // 红通道 0~255
     uint8_t     color_g;       // 绿通道 0~255
     uint8_t     color_b;       // 蓝通道 0~255
+
+    // 冻结免疫（true=可冻结，false=冻元素立即消失）
+    bool        can_be_frozen = true;
 };
 
 // ========== 内置常用敌人预设（元素量/时长 100% 按原神模型统一查表，别手填 decay_rate！） ==========
@@ -48,6 +51,15 @@ inline const EnemyPreset ENEMY_CRYO = {
     ElementStrength::Medium,
     80.0f,       // max_hp
     22.0f,
+    255, 255, 255
+};
+
+// 测试木桩：Hydro 弱元素，血量 99999（用于长时间测试元素反应/冻结）
+inline const EnemyPreset ENEMY_TEST = {
+    ElementType::Hydro,
+    ElementStrength::Weak,
+    99999.0f,    // max_hp（极高血量，测试用）
+    20.0f,
     255, 255, 255
 };
 

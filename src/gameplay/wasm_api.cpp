@@ -56,6 +56,8 @@ void wasm_init() {
     g_enemy_manager.spawn(*g_world, ENEMY_HYDRO, 580.0f, 180.0f);
     g_enemy_manager.spawn(*g_world, ENEMY_HYDRO, 680.0f, 360.0f);
     g_enemy_manager.spawn(*g_world, ENEMY_HYDRO, 560.0f, 530.0f);
+    // 测试木桩：99999 血，用于长时间测试元素反应/冻结
+    g_enemy_manager.spawn(*g_world, ENEMY_TEST, 850.0f, 350.0f);
 }
 
 EMSCRIPTEN_KEEPALIVE

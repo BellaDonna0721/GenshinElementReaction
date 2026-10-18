@@ -33,6 +33,15 @@ namespace {
         if (ratio >= 1.0f) return 255;
         return static_cast<uint8_t>(ratio * 255.0f);
     }
+
+    // 冻元素量条比例 → uint8（gauge / initial_gauge）
+    inline uint8_t pack_frozen_ratio(const FrozenState& fz) {
+        if (fz.initial_gauge <= 0.0001f) return 0;
+        float ratio = fz.gauge / fz.initial_gauge;
+        if (ratio <= 0.0f) return 0;
+        if (ratio >= 1.0f) return 255;
+        return static_cast<uint8_t>(ratio * 255.0f);
+    }
 }
 
 void OutputSystem::update(World& world, float dt) {
@@ -90,6 +99,26 @@ void OutputSystem::update(World& world, float dt) {
                 if (n_valid >= 2) {
                     cmd.element2_type  = static_cast<uint8_t>(valid[1]->type);
                     cmd.element2_gauge = pack_progress_ratio(*valid[1]);
+                }
+
+                // 冻结状态：冻元素表现为冰附着，用 bullet_strength 字段传递冻结标志
+                // （该字段对敌人恒为 0，复用为 0=正常 1=冻结）
+                if (elem->frozen.is_frozen && elem->frozen.gauge > 0.0f) {
+                    cmd.bullet_strength = 1;  // 冻结标志
+                    uint8_t frozen_gauge = pack_frozen_ratio(elem->frozen);
+                    // 冻元素作为内圈主光环（表现为冰），藏元素作为外圈
+                    if (n_valid == 0) {
+                        // 只有冻元素，无藏元素
+                        cmd.element1_type  = static_cast<uint8_t>(ElementType::Cryo);
+                        cmd.element1_gauge = frozen_gauge;
+                    } else {
+                        // 冻元素 + 藏元素：冻元素占内圈，藏元素占外圈
+                        // 把原有 valid[0] 移到外圈
+                        cmd.element2_type  = cmd.element1_type;
+                        cmd.element2_gauge = cmd.element1_gauge;
+                        cmd.element1_type  = static_cast<uint8_t>(ElementType::Cryo);
+                        cmd.element1_gauge = frozen_gauge;
+                    }
                 }
 
                 // 消费本帧所有已标记的反应脉冲（uint16 位掩码）

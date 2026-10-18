@@ -33,9 +33,37 @@ struct AttachedSlot {
     }
 };
 
+// =====================================================================
+//  FrozenState —— 冻结状态（冻元素）
+//
+//  水冰 1:1 反应生成冻元素，冻元素表现为冰附着但有独立的动态衰减规则：
+//    · 冻结中：初始 0.4/s，每秒 +0.1（递增衰减）
+//    · 解除后：每秒 -0.2 回归 0.4（为下一次冻结的初始速率做准备）
+//  冻元素可被扩散/融化/超导/碎冰消耗，归零后解除冻结。
+//  藏元素：冻结时未消耗完的水/冰放入 attached_slots 共存。
+// =====================================================================
+struct FrozenState {
+    float gauge         = 0.0f;   // 冻元素量
+    float initial_gauge = 0.0f;   // 本次冻结周期的最大冻元素量（量条基线：gauge/initial_gauge）
+    float decay_rate    = 0.4f;   // 当前衰减速率（冻结中递增，解除后递减回 0.4）
+    float decay_timer   = 0.0f;   // 衰减速率调整计时（每满 1s 调整一次）
+    bool  is_frozen     = false;  // 是否正处于冻结状态
+    bool  can_freeze    = true;   // 是否可被冻结（来自 EnemyPreset.can_be_frozen）
+
+    void clear() {
+        gauge         = 0.0f;
+        initial_gauge = 0.0f;
+        is_frozen     = false;
+        // decay_rate 不重置：解除后按 -0.2/s 逐步回归 0.4
+    }
+};
+
 struct ElementStatus {
     // —— 附着元素（双槽，最多两种共存；水雷相遇即进入该态）——
     AttachedSlot attached_slots[2];
+
+    // —— 冻结状态（冻元素 + 动态衰减；藏元素复用 attached_slots）——
+    FrozenState frozen;
 
     // 水雷共存专用：距离下一次感电 DoT 扣 0.4/0.4 的剩余秒数
     // 只有同时存在 Hydro + Electro 时才 >0；其他情况自动为 0

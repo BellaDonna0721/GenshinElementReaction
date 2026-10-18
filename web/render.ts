@@ -208,8 +208,11 @@ export class Renderer {
     const { x, y, radius, r, g, b, a,
             element1_type, element2_type,
             element1_gauge, element2_gauge,
-            reaction_mask_lo, reaction_mask_hi } = cmd;
+            reaction_mask_lo, reaction_mask_hi,
+            bullet_strength } = cmd;
     const key = `enemy_${cmd.x}_${cmd.y}`;
+    const isFrozen = bullet_strength === 1;  // 冻结标志（复用 bullet_strength 字段）
+    const FROZEN_COLOR = '#BFFFFF';          // 冻元素：更亮的淡蓝色，区分普通冰
 
     // 身体：贴图优先（圆形裁剪），加载失败则回退到原圆形色块
     if (this.spriteLoaded && this.enemySprite) {
@@ -238,11 +241,22 @@ export class Renderer {
       ctx.stroke();
     }
 
+    // 冰冻覆盖：冻结时给敌人身体叠一层淡蓝色半透明
+    if (isFrozen) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(180, 240, 255, 0.35)';
+      ctx.fill();
+      ctx.restore();
+    }
+
     // ---------- 元素光环：内圈（slot[0]） + 外圈（slot[1]，共存态）----------
     const g1 = unpackGauge(element1_gauge);
     const g2 = unpackGauge(element2_gauge);
     if (element1_type !== 0 && g1 > 0) {
-      const color = ELEMENT_COLORS[element1_type] || '#888';
+      // 冻结时内圈是冻元素，用更亮的淡蓝色；否则用普通元素色
+      const color = isFrozen ? FROZEN_COLOR : (ELEMENT_COLORS[element1_type] || '#888');
       ctx.beginPath();
       ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
       ctx.strokeStyle = color;
@@ -277,17 +291,17 @@ export class Renderer {
     const has1 = element1_type !== 0;
     const has2 = element2_type !== 0;
     if (has1 && !has2) {
-      // 单元素 → 完整长度
-      const color = ELEMENT_COLORS[element1_type] || '#888';
+      // 单元素 → 完整长度（冻结时内圈是冻元素，用更亮的蓝色）
+      const color = isFrozen ? FROZEN_COLOR : (ELEMENT_COLORS[element1_type] || '#888');
       ctx.fillStyle = color;
       ctx.fillRect(barX, barY, barW * g1, barH);
       ctx.fillStyle = color;
       ctx.font = 'bold 10px monospace';
       ctx.textAlign = 'left';
-      ctx.fillText(ELEMENT_NAMES[element1_type] || '', barX, barY - 1);
+      ctx.fillText(isFrozen ? '冻' : (ELEMENT_NAMES[element1_type] || ''), barX, barY - 1);
     } else if (has1 && has2) {
-      // 双元素 → 左半显示 slot0，右半显示 slot1
-      const color1 = ELEMENT_COLORS[element1_type] || '#888';
+      // 双元素 → 左半显示 slot0，右半显示 slot1（冻结时 slot0 是冻元素）
+      const color1 = isFrozen ? FROZEN_COLOR : (ELEMENT_COLORS[element1_type] || '#888');
       const color2 = ELEMENT_COLORS[element2_type] || '#888';
       ctx.fillStyle = color1;
       ctx.fillRect(barX, barY, (barW / 2) * g1, barH);
@@ -297,7 +311,7 @@ export class Renderer {
       ctx.font = 'bold 10px monospace';
       ctx.textAlign = 'left';
       ctx.fillStyle = color1;
-      ctx.fillText(ELEMENT_NAMES[element1_type] || '', barX, barY - 1);
+      ctx.fillText(isFrozen ? '冻' : (ELEMENT_NAMES[element1_type] || ''), barX, barY - 1);
       ctx.textAlign = 'right';
       ctx.fillStyle = color2;
       ctx.fillText(ELEMENT_NAMES[element2_type] || '', barX + barW, barY - 1);
