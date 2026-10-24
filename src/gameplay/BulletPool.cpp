@@ -3,7 +3,7 @@
 #include "../components/Velocity.h"
 #include "../components/Lifetime.h"
 #include "../components/ElementPayload.h"
-#include "../components/Collider.h"
+#include "../components/SphereCollider.h"
 #include "../components/IdentityTag.h"
 #include "../components/RenderInfo.h"
 
@@ -51,12 +51,12 @@ void release_bullet_entity(World& world, Entity e) {
         world.destroy_entity(e);
         return;
     }
-    // 移除子弹发射时 add 的 7 个组件（Transform/Velocity/Lifetime/ElementPayload/Collider/IdentityTag/RenderInfo）
+    // 移除子弹发射时 add 的 7 个组件（Transform/Velocity/Lifetime/ElementPayload/SphereCollider/IdentityTag/RenderInfo）
     world.remove_component<Transform>(e);
     world.remove_component<Velocity>(e);
     world.remove_component<Lifetime>(e);
     world.remove_component<ElementPayload>(e);
-    world.remove_component<Collider>(e);
+    world.remove_component<SphereCollider>(e);
     world.remove_component<IdentityTag>(e);
     world.remove_component<RenderInfo>(e);
     g_bullet_pool.release(e);

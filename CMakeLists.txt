@@ -49,7 +49,7 @@ target_link_options(game PRIVATE
     "SHELL:-s WASM=1"
     "SHELL:-s MODULARIZE=1"
     "SHELL:-s EXPORT_NAME='GameModule'"
-    "SHELL:-s EXPORTED_FUNCTIONS='[\"_wasm_init\",\"_wasm_update\",\"_wasm_set_input\",\"_wasm_get_render_data\",\"_wasm_get_render_count\",\"_wasm_get_health_data\",\"_wasm_get_health_count\",\"_wasm_get_damage_numbers\",\"_wasm_get_damage_number_count\",\"_wasm_spawn_enemy\",\"_wasm_remove_enemy\",\"_wasm_clear_enemies\",\"_wasm_get_alive_enemy_count\",\"_wasm_reset\",\"_malloc\",\"_free\"]'"
+    "SHELL:-s EXPORTED_FUNCTIONS='[\"_wasm_init\",\"_wasm_update\",\"_wasm_set_input\",\"_wasm_get_render_data\",\"_wasm_get_render_count\",\"_wasm_get_health_data\",\"_wasm_get_health_count\",\"_wasm_get_damage_numbers\",\"_wasm_get_damage_number_count\",\"_wasm_get_wall_data\",\"_wasm_get_wall_count\",\"_wasm_spawn_enemy\",\"_wasm_remove_enemy\",\"_wasm_clear_enemies\",\"_wasm_get_alive_enemy_count\",\"_wasm_reset\",\"_malloc\",\"_free\"]'"
     "SHELL:-s EXPORTED_RUNTIME_METHODS='[\"ccall\",\"cwrap\",\"getValue\",\"HEAPF32\",\"HEAPU8\",\"HEAP32\"]'"
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     "SHELL:-s TOTAL_STACK=1048576"

@@ -1,7 +1,7 @@
 import {
   RenderCommand, EntityType, ElementType,
   ELEMENT_COLORS, ELEMENT_NAMES, REACTION_NAMES, unpackGauge,
-  HealthBarInfo, DamageNumberInfo,
+  HealthBarInfo, DamageNumberInfo, WallRenderInfo,
 } from './types.js';
 
 export class Renderer {
@@ -49,7 +49,7 @@ export class Renderer {
     this.playerSprite.src = 'assets/paimon.png';
   }
 
-  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumberInfo[]): void {
+  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumberInfo[], walls: WallRenderInfo[]): void {
     const ctx = this.ctx;
 
     // 背景
@@ -69,6 +69,9 @@ export class Renderer {
       ctx.moveTo(0, y); ctx.lineTo(this.width, y);
       ctx.stroke();
     }
+
+    // 墙体（在实体之下绘制，作为场景障碍物）
+    this.drawWalls(ctx, walls);
 
     // 子弹（底层）+ 敌人 + 玩家（顶层）分三层画，防止遮挡
     const bullets: RenderCommand[] = [];
@@ -90,6 +93,23 @@ export class Renderer {
     this.drawDamageNumbers(ctx, damageNumbers);
 
     this.drawUI(ctx);
+  }
+
+  // ===== 墙体（矩形填充 + 描边）=====
+  private drawWalls(ctx: CanvasRenderingContext2D, walls: WallRenderInfo[]): void {
+    for (const w of walls) {
+      const x = w.x - w.width / 2;
+      const y = w.y - w.height / 2;
+
+      // 填充
+      ctx.fillStyle = `rgba(${w.r},${w.g},${w.b},${w.a / 255})`;
+      ctx.fillRect(x, y, w.width, w.height);
+
+      // 描边（略亮的边缘）
+      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x, y, w.width, w.height);
+    }
   }
 
   // ===== 血条 =====

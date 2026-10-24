@@ -665,7 +665,7 @@ CMakeFiles/game.dir/src/systems/InputSystem.cpp.o: \
   D:\study\GenshinElementReaction\src\systems\..\components\Lifetime.h \
   D:\study\GenshinElementReaction\src\systems\..\components\ElementPayload.h \
   D:\study\GenshinElementReaction\src\systems\..\components\..\utils\ElementType.h \
-  D:\study\GenshinElementReaction\src\systems\..\components\Collider.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\SphereCollider.h \
   D:\study\GenshinElementReaction\src\systems\..\components\IdentityTag.h \
   D:\study\GenshinElementReaction\src\systems\..\components\ElementStatus.h \
   D:\study\GenshinElementReaction\src\systems\..\components\RenderInfo.h \

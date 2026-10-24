@@ -138,3 +138,24 @@ export interface DamageNumberInfo {
   g: number;
   b: number;
 }
+
+// 墙体渲染数据（独立于 RenderCommand 的矩形通道）
+// 与 C++ 侧 WallRenderInfo 对齐（20 字节 stride）：
+//   [0,4)   x       (f32)  矩形中心 X
+//   [4,8)   y       (f32)  矩形中心 Y
+//   [8,12)  width   (f32)  矩形宽
+//   [12,16) height  (f32)  矩形高
+//   [16]    r       (u8)
+//   [17]    g       (u8)
+//   [18]    b       (u8)
+//   [19]    a       (u8)
+export interface WallRenderInfo {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+}

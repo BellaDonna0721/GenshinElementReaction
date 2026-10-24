@@ -662,6 +662,6 @@ CMakeFiles/game.dir/src/gameplay/BulletPool.cpp.o: \
   D:\study\GenshinElementReaction\src\gameplay\..\components\Lifetime.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\ElementPayload.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\..\utils\ElementType.h \
-  D:\study\GenshinElementReaction\src\gameplay\..\components\Collider.h \
+  D:\study\GenshinElementReaction\src\gameplay\..\components\SphereCollider.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\IdentityTag.h \
   D:\study\GenshinElementReaction\src\gameplay\..\components\RenderInfo.h

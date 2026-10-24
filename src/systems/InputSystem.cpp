@@ -3,7 +3,7 @@
 #include "../components/Velocity.h"
 #include "../components/Lifetime.h"
 #include "../components/ElementPayload.h"
-#include "../components/Collider.h"
+#include "../components/SphereCollider.h"
 #include "../components/IdentityTag.h"
 #include "../components/ElementStatus.h"
 #include "../components/RenderInfo.h"
@@ -113,9 +113,9 @@ void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, fl
     atk.base_damage = 10.0f;
     world.add_component<AttackPower>(e, atk);
 
-    Collider col;
+    SphereCollider col;
     col.radius = 6.0f;
-    world.add_component<Collider>(e, col);
+    world.add_component<SphereCollider>(e, col);
 
     IdentityTag bid;
     bid.identity_type = Identity::Bullet;

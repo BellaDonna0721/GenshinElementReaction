@@ -68,3 +68,9 @@ Entity spawn_player(World& world, float x, float y);
 
 // 生成敌人实体（根据预设配置类型）
 Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset);
+
+// 生成墙体实体（静态矩形障碍物）
+//   x, y = 矩形中心坐标
+//   w, h = 矩形宽高
+//   颜色默认石墙灰，可通过 RenderInfo 自定义
+Entity spawn_wall(World& world, float x, float y, float w, float h);

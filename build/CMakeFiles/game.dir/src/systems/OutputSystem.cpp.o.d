@@ -665,4 +665,5 @@ CMakeFiles/game.dir/src/systems/OutputSystem.cpp.o: \
   D:\study\GenshinElementReaction\src\systems\..\components\IdentityTag.h \
   D:\study\GenshinElementReaction\src\systems\..\components\FacingDirection.h \
   D:\study\GenshinElementReaction\src\systems\..\components\Health.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\BoxCollider.h \
   D:\study\GenshinElementReaction\src\systems\..\components\DamageNumberQueue.h

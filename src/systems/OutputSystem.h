@@ -48,6 +48,27 @@ struct DamageNumberInfo {
 
 extern std::vector<DamageNumberInfo> g_damage_numbers;
 
+// =====================================================================
+//  墙体渲染数据（独立通道，走矩形而非圆形，不占用 32 字节 RenderCommand）
+//  OutputSystem 收集 Identity=Wall 的实体写入，TS 侧绘制填充矩形+描边
+//  字节布局（20 字节）：
+//    [0,4)   x       (f32)  矩形中心 X
+//    [4,8)   y       (f32)  矩形中心 Y
+//    [8,12)  width   (f32)  矩形宽
+//    [12,16) height  (f32)  矩形高
+//    [16]    r       (u8)
+//    [17]    g       (u8)
+//    [18]    b       (u8)
+//    [19]    a       (u8)
+// =====================================================================
+struct WallRenderInfo {
+    float   x, y;
+    float   width, height;
+    uint8_t r, g, b, a;
+};
+
+extern std::vector<WallRenderInfo> g_walls;
+
 class OutputSystem : public System {
 public:
     void update(World& world, float dt) override;

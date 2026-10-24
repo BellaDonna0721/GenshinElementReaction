@@ -658,7 +658,8 @@ CMakeFiles/game.dir/src/systems/CollisionSystem.cpp.o: \
   D:\study\GenshinElementReaction\src\systems\..\core\..\systems\System.h \
   D:\study\GenshinElementReaction\src\systems\..\core\..\utils\ElementType.h \
   D:\study\GenshinElementReaction\src\systems\..\components\Transform.h \
-  D:\study\GenshinElementReaction\src\systems\..\components\Collider.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\SphereCollider.h \
+  D:\study\GenshinElementReaction\src\systems\..\components\BoxCollider.h \
   D:\study\GenshinElementReaction\src\systems\..\components\IdentityTag.h \
   D:\study\GenshinElementReaction\src\systems\..\components\ElementPayload.h \
   D:\study\GenshinElementReaction\src\systems\..\components\..\utils\ElementType.h \

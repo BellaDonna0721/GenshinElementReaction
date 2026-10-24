@@ -177,7 +177,7 @@ GenshinElement/
 │   │   ├── ComponentPool.h   # IComponentPool + ComponentPool<T>（Sparse Set 稀疏集）
 │   │   └── World.h/.cpp      # 协调器：实体生命周期、组件 add/get/remove、query、系统调度
 │   ├── components/           # 纯数据组件（单一职责，组件间互不 include）
-│   │   ├── Transform.h Velocity.h Lifetime.h Collider.h
+│   │   ├── Transform.h Velocity.h Lifetime.h SphereCollider.h BoxCollider.h
 │   │   ├── ElementStatus.h   # 附着光环（双槽 aura + gauge + 反应位掩码）
 │   │   ├── ElementICDStatus.h # 元素命中冷却（7×2 组 counter 槽）
 │   │   ├── ElementPayload.h  # 子弹载荷（元素类型 + ElementStrength 档位）

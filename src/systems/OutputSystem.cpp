@@ -6,11 +6,13 @@
 #include "../components/FacingDirection.h"
 #include "../components/Health.h"
 #include "../components/IdentityTag.h"
+#include "../components/BoxCollider.h"
 #include "../components/DamageNumberQueue.h"
 
 std::vector<RenderCommand>   g_render_commands;
 std::vector<HealthBarInfo>   g_health_bars;
 std::vector<DamageNumberInfo> g_damage_numbers;
+std::vector<WallRenderInfo>  g_walls;
 
 namespace {
     // 量 → uint8 量条比例（0~255 = 0% ~ 100%）。
@@ -49,10 +51,29 @@ void OutputSystem::update(World& world, float dt) {
     g_render_commands.clear();
     g_health_bars.clear();
     g_damage_numbers.clear();
+    g_walls.clear();
 
     for (auto e : world.query<Transform, RenderInfo>()) {
         auto* t  = world.get_component<Transform>(e);
         auto* ri = world.get_component<RenderInfo>(e);
+
+        // —— 墙体：走独立矩形通道，不写入 RenderCommand ——
+        if (ri->entity_type == Identity::Wall) {
+            auto* rc = world.get_component<BoxCollider>(e);
+            if (rc) {
+                WallRenderInfo wi;
+                wi.x      = t->x;
+                wi.y      = t->y;
+                wi.width  = rc->width;
+                wi.height = rc->height;
+                wi.r      = ri->color_r;
+                wi.g      = ri->color_g;
+                wi.b      = ri->color_b;
+                wi.a      = ri->color_a;
+                g_walls.push_back(wi);
+            }
+            continue;
+        }
 
         RenderCommand cmd = {};
         cmd.x            = t->x;

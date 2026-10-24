@@ -5,9 +5,10 @@
 #include "../components/ElementICDStatus.h"
 #include "../components/RenderInfo.h"
 #include "../components/FacingDirection.h"
-#include "../components/Collider.h"
+#include "../components/SphereCollider.h"
 #include "../components/IdentityTag.h"
 #include "../components/Health.h"
+#include "../components/BoxCollider.h"
 
 // ========== 玩家工厂（标准配置，目前没有多种玩家变体） ==========
 
@@ -54,9 +55,9 @@ Entity spawn_player(World& world, float x, float y) {
     world.add_component<RenderInfo>(e, ri);
 
     // 6. 碰撞半径
-    Collider col;
+    SphereCollider col;
     col.radius = 22.0f;
-    world.add_component<Collider>(e, col);
+    world.add_component<SphereCollider>(e, col);
 
     // 7. 逻辑身份
     IdentityTag id;
@@ -110,9 +111,9 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     world.add_component<RenderInfo>(e, ri);
 
     // 5. 碰撞半径 和视觉半径一致
-    Collider col;
+    SphereCollider col;
     col.radius = preset.radius;
-    world.add_component<Collider>(e, col);
+    world.add_component<SphereCollider>(e, col);
 
     // 6. 逻辑身份（Enemy）
     IdentityTag id;
@@ -124,6 +125,43 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     hp.max_hp     = preset.max_hp;
     hp.current_hp = preset.max_hp;
     world.add_component<Health>(e, hp);
+
+    return e;
+}
+
+// ========== 墙体工厂（静态矩形障碍物）==========
+//  墙体是纯静态实体：无 Velocity / Health / ElementStatus / Lifetime
+//  只携带位置、矩形碰撞体、身份、渲染颜色四个组件
+
+Entity spawn_wall(World& world, float x, float y, float w, float h) {
+    Entity e = world.create_entity();
+
+    // 1. 位置（矩形中心）
+    Transform tform;
+    tform.x = x;
+    tform.y = y;
+    world.add_component<Transform>(e, tform);
+
+    // 2. 矩形碰撞体（宽高）
+    BoxCollider rc;
+    rc.width  = w;
+    rc.height = h;
+    world.add_component<BoxCollider>(e, rc);
+
+    // 3. 逻辑身份（Wall）
+    IdentityTag id;
+    id.identity_type = Identity::Wall;
+    world.add_component<IdentityTag>(e, id);
+
+    // 4. 渲染颜色（石墙灰，供 OutputSystem 墙体通道读取）
+    RenderInfo ri;
+    ri.entity_type = Identity::Wall;
+    ri.radius      = 0.0f;  // 墙体无视觉半径，此字段无意义
+    ri.color_r     = 120;
+    ri.color_g     = 120;
+    ri.color_b     = 130;
+    ri.color_a     = 255;
+    world.add_component<RenderInfo>(e, ri);
 
     return e;
 }

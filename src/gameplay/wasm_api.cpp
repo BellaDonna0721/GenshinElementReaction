@@ -53,6 +53,13 @@ void wasm_init() {
     }
 
     spawn_player(*g_world, 200.0f, 350.0f);
+
+    // —— 测试墙体（验证圆-矩碰撞 + 矩形渲染通道）——
+    // 中间竖墙：阻挡玩家从左侧直达右侧敌人，需绕行
+    spawn_wall(*g_world, 420.0f, 200.0f, 30.0f, 220.0f);
+    // 中间横墙：与竖墙形成 L 形障碍
+    spawn_wall(*g_world, 530.0f, 420.0f, 200.0f, 30.0f);
+
     g_enemy_manager.spawn(*g_world, ENEMY_HYDRO, 580.0f, 180.0f);
     g_enemy_manager.spawn(*g_world, ENEMY_HYDRO, 680.0f, 360.0f);
     g_enemy_manager.spawn(*g_world, ENEMY_HYDRO, 560.0f, 530.0f);
@@ -115,6 +122,18 @@ DamageNumberInfo* wasm_get_damage_numbers() {
 EMSCRIPTEN_KEEPALIVE
 int wasm_get_damage_number_count() {
     return static_cast<int>(g_damage_numbers.size());
+}
+
+// ========== 墙体渲染数据（独立矩形通道）==========
+
+EMSCRIPTEN_KEEPALIVE
+WallRenderInfo* wasm_get_wall_data() {
+    return g_walls.data();
+}
+
+EMSCRIPTEN_KEEPALIVE
+int wasm_get_wall_count() {
+    return static_cast<int>(g_walls.size());
 }
 
 // ========== 敌人管理（自定义关卡用）==========

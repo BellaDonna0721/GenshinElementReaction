@@ -9,6 +9,7 @@ enum class Identity : uint8_t {
     Enemy    = 1,  //敌人
     Bullet   = 2,  //子弹/投射物
     AoEZone  = 3,  //AoE 区域（预留，RenderCommand 协议兼容值）
+    Wall     = 4,  //墙体（静态矩形障碍物，无血量/无元素/不移动）
 };
 
 // 统一身份标签组件：用一个组件替代原来的 BulletTag/PlayerTag/EnemyTag 三个空标签

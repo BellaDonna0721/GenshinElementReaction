@@ -1,5 +1,5 @@
 import {
-  InputState, ElementType, HealthBarInfo, DamageNumberInfo,
+  InputState, ElementType, HealthBarInfo, DamageNumberInfo, WallRenderInfo,
 } from './types.js';
 import { Renderer } from './render.js';
 
@@ -17,6 +17,8 @@ interface GameModule {
   _wasm_get_health_count: () => number;
   _wasm_get_damage_numbers: () => number;
   _wasm_get_damage_number_count: () => number;
+  _wasm_get_wall_data: () => number;
+  _wasm_get_wall_count: () => number;
   _wasm_spawn_enemy: (preset_id: number, x: number, y: number) => number;
   _wasm_remove_enemy: (entity_id: number) => void;
   _wasm_clear_enemies: () => void;
@@ -212,6 +214,41 @@ function readDamageNumbers(): DamageNumberInfo[] {
   return result;
 }
 
+// 读取墙体数据（WallRenderInfo，20 字节 stride）
+//   [0,4)   x       (f32)
+//   [4,8)   y       (f32)
+//   [8,12)  width   (f32)
+//   [12,16) height  (f32)
+//   [16]    r       (u8)
+//   [17]    g       (u8)
+//   [18]    b       (u8)
+//   [19]    a       (u8)
+const WALL_STRIDE = 20;
+function readWalls(): WallRenderInfo[] {
+  const count = wasmModule._wasm_get_wall_count();
+  if (count <= 0) return [];
+
+  const ptr = wasmModule._wasm_get_wall_data();
+  const heap = wasmModule.HEAPU8;
+  const f32  = new Float32Array(heap.buffer);
+  const result: WallRenderInfo[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const base = ptr + i * WALL_STRIDE;
+    result.push({
+      x:      f32[ base        / 4],
+      y:      f32[(base + 4)  / 4],
+      width:  f32[(base + 8)  / 4],
+      height: f32[(base + 12) / 4],
+      r:      heap[base + 16],
+      g:      heap[base + 17],
+      b:      heap[base + 18],
+      a:      heap[base + 19],
+    });
+  }
+  return result;
+}
+
 function gameLoop(timestamp: number): void {
   if (!running) return;
   const dt = Math.min((timestamp - lastTime) / 1000, 0.1);
@@ -219,7 +256,7 @@ function gameLoop(timestamp: number): void {
 
   syncInput();
   wasmModule._wasm_update(dt);
-  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers());
+  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers(), readWalls());
 
   requestAnimationFrame(gameLoop);
 }

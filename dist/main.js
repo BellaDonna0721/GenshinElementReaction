@@ -79,7 +79,7 @@ var Renderer = class {
     };
     this.playerSprite.src = "assets/paimon.png";
   }
-  draw(commands, healthBars, damageNumbers) {
+  draw(commands, healthBars, damageNumbers, walls) {
     const ctx = this.ctx;
     ctx.fillStyle = "#1a1a2e";
     ctx.fillRect(0, 0, this.width, this.height);
@@ -97,6 +97,7 @@ var Renderer = class {
       ctx.lineTo(this.width, y);
       ctx.stroke();
     }
+    this.drawWalls(ctx, walls);
     const bullets = [];
     const enemies = [];
     const player = [];
@@ -111,6 +112,18 @@ var Renderer = class {
     this.drawHealthBars(ctx, healthBars);
     this.drawDamageNumbers(ctx, damageNumbers);
     this.drawUI(ctx);
+  }
+  // ===== 墙体（矩形填充 + 描边）=====
+  drawWalls(ctx, walls) {
+    for (const w of walls) {
+      const x = w.x - w.width / 2;
+      const y = w.y - w.height / 2;
+      ctx.fillStyle = `rgba(${w.r},${w.g},${w.b},${w.a / 255})`;
+      ctx.fillRect(x, y, w.width, w.height);
+      ctx.strokeStyle = "rgba(255,255,255,0.25)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x, y, w.width, w.height);
+    }
   }
   // ===== 血条 =====
   drawHealthBars(ctx, bars) {
@@ -646,13 +659,36 @@ function readDamageNumbers() {
   }
   return result;
 }
+var WALL_STRIDE = 20;
+function readWalls() {
+  const count = wasmModule._wasm_get_wall_count();
+  if (count <= 0) return [];
+  const ptr = wasmModule._wasm_get_wall_data();
+  const heap = wasmModule.HEAPU8;
+  const f32 = new Float32Array(heap.buffer);
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    const base = ptr + i * WALL_STRIDE;
+    result.push({
+      x: f32[base / 4],
+      y: f32[(base + 4) / 4],
+      width: f32[(base + 8) / 4],
+      height: f32[(base + 12) / 4],
+      r: heap[base + 16],
+      g: heap[base + 17],
+      b: heap[base + 18],
+      a: heap[base + 19]
+    });
+  }
+  return result;
+}
 function gameLoop(timestamp) {
   if (!running) return;
   const dt = Math.min((timestamp - lastTime) / 1e3, 0.1);
   lastTime = timestamp;
   syncInput();
   wasmModule._wasm_update(dt);
-  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers());
+  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers(), readWalls());
   requestAnimationFrame(gameLoop);
 }
 async function init() {
