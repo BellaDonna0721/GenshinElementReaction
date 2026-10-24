@@ -16,6 +16,7 @@
   ```bash
   emsdk activate latest
   ```
+  > 若 emsdk 安装在其他路径，需修改 [`build.bat`](file:///d:/study/GenshinElementReaction/build.bat) 第 8 行的 `set PATH=...`，将其中所有 `D:\emsdk` 替换为你的实际安装路径（涉及 `upstream\bin`、`upstream\emscripten`、`node\xxx\bin`、`python\xxx` 四个子路径）。
 - **CMake ≥ 3.10**（在 emsdk 环境 PATH 内即可）
 - **Node.js**（编译 TypeScript 用，esbuild 可通过 `npx` 直接调用）
 - Windows 10/11（`build.bat` / `serve.bat` 为 PowerShell/cmd 批处理脚本）
@@ -116,6 +117,26 @@ Hydro 与 Electro 相遇进入**共存态**（双槽同时存在），而非一�
 - 若有第三元素命中（如火），按**雷优先 → 水其次**的顺序链式消耗：先与雷反应（超载），剩余火再与水反应（蒸发），同一帧可触发多个反应。
 - 反应过程中触发方（火）的剩余量直接丢弃，不残留。
 
+### 冻结反应（Frozen）
+
+Cryo 与 Hydro 相遇按 **1:1** 消耗，生成**冻元素**（Freeze），目标进入冻结状态。
+
+- **冻元素量**：`冻元素量 = 2 × 消耗量`。例如 0.7 冰 + 1.0 水 → 消耗 0.7 → 冻元素量 = 1.4；余量（0.3 水）作为**藏元素**保留。
+- **动态衰减**：冻元素初始衰减速率 **0.4/s**，冻结期间每秒 **+0.1/s** 递增；冻结解除后每秒 **-0.2/s** 回归 0.4，为下次冻结做准备。
+- **藏元素共存**：冻元素与藏元素（藏水/藏冰）可共存，渲染为双光环（内圈冻元素 + 外圈藏元素）。
+- **冻结状态下第三元素的处理优先级**：
+
+  | 第三元素 | 行为 |
+  |----------|------|
+  | 水/冰 | 有对立藏元素时 1:1 反应生成冻元素（2× 量），余量不残留；无对立藏元素则附着为藏元素 |
+  | 火/雷 | 优先消耗藏冰，再消耗冻元素 |
+  | 风 | 优先扩散藏元素，再扩散冻元素（消耗比 2:1） |
+  | 草 | 与冻共存，不反应 |
+  | 岩 | 消耗冻元素（结晶） |
+
+- **可冻结配置**：`EnemyPreset.can_be_frozen` 字段控制该敌人是否可被冻结（默认 `true`）。
+- **渲染**：冻元素用更亮的淡蓝色（`#BFFFFF`）区分普通冰元素，冻结时敌人身体叠加淡蓝色半透明覆盖层。
+
 ### 元素附着 ICD（Internal Cooldown）
 
 为避免高频攻击无限挂元素，每个目标实体独立维护 **7 元素 × 2 档位 = 14 组** 独立冷却计数器：
@@ -139,10 +160,10 @@ Hydro 与 Electro 相遇进入**共存态**（双槽同时存在），而非一�
 | 感电 ElectroCharged（6） | Electro ↔ Hydro | 共存 | 双元素共存，每 1s 各扣 0.4 DoT |
 | 冻结 Frozen（7） | Cryo ↔ Hydro | 1 : 1.0 | 双向对等 |
 | 超导 Superconduct（8） | Cryo ↔ Electro | 1 : 1.0 | 双向对等 |
-| 火扩散 SwirlPyro（9） | Anemo → Pyro | 1 : 1.0 | 风不消耗，可链式多扩散 |
-| 水扩散 SwirlHydro（10） | Anemo → Hydro | 1 : 1.0 | 同上 |
-| 雷扩散 SwirlElectro（11） | Anemo → Electro | 1 : 1.0 | 同上 |
-| 冰扩散 SwirlCryo（12） | Anemo → Cryo | 1 : 1.0 | 同上 |
+| 火扩散 SwirlPyro（9） | Anemo → Pyro | 1 : 0.5 | 风:目标=2:1，风不消耗，可链式多扩散 |
+| 水扩散 SwirlHydro（10） | Anemo → Hydro | 1 : 0.5 | 同上 |
+| 雷扩散 SwirlElectro（11） | Anemo → Electro | 1 : 0.5 | 同上 |
+| 冰扩散 SwirlCryo（12） | Anemo → Cryo | 1 : 0.5 | 同上 |
 | 结晶 Crystallize（13） | Geo → Pyro/Hydro/Electro/Cryo | 1 : 1.0 | 单向（Geo 不可附着） |
 | 燃烧 Burning（14） | Pyro ↔ Dendro | 1 : 1.0 | 双向对等 |
 | 绽放 Bloom（15） | Hydro ↔ Dendro | 1 : 1.0 | 双向对等 |
@@ -168,7 +189,9 @@ GenshinElement/
 ├── build.bat                 # 一键：清缓存 + 配置 + 编 WASM + 编 TS
 ├── serve.bat                 # 一键：Python HTTP 服务器 3000 端口
 ├── CMakeLists.txt            # Emscripten 工具链 + POST_BUILD 拷贝到 dist
-├── dist/                     # 最终浏览器产物（game.js/game.wasm/main.js）
+├── .gitignore                # 忽略 build/ dist/ 等编译产物
+├── dist/                     # 最终浏览器产物（game.js/game.wasm/main.js）—— 由 build.bat 生成，不入库
+├── build/                    # CMake 构建缓存 —— 由 build.bat 生成，不入库
 │
 ├── src/                      # C++ 游戏逻辑（ECS，编译为 WASM）
 │   ├── core/                 # ECS 核心
@@ -178,9 +201,13 @@ GenshinElement/
 │   │   └── World.h/.cpp      # 协调器：实体生命周期、组件 add/get/remove、query、系统调度
 │   ├── components/           # 纯数据组件（单一职责，组件间互不 include）
 │   │   ├── Transform.h Velocity.h Lifetime.h SphereCollider.h BoxCollider.h
-│   │   ├── ElementStatus.h   # 附着光环（双槽 aura + gauge + 反应位掩码）
+│   │   ├── ElementStatus.h   # 附着光环（双槽 aura + gauge + 反应位掩码 + 冻元素状态）
 │   │   ├── ElementICDStatus.h # 元素命中冷却（7×2 组 counter 槽）
 │   │   ├── ElementPayload.h  # 子弹载荷（元素类型 + ElementStrength 档位）
+│   │   ├── AttackPower.h     # 子弹攻击力（仅挂子弹实体）
+│   │   ├── Health.h          # 生命值（max_hp / current_hp）
+│   │   ├── DamageQueue.h     # 伤害事件队列（DamageEvent + 单例组件）
+│   │   ├── DamageNumberQueue.h # 伤害飘字队列
 │   │   ├── FacingDirection.h # 玩家朝向 dx/dy
 │   │   ├── IdentityTag.h     # 统一身份标签：Player / Enemy / Bullet
 │   │   └── RenderInfo.h      # 视觉半径 + RGB
@@ -189,11 +216,13 @@ GenshinElement/
 │   │   ├── InputSystem       # 移动、朝向、发射子弹、数字键切玩家元素
 │   │   ├── LifetimeSystem    # 子弹生命周期 countdown
 │   │   ├── MovementSystem    # Transform += Velocity * dt
-│   │   ├── CollisionSystem   # 子弹-敌人圆碰撞 + ICD 判定，写入 pending 元素
-│   │   ├── ElementReactionSystem  # 衰减 + 查表反应 + 感电 DoT + 链式消耗 + 反应位掩码
-│   │   └── OutputSystem      # 打包为 32B RenderCommand 数组供 TS 读取
+│   │   ├── CollisionSystem   # 子弹-敌人圆碰撞 + ICD 判定，写入 pending 元素/伤害
+│   │   ├── ElementReactionSystem  # 衰减 + 查表反应 + 感电 DoT + 链式消耗 + 冻结 + 反应位掩码
+│   │   ├── DamageSystem      # 消费 DamageQueue，扣血，生成飘字，处理死亡
+│   │   └── OutputSystem      # 打包为 32B RenderCommand 数组 + 血条 + 飘字供 TS 读取
 │   ├── gameplay/
 │   │   ├── SpawnPreset.h/.cpp  # spawn_player / spawn_enemy 工厂 + EnemyPreset 配置表
+│   │   ├── EnemyManager.h/.cpp # 敌人生成/移除/清空管理
 │   │   ├── BulletPool.h/.cpp   # 子弹对象池（POOL_SIZE=40，acquire/release 复用）
 │   │   └── wasm_api.cpp        # EMSCRIPTEN_BINDINGS：TS ↔ WASM 桥接
 │   └── utils/
@@ -222,12 +251,12 @@ GenshinElement/
 
 ## TODO
 
-- [ ] 玩家/敌人生命值组件（Health）与反应伤害计算
-- [ ] 超载范围爆炸 / 超导减物抗 / 冻结控制 等具体反应效果
+- [✔] 玩家/敌人生命值组件（Health）与伤害结算（增幅反应倍率、直射伤害、伤害飘字）
+- [✔] 冻结反应控制（冻元素生成、动态衰减、藏元素共存、冻结状态反应优先级）
+- [ ] 超载范围爆炸 / 超导减物抗 等剧变反应具体效果
 - [ ] 敌人 AI 与自动生成波次
+- [ ] 设计肉鸽关卡
 - [ ] 扩散 AoE、草原核、结晶护盾的实体实现
-- [ ] 粒子特效（超载爆炸、燃烧火焰等）
-- [ ] 激化（Quicken）、烈绽放、超绽放等草系进阶反应
 
 ## License
 
