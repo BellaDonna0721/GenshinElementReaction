@@ -1,0 +1,19 @@
+# —— CMake / 编译产物 ——
+build/
+dist/
+*.o
+*.obj
+*.exe
+
+# —— WebAssembly 产物 ——
+*.wasm
+
+# —— 编辑器 / 系统 ——
+.vscode/
+.idea/
+*.user
+.DS_Store
+Thumbs.db
+
+# —— 开发调试目录 ——
+dev/

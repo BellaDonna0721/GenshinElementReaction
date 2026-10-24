@@ -1,3 +1,0 @@
-D:/study/GenshinElementReaction/build/CMakeFiles/game.dir
-D:/study/GenshinElementReaction/build/CMakeFiles/edit_cache.dir
-D:/study/GenshinElementReaction/build/CMakeFiles/rebuild_cache.dir
