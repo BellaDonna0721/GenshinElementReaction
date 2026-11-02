@@ -9,8 +9,11 @@
 #include "../components/RenderInfo.h"
 #include "../components/FacingDirection.h"
 #include "../components/AttackPower.h"
-#include "../utils/element_color.h"   //get_element_color()：7种元素RGB统一映射
+#include "../components/GameState.h"
+#include "../gameplay/BuffRegistry.h"
+#include "../utils/element_color.h"
 #include <cmath>
+#include <algorithm>
 
 InputState g_input;
 
@@ -18,6 +21,16 @@ InputState g_input;
 
 void InputSystem::update(World& world, float dt) {
     if (m_fire_cooldown > 0.0f) m_fire_cooldown -= dt;
+
+    // 读取全局增益
+    GameState* gs = world.get_component<GameState>(0);
+    float atk_speed_mult = 1.0f;
+    if (gs) {
+        for (auto b : gs->active_buffs) {
+            if (b == BuffType::AttackSpeedUp) atk_speed_mult -= BuffRegistry::get(b).value;
+        }
+    }
+    float fire_interval = FIRE_INTERVAL * atk_speed_mult;
 
     // 用 IdentityTag 过滤玩家：逻辑层不读 RenderInfo.entity_type
     for (auto e : world.query<Transform, Velocity, FacingDirection, IdentityTag, RenderInfo>()) {
@@ -30,13 +43,10 @@ void InputSystem::update(World& world, float dt) {
         auto* ri   = world.get_component<RenderInfo>(e);
 
         // ========== ① 数字键切换玩家元素（1~7）==========
-        // TS 侧按键按下的那一帧脉冲写入 element_key（每帧归零），只切一次
         if (g_input.element_key >= 1 && g_input.element_key <= 7) {
             ElementType new_elem = s_key_to_elem[g_input.element_key];
             if (new_elem != ElementType::None) {
                 world.set_player_current_element(new_elem);
-
-                // 同步改 RenderInfo 颜色（视觉跟着变）
                 ElementColor c = get_element_color(new_elem);
                 ri->color_r = c.r;
                 ri->color_g = c.g;
@@ -63,31 +73,29 @@ void InputSystem::update(World& world, float dt) {
             face->dy = dy / dlen;
         }
 
-        // --- 射击：鼠标点击，有冷却，沿朝向发射；子弹元素=玩家当前选中元素 ---
-        //   左键 → Weak 强度（0.8 实际量）
-        //   右键 → Strong 强度（1.6 实际量，对应"元素量为2"的理论 GU）
+        // --- 射击 ---
         bool want_fire = g_input.mouse_click || g_input.mouse_right_click;
         if (want_fire && m_fire_cooldown <= 0.0f) {
-            m_fire_cooldown = FIRE_INTERVAL;
+            m_fire_cooldown = fire_interval;
             ElementType elem = world.get_player_current_element();
-            if (elem == ElementType::None) elem = ElementType::Pyro;  // 兜底
+            if (elem == ElementType::None) elem = ElementType::Pyro;
             ElementStrength strength = g_input.mouse_right_click
                                          ? ElementStrength::Strong
                                          : ElementStrength::Weak;
-            fire(world, t->x, t->y, face->dx, face->dy, elem, strength);
+            fire(world, t->x, t->y, face->dx, face->dy, elem, strength, gs);
         }
     }
 }
 
 void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, float dir_y,
-                       ElementType elem, ElementStrength strength) {
+                       ElementType elem, ElementStrength strength, GameState* gs) {
     Entity e = g_bullet_pool.acquire();
     if (e == INVALID_ENTITY) return;
 
-    // 子弹颜色统一用元素颜色（和玩家切换后的颜色一致）
+    // 子弹颜色统一用元素颜色
     ElementColor bc = get_element_color(elem);
 
-    // ECS 化装配：7 个单一职责组件（身份统一用 IdentityTag::Bullet）
+    // ECS 化装配
     Transform tform;
     tform.x = from_x + dir_x * 28.0f;
     tform.y = from_y + dir_y * 28.0f;
@@ -102,15 +110,23 @@ void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, fl
     life.remaining = 2.5f;
     world.add_component<Lifetime>(e, life);
 
-    // 关键：子弹元素=玩家当前元素，强度=调用方传入（左键Weak / 右键Strong）
     ElementPayload payload;
     payload.element  = elem;
     payload.strength = strength;
     world.add_component<ElementPayload>(e, payload);
 
-    // 攻击力：左右键统一为 10（元素强度档仍区分 Weak/Strong，影响附着量而非伤害）
+    // 攻击力：基础 10，叠加攻击增益
+    //   AttackUp: +20%（百分比）
+    //   BulletDamageUp: +5（固定值）
+    float base_damage = 10.0f;
+    if (gs) {
+        for (auto b : gs->active_buffs) {
+            if (b == BuffType::AttackUp)        base_damage *= (1.0f + BuffRegistry::get(b).value);
+            else if (b == BuffType::BulletDamageUp) base_damage += BuffRegistry::get(b).value;
+        }
+    }
     AttackPower atk;
-    atk.base_damage = 10.0f;
+    atk.base_damage = base_damage;
     world.add_component<AttackPower>(e, atk);
 
     SphereCollider col;

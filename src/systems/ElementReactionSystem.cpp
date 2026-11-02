@@ -1,6 +1,8 @@
 #include "ElementReactionSystem.h"
 #include "../components/ElementICDStatus.h"
 #include "../components/DamageQueue.h"
+#include "../components/GameState.h"
+#include "../gameplay/BuffRegistry.h"
 #include <cstdio>
 #include <utility>
 
@@ -173,6 +175,15 @@ int ElementReactionSystem::build_priority_slots(ElementStatus& elem, AttachedSlo
 void ElementReactionSystem::update(World& world, float dt) {
     // 全局伤害队列（挂 Entity 0）：增幅反应触发时写入反应伤害事件
     DamageQueue* dmg_queue = world.get_component<DamageQueue>(0);
+
+    // 元素反应伤害增益
+    float elem_dmg_mult = 1.0f;
+    GameState* gs = world.get_component<GameState>(0);
+    if (gs) {
+        for (auto b : gs->active_buffs) {
+            if (b == BuffType::ElementDamageUp) elem_dmg_mult += BuffRegistry::get(b).value;
+        }
+    }
 
     // 规则⑤：对所有带 ElementStatus + ElementICDStatus 的实体生效（玩家/敌人统一处理）
     for (auto e : world.query<ElementStatus, ElementICDStatus>()) {
@@ -453,12 +464,15 @@ void ElementReactionSystem::update(World& world, float dt) {
 
             // —— 统一推送一次伤害事件 ——
             //   无反应：amount = base_damage × 1.0
-            //   增幅反应：amount = base_damage × mult
+            //   增幅反应：amount = base_damage × mult × elem_dmg_mult
             //   保证每次命中只产生一个伤害飘字
             if (dmg_queue && elem->pending_base_damage > 0.0f) {
+                float amount = elem->pending_base_damage * damage_mult;
+                // 触发了反应才应用元素反应伤害增益
+                if (damage_reaction != ReactionType::None) amount *= elem_dmg_mult;
                 DamageEvent rev;
                 rev.target   = e;
-                rev.amount   = elem->pending_base_damage * damage_mult;
+                rev.amount   = amount;
                 rev.element  = pending_T;
                 rev.reaction = damage_reaction;
                 dmg_queue->events.push_back(rev);

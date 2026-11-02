@@ -7,6 +7,9 @@
 #include "../components/ElementStatus.h"
 #include "../components/ElementICDStatus.h"
 #include "../components/AttackPower.h"
+#include "../components/EnemyAI.h"
+#include "../components/Health.h"
+#include "../components/DamageQueue.h"
 #include "../gameplay/BulletPool.h"
 #include <cmath>
 
@@ -67,15 +70,52 @@ void CollisionSystem::update(World& world, float dt) {
     std::vector<Entity> bullets;
     std::vector<Entity> enemies;
     std::vector<Entity> walls;
+    Entity player = INVALID_ENTITY;
 
     for (auto e : world.query<Transform, IdentityTag>()) {
         auto* id = world.get_component<IdentityTag>(e);
         if (id->identity_type == Identity::Bullet)       bullets.push_back(e);
         else if (id->identity_type == Identity::Enemy)   enemies.push_back(e);
         else if (id->identity_type == Identity::Wall)    walls.push_back(e);
+        else if (id->identity_type == Identity::Player)  player = e;
     }
 
-    // ========== ① 可移动实体（玩家/敌人） vs 墙体：推开 ==========
+    // ========== ① 敌人 vs 玩家：接触伤害 ==========
+    if (player != INVALID_ENTITY) {
+        auto* pt  = world.get_component<Transform>(player);
+        auto* pc  = world.get_component<SphereCollider>(player);
+        auto* php = world.get_component<Health>(player);
+        DamageQueue* dq = world.get_component<DamageQueue>(0);
+
+        if (pt && pc && php && dq && php->invincible_timer <= 0.0f) {
+            for (auto en : enemies) {
+                auto* et  = world.get_component<Transform>(en);
+                auto* ec  = world.get_component<SphereCollider>(en);
+                auto* eai = world.get_component<EnemyAI>(en);
+                if (!et || !ec || !eai) continue;
+
+                float dx = pt->x - et->x;
+                float dy = pt->y - et->y;
+                float r  = pc->radius + ec->radius;
+                if (dx * dx + dy * dy <= r * r && eai->attack_timer <= 0.0f) {
+                    // 接触伤害
+                    DamageEvent ev;
+                    ev.target   = player;
+                    ev.amount   = eai->attack_power;
+                    ev.element  = ElementType::None;
+                    ev.reaction = ReactionType::None;
+                    dq->events.push_back(ev);
+
+                    // 重置攻击冷却 + 玩家无敌帧
+                    eai->attack_timer = eai->attack_cooldown;
+                    php->invincible_timer = 0.5f;
+                    break;  // 一帧只受一次接触伤害
+                }
+            }
+        }
+    }
+
+    // ========== ② 可移动实体（玩家/敌人） vs 墙体：推开 ==========
     // 玩家和敌人都是球形 SphereCollider，墙体是 BoxCollider
     for (auto e : world.query<Transform, SphereCollider, IdentityTag>()) {
         auto* id = world.get_component<IdentityTag>(e);

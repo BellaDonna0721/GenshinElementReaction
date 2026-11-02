@@ -16,50 +16,261 @@
       font-family: 'Segoe UI', monospace;
       color: #ccc;
     }
-    h1 {
-      margin: 12px 0 4px;
-      font-size: 20px;
+
+    /* ===== 通用标题 ===== */
+    .game-title {
+      font-size: 32px;
       color: #e0c080;
+      letter-spacing: 4px;
+      margin-bottom: 8px;
+    }
+    .game-subtitle {
+      font-size: 13px;
+      color: #777;
+      margin-bottom: 40px;
       letter-spacing: 2px;
     }
-    .subtitle {
-      font-size: 12px;
-      color: #888;
-      margin-bottom: 10px;
-    }
-    canvas {
-      border: 2px solid #333;
-      border-radius: 4px;
+
+    /* ===== 菜单按钮 ===== */
+    .menu-btn {
       display: block;
-      cursor: crosshair;
+      width: 240px;
+      padding: 14px 20px;
+      margin: 10px 0;
+      background: rgba(40, 40, 70, 0.6);
+      color: #ddd;
+      border: 1px solid #555;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+      font-family: inherit;
+      letter-spacing: 2px;
+      transition: all 0.15s;
     }
-    .controls {
-      margin-top: 10px;
+    .menu-btn:hover {
+      background: rgba(80, 80, 140, 0.7);
+      border-color: #88aaff;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+
+    /* ===== 界面切换 ===== */
+    .screen { display: none; flex-direction: column; align-items: center; }
+    .screen.active { display: flex; }
+
+    /* ===== 帮助面板 ===== */
+    .help-panel {
+      background: rgba(20, 20, 40, 0.9);
+      border: 1px solid #444;
+      border-radius: 8px;
+      padding: 24px 32px;
+      max-width: 640px;
+      line-height: 1.9;
+      font-size: 14px;
+      color: #bbb;
+    }
+    .help-panel h2 {
+      color: #e0c080;
+      font-size: 18px;
+      margin-bottom: 16px;
+      letter-spacing: 2px;
+    }
+    .help-panel .row {
       display: flex;
       gap: 12px;
-      align-items: center;
+      margin: 4px 0;
     }
-    button {
-      padding: 6px 16px;
+    .help-panel .key {
+      color: #88ccff;
+      min-width: 120px;
+      font-weight: bold;
+    }
+    .help-panel .desc { color: #aaa; }
+    .help-panel .section-title {
+      color: #e0c080;
+      margin-top: 14px;
+      margin-bottom: 6px;
+      font-size: 13px;
+      letter-spacing: 1px;
+    }
+
+    /* ===== 通用按钮 ===== */
+    .btn {
+      padding: 8px 20px;
       background: #333;
       color: #ccc;
       border: 1px solid #555;
       border-radius: 4px;
       cursor: pointer;
       font-size: 13px;
+      font-family: inherit;
+      margin-top: 20px;
     }
-    button:hover { background: #444; }
+    .btn:hover { background: #444; border-color: #88aaff; color: #fff; }
+
+    /* ===== 游戏界面 ===== */
+    #gameScreen { width: 100%; }
+    canvas {
+      border: 2px solid #333;
+      border-radius: 4px;
+      display: block;
+      cursor: crosshair;
+    }
+    .game-controls {
+      margin-top: 10px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    /* ===== 全屏遮罩 ===== */
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 100;
+    }
+    .overlay.active { display: block; }
+
+    /* ===== 弹层面板 ===== */
+    .overlay-panel {
+      display: none;
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(20,20,40,0.95);
+      border: 1px solid #555;
+      border-radius: 10px;
+      padding: 32px 40px;
+      z-index: 101;
+      text-align: center;
+      min-width: 360px;
+    }
+    .overlay-panel.active { display: block; }
+
+    .panel-title {
+      color: #e0c080;
+      font-size: 22px;
+      margin-bottom: 24px;
+      letter-spacing: 2px;
+    }
+
+    /* ===== 增益卡片 ===== */
+    .buff-cards {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+    }
+    .buff-card {
+      width: 140px;
+      padding: 20px 12px;
+      background: rgba(40,40,80,0.8);
+      border: 1px solid #555;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .buff-card:hover {
+      background: rgba(80,80,160,0.9);
+      border-color: #88aaff;
+      transform: translateY(-3px);
+    }
+    .buff-name {
+      color: #e0c080;
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .buff-desc {
+      color: #bbb;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* ===== 结算 ===== */
+    .result-row {
+      margin: 12px 0;
+      font-size: 15px;
+      color: #ccc;
+    }
+    .buff-tag {
+      display: inline-block;
+      padding: 2px 10px;
+      margin: 2px;
+      background: rgba(80,80,160,0.5);
+      border-radius: 10px;
+      font-size: 12px;
+      color: #aaccff;
+    }
   </style>
 </head>
 <body>
-  <h1>GenshinElement</h1>
-  <p class="subtitle">原神元素反应系统demo</p>
-  <canvas id="gameCanvas" width="1000" height="700"></canvas>
-  <div class="controls">
-    <button id="btnReset">重置</button>
-    <span style="font-size:12px;color:#888;">
-      WASD 移动 | 鼠标左键 发射子弹
-    </span>
+
+  <!-- ===== 主菜单 ===== -->
+  <div id="menuScreen" class="screen active">
+    <h1 class="game-title">GenshinElement</h1>
+    <p class="game-subtitle">原神元素反应系统原型</p>
+    <button class="menu-btn" id="btnStart">开始游戏</button>
+    <button class="menu-btn" id="btnTraining">训练模式</button>
+    <button class="menu-btn" id="btnHelp">游戏帮助</button>
+  </div>
+
+  <!-- ===== 游戏帮助 ===== -->
+  <div id="helpScreen" class="screen">
+    <div class="help-panel">
+      <h2>操作说明</h2>
+
+      <div class="section-title">移动</div>
+      <div class="row"><span class="key">W / A / S / D</span><span class="desc">玩家四向移动（或方向键）</span></div>
+      <div class="row"><span class="key">鼠标移动</span><span class="desc">改变玩家朝向（角色旁白色三角指示方向）</span></div>
+
+      <div class="section-title">攻击</div>
+      <div class="row"><span class="key">鼠标左键</span><span class="desc">发射当前元素的<span style="color:#88ccff">弱</span>元素子弹</span></div>
+      <div class="row"><span class="key">鼠标右键</span><span class="desc">发射当前元素的<span style="color:#ff9966">强</span>元素子弹</span></div>
+
+      <div class="section-title">切换元素</div>
+      <div class="row"><span class="key">数字键 1</span><span class="desc" style="color:#EF7938">火（Pyro）</span></div>
+      <div class="row"><span class="key">数字键 2</span><span class="desc" style="color:#4CC2F1">水（Hydro）</span></div>
+      <div class="row"><span class="key">数字键 3</span><span class="desc" style="color:#AF8CF0">雷（Electro）</span></div>
+      <div class="row"><span class="key">数字键 4</span><span class="desc" style="color:#9FD6E0">冰（Cryo）</span></div>
+      <div class="row"><span class="key">数字键 5</span><span class="desc" style="color:#75D2B2">风（Anemo）</span></div>
+      <div class="row"><span class="key">数字键 6</span><span class="desc" style="color:#FAB632">岩（Geo）</span></div>
+      <div class="row"><span class="key">数字键 7</span><span class="desc" style="color:#A5C83B">草（Dendro）</span></div>
+
+      <div class="section-title">系统</div>
+      <div class="row"><span class="key">重置按钮</span><span class="desc">重置当前场景（玩家元素回到火）</span></div>
+      <div class="row"><span class="key">返回主菜单</span><span class="desc">退出当前场景回到主菜单</span></div>
+    </div>
+    <button class="btn" id="btnHelpBack">返回主菜单</button>
+  </div>
+
+  <!-- ===== 游戏场景（训练模式 / 关卡模式） ===== -->
+  <div id="gameScreen" class="screen">
+    <canvas id="gameCanvas" width="1000" height="700"></canvas>
+    <div class="game-controls">
+      <button class="btn" id="btnReset">重置</button>
+      <button class="btn" id="btnBackMenu">返回主菜单</button>
+    </div>
+  </div>
+
+  <!-- ===== 全屏遮罩 + 弹层 ===== -->
+  <div id="overlay" class="overlay"></div>
+
+  <!-- 增益选择弹层 -->
+  <div id="buffPanel" class="overlay-panel">
+    <h2 class="panel-title">关卡通过！选择一个增益</h2>
+    <div id="buffCards" class="buff-cards"></div>
+  </div>
+
+  <!-- 游戏结算弹层 -->
+  <div id="gameOverPanel" class="overlay-panel">
+    <h2 class="panel-title" style="color:#ff6666;">游戏结束</h2>
+    <div class="result-row">最终得分：<span id="goScore" style="color:#e0c080;font-size:24px;">0</span></div>
+    <div class="result-row">到达关卡：<span id="goLevel">1</span></div>
+    <div class="result-row">已获增益：<span id="goBuffs" style="display:inline;"></span></div>
+    <button class="btn" id="btnGameOverMenu">返回主菜单</button>
   </div>
 
   <script src="../dist/game.js"></script>

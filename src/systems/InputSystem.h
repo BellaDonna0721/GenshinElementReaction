@@ -44,6 +44,8 @@ private:
     // 发射一颗子弹：从 BulletPool 拿实体 → 装配 7 个组件
     //   elem     = 子弹携带的元素（决定 ElementPayload + 子弹颜色）
     //   strength = 元素强度档（Weak / Medium / Strong），默认 Weak 保持左键兼容
+    //   gs       = 全局游戏状态（用于读取攻击增益），可为 nullptr
     void fire(World& world, float from_x, float from_y, float dir_x, float dir_y,
-              ElementType elem, ElementStrength strength = ElementStrength::Weak);
+              ElementType elem, ElementStrength strength = ElementStrength::Weak,
+              struct GameState* gs = nullptr);
 };

@@ -15,6 +15,7 @@
 struct Health {
     float max_hp     = 100.0f;  // 最大血量
     float current_hp = 100.0f;  // 当前血量（DamageSystem 扣减）
+    float invincible_timer = 0.0f;  // 无敌帧计时（受击后短暂免伤）
 
     // 死亡判定：current_hp 归零时由 DamageSystem 处理销毁
     bool is_dead() const { return current_hp <= 0.0f; }

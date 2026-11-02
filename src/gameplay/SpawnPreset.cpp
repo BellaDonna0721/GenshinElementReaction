@@ -9,6 +9,7 @@
 #include "../components/IdentityTag.h"
 #include "../components/Health.h"
 #include "../components/BoxCollider.h"
+#include "../components/EnemyAI.h"
 
 // ========== 玩家工厂（标准配置，目前没有多种玩家变体） ==========
 
@@ -125,6 +126,19 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     hp.max_hp     = preset.max_hp;
     hp.current_hp = preset.max_hp;
     world.add_component<Health>(e, hp);
+
+    // 8. AI 状态机（参数来自预设）
+    EnemyAI ai;
+    ai.move_speed     = preset.move_speed;
+    ai.alert_radius   = preset.alert_radius;
+    ai.attack_radius  = preset.attack_radius;
+    ai.attack_power   = preset.attack_power;
+    ai.score_value    = preset.score_value;
+    ai.home_x         = x;
+    ai.home_y         = y;
+    ai.target_x       = x;
+    ai.target_y       = y;
+    world.add_component<EnemyAI>(e, ai);
 
     return e;
 }

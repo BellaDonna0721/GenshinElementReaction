@@ -462,17 +462,9 @@ export class Renderer {
   }
 
   private drawUI(ctx: CanvasRenderingContext2D): void {
-    // ===== 顶部操作说明 =====
-    ctx.fillStyle = 'rgba(255,255,255,0.75)';
-    ctx.font = '13px monospace';
-    ctx.textAlign = 'left';
-    const curElemName = ELEMENT_NAMES[this.currentElem] || '';
-    ctx.fillText(`WASD: 移动   鼠标移动: 改变朝向   鼠标左键: 发射${curElemName}(弱)   鼠标右键: 发射${curElemName}(强·带火焰)`, 16, 24);
-    ctx.fillText('数字键1-7: 切换玩家元素', 16, 44);
-
     // ===== 左侧：数字键 ↔ 元素映射面板 =====
     const panelX = 18;                // 面板左上 X
-    const panelY = 76;                // 面板左上 Y
+    const panelY = 18;                // 面板左上 Y
     const rowH = 28;                  // 每行高度
     const entries: Array<{ key: string; elem: ElementType }> = [
       { key: '1', elem: ElementType.Pyro    },

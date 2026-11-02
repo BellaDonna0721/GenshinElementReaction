@@ -23,6 +23,13 @@ struct EnemyPreset {
 
     // 冻结免疫（true=可冻结，false=冻元素立即消失）
     bool        can_be_frozen = true;
+
+    // ===== AI 参数（EnemyAI 组件初始值）=====
+    float       move_speed     = 60.0f;   // 移动速度（像素/秒）
+    float       alert_radius   = 180.0f;  // 警戒范围
+    float       attack_radius  = 36.0f;   // 攻击范围（接触伤害）
+    float       attack_power   = 10.0f;   // 每次接触伤害
+    int         score_value    = 10;      // 击杀得分
 };
 
 // ========== 内置常用敌人预设（元素量/时长 100% 按原神模型统一查表，别手填 decay_rate！） ==========
@@ -61,6 +68,23 @@ inline const EnemyPreset ENEMY_TEST = {
     99999.0f,    // max_hp（极高血量，测试用）
     20.0f,
     255, 255, 255
+};
+
+// Boss：高血量、大体型、高攻击力、高分数
+//   元素为 Electro（雷），中元素强度，体型 36px，血量 300
+//   移速稍慢但攻击范围大，适合作为关卡守关 BOSS
+inline const EnemyPreset ENEMY_BOSS = {
+    ElementType::Electro,
+    ElementStrength::Medium,
+    300.0f,      // max_hp
+    36.0f,       // radius（大体型）
+    180, 120, 220,  // 紫色
+    true,        // can_be_frozen
+    50.0f,       // move_speed（稍慢）
+    220.0f,      // alert_radius（警戒范围大）
+    50.0f,       // attack_radius（攻击范围大）
+    20.0f,       // attack_power（高伤害）
+    100,         // score_value（高分）
 };
 
 // 生成玩家实体

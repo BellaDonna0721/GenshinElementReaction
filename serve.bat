@@ -9,7 +9,7 @@ echo   按 Ctrl+C 停止服务器
 echo ========================================
 echo.
 
-:: 用 Python 内置 HTTP 服务器（Emscripten 自带 Python）
-python -m http.server 3000
+:: 用自定义 HTTP 服务器（强制 no-cache，防止 Edge 缓存旧版 wasm/js）
+python serve.py 3000
 
 pause
