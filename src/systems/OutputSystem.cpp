@@ -8,6 +8,7 @@
 #include "../components/IdentityTag.h"
 #include "../components/BoxCollider.h"
 #include "../components/DamageNumberQueue.h"
+#include "../components/EnemyAI.h"
 
 std::vector<RenderCommand>   g_render_commands;
 std::vector<HealthBarInfo>   g_health_bars;
@@ -160,6 +161,9 @@ void OutputSystem::update(World& world, float dt) {
             hbi.y     = t->y - ri->radius - 12.0f;  // 头顶上方
             hbi.width = ri->radius * 2.0f;            // 宽度=敌人直径
             hbi.ratio = pack_hp_ratio(hp->current_hp, hp->max_hp);
+            // 临时：从 EnemyAI 读取敌人类型，用于血条上方显示类型名
+            EnemyAI* ai = world.get_component<EnemyAI>(e);
+            hbi.enemy_type = ai ? ai->enemy_type : 0;
             g_health_bars.push_back(hbi);
         }
 
@@ -192,6 +196,7 @@ void OutputSystem::update(World& world, float dt) {
             info.r      = dn.r;
             info.g      = dn.g;
             info.b      = dn.b;
+            info.is_transformative = dn.is_transformative;
             g_damage_numbers.push_back(info);
         }
         // 消费后清空（OutputSystem 是唯一消费者）

@@ -16,6 +16,7 @@ struct DamageNumber {
     float   x, y;       // 出现位置（怪物坐标；TS 侧再加偏移上浮）
     int     amount;     // 整数伤害（DamageSystem 中 round 后写入）
     uint8_t r, g, b;    // 元素颜色（DamageSystem 中查 get_element_color）
+    uint8_t is_transformative = 0;  // 1=剧变反应伤害（小字号右侧），0=直伤/增幅（大字号）
 };
 
 // 单例组件：本帧产生的所有伤害飘字

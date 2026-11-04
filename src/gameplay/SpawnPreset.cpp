@@ -129,6 +129,7 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
 
     // 8. AI 状态机（参数来自预设）
     EnemyAI ai;
+    ai.enemy_type    = static_cast<uint8_t>(preset.element);  // 临时：存元素类型用于血条显示类型名
     ai.move_speed     = preset.move_speed;
     ai.alert_radius   = preset.alert_radius;
     ai.attack_radius  = preset.attack_radius;

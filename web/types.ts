@@ -115,11 +115,13 @@ export function unpackGauge(u8: number): number {
 //   [4,8)  y       (f32)  血条中心 Y
 //   [8,12) width   (f32)  血条总宽度
 //   [12]   ratio   (u8)   血量比例 0-255 → 0-100%
+//   [13]   enemy_type (u8) 敌人类型（ElementType 值，临时用于显示类型名）
 export interface HealthBarInfo {
   x: number;
   y: number;
   width: number;
   ratio: number;
+  enemy_type: number;
 }
 
 // 伤害飘字数据（独立通道）
@@ -130,6 +132,7 @@ export interface HealthBarInfo {
 //   [12]   r       (u8)
 //   [13]   g       (u8)
 //   [14]   b       (u8)
+//   [15]   is_transformative (u8)  1=剧变（小字右侧），0=直伤/增幅（大字）
 export interface DamageNumberInfo {
   x: number;
   y: number;
@@ -137,6 +140,7 @@ export interface DamageNumberInfo {
   r: number;
   g: number;
   b: number;
+  is_transformative: number;
 }
 
 // 墙体渲染数据（独立于 RenderCommand 的矩形通道）

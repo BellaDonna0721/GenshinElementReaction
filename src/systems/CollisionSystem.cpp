@@ -106,9 +106,8 @@ void CollisionSystem::update(World& world, float dt) {
                     ev.reaction = ReactionType::None;
                     dq->events.push_back(ev);
 
-                    // 重置攻击冷却 + 玩家无敌帧
+                    // 重置攻击冷却（无敌帧由 DamageSystem 扣血后统一设置，避免同帧误跳过）
                     eai->attack_timer = eai->attack_cooldown;
-                    php->invincible_timer = 0.5f;
                     break;  // 一帧只受一次接触伤害
                 }
             }

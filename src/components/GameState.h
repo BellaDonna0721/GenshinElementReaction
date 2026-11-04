@@ -30,7 +30,8 @@ enum class BuffType : uint8_t {
     ElementDamageUp = 5,  // 元素反应伤害 +25%
     BulletDamageUp  = 6,  // 子弹直射伤害 +5
     Shield          = 7,  // 获得一层护盾
-    Count           = 8,  // 增益总数
+    MasteryUp       = 8,  // 元素精通 +5
+    Count           = 9,  // 增益总数
 };
 
 struct GameState {
@@ -45,4 +46,9 @@ struct GameState {
 
     // 护盾层数（由 Shield 增益提供，受伤优先消耗护盾）
     int       shield_count   = 0;
+
+    // 元素精通：剧变反应（超载/感电/超导/扩散）的伤害系数
+    //   剧变伤害 = 精通 × 反应系数（超载2.0/感电1.2/超导1.0/扩散1.2）
+    //   初始值 2.0 → 超导伤害 = 2×1.0 = 2 = 普攻10的1/5
+    float     elemental_mastery = 2.0f;
 };

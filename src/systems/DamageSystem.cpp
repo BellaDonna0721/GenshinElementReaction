@@ -68,6 +68,11 @@ void DamageSystem::update(World& world, float dt) {
         // —— 扣血 ——
         hp->current_hp -= ev.amount;
 
+        // 玩家受击后启动 0.5s 无敌帧（在此处统一设置，避免 CollisionSystem 同帧设帧导致本事件被跳过）
+        if (id && id->identity_type == Identity::Player) {
+            hp->invincible_timer = 0.5f;
+        }
+
         // —— 产生伤害飘字（元素色 + 整数）——
         Transform* t = world.get_component<Transform>(ev.target);
         if (num_queue && t) {
@@ -79,6 +84,21 @@ void DamageSystem::update(World& world, float dt) {
             dn.r = c.r;
             dn.g = c.g;
             dn.b = c.b;
+            // 剧变反应伤害标记为 1（前端小字号右侧显示）
+            switch (ev.reaction) {
+                case ReactionType::Overload:
+                case ReactionType::ElectroCharged:
+                case ReactionType::Superconduct:
+                case ReactionType::SwirlPyro:
+                case ReactionType::SwirlHydro:
+                case ReactionType::SwirlElectro:
+                case ReactionType::SwirlCryo:
+                    dn.is_transformative = 1;
+                    break;
+                default:
+                    dn.is_transformative = 0;
+                    break;
+            }
             num_queue->numbers.push_back(dn);
         }
 

@@ -31,6 +31,7 @@ struct HealthBarInfo {
     float   x, y;       // 血条中心坐标（TS 侧据此定位，通常在实体头顶）
     float   width;      // 血条总宽度（像素）
     uint8_t ratio;      // 当前血量比例 0~255 线性对应 0%~100%
+    uint8_t enemy_type; // 敌人类型（ElementType 值，临时用于血条显示类型名）
 };
 
 extern std::vector<HealthBarInfo> g_health_bars;
@@ -44,6 +45,7 @@ struct DamageNumberInfo {
     float   x, y;       // 出现位置（怪物坐标）
     int     amount;     // 整数伤害
     uint8_t r, g, b;    // 元素颜色
+    uint8_t is_transformative = 0;  // 1=剧变（小字右侧），0=直伤/增幅（大字）
 };
 
 extern std::vector<DamageNumberInfo> g_damage_numbers;

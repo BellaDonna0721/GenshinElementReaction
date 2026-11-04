@@ -15,7 +15,7 @@ export class Renderer {
 
   // 伤害飘字缓存（客户端管理渐隐 + 上浮动画）
   // 每项 { x, y, amount, r, g, b, t }：t 为剩余显示时长
-  private damageNumbers: Array<{ x: number; y: number; amount: number; r: number; g: number; b: number; t: number }> = [];
+  private damageNumbers: Array<{ x: number; y: number; amount: number; r: number; g: number; b: number; t: number; is_transformative: number }> = [];
 
   // UI：左侧元素面板高亮的当前选中元素（默认 Pyro，和初始 spawn_player 一致）
   private currentElem: ElementType = ElementType.Pyro;
@@ -49,7 +49,7 @@ export class Renderer {
     this.playerSprite.src = 'assets/paimon.png';
   }
 
-  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumberInfo[], walls: WallRenderInfo[]): void {
+  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumberInfo[], walls: WallRenderInfo[], playerHpRatio: number): void {
     const ctx = this.ctx;
 
     // 背景
@@ -91,6 +91,9 @@ export class Renderer {
 
     // 伤害飘字（最顶层）
     this.drawDamageNumbers(ctx, damageNumbers);
+
+    // 玩家血条（HUD，左下角）
+    this.drawPlayerHpBar(ctx, playerHpRatio);
 
     this.drawUI(ctx);
   }
@@ -137,21 +140,104 @@ export class Renderer {
       ctx.strokeStyle = 'rgba(0,0,0,0.6)';
       ctx.lineWidth = 1;
       ctx.strokeRect(bx, by, bar.width, barH);
+
+      // 临时：血条上方显示敌人类型名（后续替换素材后移除）
+      const typeName = this.getEnemyTypeName(bar.enemy_type);
+      if (typeName) {
+        ctx.font = '11px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillStyle = '#fff';
+        ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+        ctx.lineWidth = 3;
+        ctx.strokeText(typeName, bar.x, by - 2);
+        ctx.fillText(typeName, bar.x, by - 2);
+      }
     }
+  }
+
+  // 临时：敌人类型 ID → 中文名称（后续替换素材后移除）
+  private getEnemyTypeName(typeId: number): string {
+    switch (typeId) {
+      case 1: return '火史莱姆';   // Pyro
+      case 2: return '水史莱姆';   // Hydro
+      case 3: return '雷Boss';     // Electro
+      case 4: return '冰史莱姆';   // Cryo
+      case 5: return '风史莱姆';   // Anemo
+      case 6: return '岩史莱姆';   // Geo
+      case 7: return '草史莱姆';   // Dendro
+      default: return '';
+    }
+  }
+
+  // ===== 玩家血条（HUD，左下角）=====
+  private drawPlayerHpBar(ctx: CanvasRenderingContext2D, ratio: number): void {
+    const barW = 180;
+    const barH = 14;
+    const bx = 16;
+    const by = this.height - 30;
+
+    // 背景
+    ctx.fillStyle = 'rgba(0,0,0,0.6)';
+    ctx.fillRect(bx - 2, by - 2, barW + 4, barH + 4);
+
+    // 血条底色
+    ctx.fillStyle = '#333';
+    ctx.fillRect(bx, by, barW, barH);
+
+    // 血条前景（颜色随血量变化）
+    let hpColor: string;
+    if (ratio > 0.5)       hpColor = '#4ade80';  // 绿
+    else if (ratio > 0.25) hpColor = '#facc15';  // 黄
+    else                   hpColor = '#ef4444';  // 红
+    ctx.fillStyle = hpColor;
+    ctx.fillRect(bx, by, barW * Math.max(0, ratio), barH);
+
+    // 边框
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(bx, by, barW, barH);
+
+    // 文字：HP 百分比
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.lineWidth = 3;
+    const text = `HP ${Math.round(ratio * 100)}%`;
+    ctx.strokeText(text, bx + barW / 2, by + barH / 2);
+    ctx.fillText(text, bx + barW / 2, by + barH / 2);
   }
 
   // ===== 伤害飘字（客户端管理渐隐 + 上浮） =====
   private drawDamageNumbers(ctx: CanvasRenderingContext2D, newNumbers: DamageNumberInfo[]): void {
     const dtFrame = 1 / 60;
 
-    // 1) 把本帧新产生的伤害数字 push 进缓存
+    // 1) 按位置分组：同帧同位置的直伤居中大字，剧变在直伤右侧小字
+    const posGroups = new Map<string, DamageNumberInfo[]>();
     for (const dn of newNumbers) {
-      this.damageNumbers.push({
-        x: dn.x, y: dn.y,
-        amount: dn.amount,
-        r: dn.r, g: dn.g, b: dn.b,
-        t: 1.0,  // 显示 1 秒
-      });
+      const key = `${dn.x.toFixed(0)},${dn.y.toFixed(0)}`;
+      if (!posGroups.has(key)) posGroups.set(key, []);
+      posGroups.get(key)!.push(dn);
+    }
+
+    for (const [, group] of posGroups) {
+      const hasDirect = group.some(d => d.is_transformative === 0);
+      for (const dn of group) {
+        let offsetX = 0;
+        if (dn.is_transformative === 1) {
+          // 剧变伤害：若同位置有直伤，偏移到右侧；否则居中
+          offsetX = hasDirect ? 26 : 0;
+        }
+        this.damageNumbers.push({
+          x: dn.x + offsetX, y: dn.y,
+          amount: dn.amount,
+          r: dn.r, g: dn.g, b: dn.b,
+          t: 1.0,
+          is_transformative: dn.is_transformative,
+        });
+      }
     }
 
     // 2) 每帧扣减剩余时长，过滤已过期
@@ -159,13 +245,17 @@ export class Renderer {
       .map(d => ({ ...d, t: d.t - dtFrame }))
       .filter(d => d.t > 0);
 
-    // 3) 绘制：上浮 + 渐隐
-    ctx.font = 'bold 16px monospace';
+    // 3) 绘制：上浮 + 渐隐；直伤大字居中，剧变小字
     ctx.textAlign = 'center';
     for (const d of this.damageNumbers) {
       const rise = (1.0 - d.t) * 30;  // 向上飘 30px
       ctx.globalAlpha = Math.min(1, d.t);
       ctx.fillStyle = `rgb(${d.r},${d.g},${d.b})`;
+      if (d.is_transformative === 1) {
+        ctx.font = 'bold 11px monospace';  // 剧变：小字号
+      } else {
+        ctx.font = 'bold 16px monospace';  // 直伤/增幅：大字号
+      }
       ctx.fillText(String(d.amount), d.x, d.y - 20 - rise);
     }
     ctx.globalAlpha = 1.0;
@@ -477,38 +567,40 @@ export class Renderer {
     ];
 
     ctx.font = '14px monospace';
+    ctx.textBaseline = 'middle'; // 统一以行中线为基准，避免数字/横线/文字基线错位
     for (let i = 0; i < entries.length; i++) {
       const { key, elem } = entries[i];
-      const y = panelY + i * rowH;
+      const centerY = panelY + i * rowH + rowH / 2; // 每行垂直中心
       const rowW = 142;
       const name = ELEMENT_NAMES[elem] || '';
       const color = ELEMENT_COLORS[elem] || '#888';
 
       if (elem === this.currentElem) {
+        const rectH = rowH - 2;
         ctx.fillStyle = 'rgba(255,255,255,0.08)';
-        ctx.fillRect(panelX, y - 18, rowW, rowH - 2);
+        ctx.fillRect(panelX, centerY - rectH / 2, rowW, rectH);
         ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 2;
-        ctx.strokeRect(panelX, y - 18, rowW, rowH - 2);
+        ctx.strokeRect(panelX, centerY - rectH / 2, rowW, rectH);
       }
 
       ctx.fillStyle = '#ffffff';
       ctx.textAlign = 'left';
-      ctx.fillText(key, panelX + 8, y);
+      ctx.fillText(key, panelX + 8, centerY);
 
       ctx.fillStyle = 'rgba(255,255,255,0.4)';
-      ctx.fillText('-', panelX + 28, y);
+      ctx.fillText('-', panelX + 28, centerY);
 
       const sqX = panelX + 44;
-      const sqY = y - 12;
+      const sqSize = 14;
       ctx.fillStyle = color;
-      ctx.fillRect(sqX, sqY, 14, 14);
+      ctx.fillRect(sqX, centerY - sqSize / 2, sqSize, sqSize);
       ctx.strokeStyle = 'rgba(255,255,255,0.5)';
       ctx.lineWidth = 1;
-      ctx.strokeRect(sqX, sqY, 14, 14);
+      ctx.strokeRect(sqX, centerY - sqSize / 2, sqSize, sqSize);
 
       ctx.fillStyle = color;
-      ctx.fillText(name, panelX + 68, y);
+      ctx.fillText(name, panelX + 68, centerY);
     }
   }
 }

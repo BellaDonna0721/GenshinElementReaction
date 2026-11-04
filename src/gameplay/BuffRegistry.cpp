@@ -10,6 +10,7 @@ const BuffInfo BuffRegistry::s_table[static_cast<int>(BuffType::Count)] = {
     { BuffType::ElementDamageUp, "元素精通", "元素反应伤害 +25%",        0.25f },
     { BuffType::BulletDamageUp,  "穿透弹",   "子弹伤害 +5",              5.0f  },
     { BuffType::Shield,          "元素护盾", "获得一层护盾（抵挡一次伤害）", 1.0f },
+    { BuffType::MasteryUp,       "元素洞悉", "元素精通 +5",              5.0f  },
 };
 
 const BuffInfo& BuffRegistry::get(BuffType type) {

@@ -21,8 +21,8 @@ class LevelSystem : public System {
 public:
     void update(World& world, float dt) override;
 
-    // 加载指定关卡（1-based）
-    void load_level(World& world, int level_number);
+    // 加载指定关卡（1-based）；reset_hp=true 时重置玩家血量为满血（仅重新开始时使用）
+    void load_level(World& world, int level_number, bool reset_hp = false);
 
     // 重置到第 1 关
     void reset(World& world);

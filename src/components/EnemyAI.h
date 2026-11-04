@@ -25,6 +25,7 @@ enum class AIState : uint8_t {
 
 struct EnemyAI {
     AIState state          = AIState::Patrol;  // 当前状态
+    uint8_t enemy_type     = 0;                // 敌人类型（存 ElementType 值，用于血条显示类型名，后续替换素材后可移除）
     float   alert_radius   = 180.0f;           // 警戒范围（像素）
     float   attack_radius  = 36.0f;            // 攻击范围（像素，接触伤害）
     float   attack_power   = 10.0f;            // 每次接触伤害

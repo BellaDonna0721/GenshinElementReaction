@@ -6,8 +6,7 @@
 #include <cstdio>
 #include <utility>
 
-// 增幅反应倍率表（仅蒸发/融化；其余反应 0 表示当前版本不造成反应伤害）
-// 预留：剧变反应（超载/感电/超导/扩散/绽放/燃烧）未来在此加固定值
+// 增幅反应倍率表（仅蒸发/融化；其余反应 0 表示非增幅反应）
 static float get_amplifying_multiplier(ReactionType rt) {
     switch (rt) {
         case ReactionType::Vaporize:        return 2.0f;  // 水打火
@@ -16,6 +15,50 @@ static float get_amplifying_multiplier(ReactionType rt) {
         case ReactionType::ReverseMelt:     return 1.5f;  // 冰打火
         default:                            return 0.0f;  // 非增幅反应
     }
+}
+
+// 剧变反应伤害系数表（超载/感电/超导/扩散）
+//   剧变伤害 = 元素精通 × 系数（与子弹基础伤害无关）
+//   系数取自原神原版：超载2.0 / 感电1.2 / 超导1.0 / 扩散1.2
+static float get_transformative_coefficient(ReactionType rt) {
+    switch (rt) {
+        case ReactionType::Overload:       return 2.0f;
+        case ReactionType::ElectroCharged: return 1.2f;
+        case ReactionType::Superconduct:   return 1.0f;
+        case ReactionType::SwirlPyro:
+        case ReactionType::SwirlHydro:
+        case ReactionType::SwirlElectro:
+        case ReactionType::SwirlCryo:      return 1.2f;
+        default:                           return 0.0f;
+    }
+}
+
+// 剧变反应飘字颜色对应的元素（决定伤害数字的颜色）
+//   超载→火、感电→雷、超导→冰、扩散→对应被扩散的元素
+static ElementType get_transformative_damage_element(ReactionType rt) {
+    switch (rt) {
+        case ReactionType::Overload:       return ElementType::Pyro;
+        case ReactionType::ElectroCharged: return ElementType::Electro;
+        case ReactionType::Superconduct:   return ElementType::Cryo;
+        case ReactionType::SwirlPyro:      return ElementType::Pyro;
+        case ReactionType::SwirlHydro:     return ElementType::Hydro;
+        case ReactionType::SwirlElectro:   return ElementType::Electro;
+        case ReactionType::SwirlCryo:      return ElementType::Cryo;
+        default:                           return ElementType::None;
+    }
+}
+
+// 统一写入剧变反应伤害事件到 DamageQueue
+static void push_transformative_damage(DamageQueue* dq, Entity target, ReactionType rt, float em) {
+    if (!dq) return;
+    float coeff = get_transformative_coefficient(rt);
+    if (coeff <= 0.0f) return;
+    DamageEvent ev;
+    ev.target   = target;
+    ev.amount   = em * coeff;
+    ev.element  = get_transformative_damage_element(rt);
+    ev.reaction = rt;
+    dq->events.push_back(ev);
 }
 
 // 构造函数：注册所有元素反应规则
@@ -129,11 +172,11 @@ void ElementReactionSystem::decay_slots(ElementStatus& elem, float dt) {
     }
 }
 
-// 阶段 2：感电 DoT 1 秒节拍（水-0.4、雷-0.4，写脉冲反应标签）
-void ElementReactionSystem::tick_electrocharged_dot(ElementStatus& elem, float dt) {
+// 阶段 2：感电 DoT 1 秒节拍（水-0.4、雷-0.4，写脉冲反应标签 + 剧变伤害）
+void ElementReactionSystem::tick_electrocharged_dot(ElementStatus& elem, float dt, DamageQueue* dq, Entity entity, float em) {
     AttachedSlot* h = elem.find_slot(ElementType::Hydro);
-    AttachedSlot* e = elem.find_slot(ElementType::Electro);
-    if (!h || !e) {
+    AttachedSlot* elec = elem.find_slot(ElementType::Electro);
+    if (!h || !elec) {
         // 未在共存态 → 冷却清零
         elem.electrocharged_cooldown = 0.0f;
         return;
@@ -143,18 +186,20 @@ void ElementReactionSystem::tick_electrocharged_dot(ElementStatus& elem, float d
         elem.electrocharged_cooldown = 1.0f;
     }
     elem.electrocharged_cooldown -= dt;
-    while (elem.electrocharged_cooldown <= 0.0f && h->is_valid() && e->is_valid()) {
+    while (elem.electrocharged_cooldown <= 0.0f && h->is_valid() && elec->is_valid()) {
         // 一次 DoT 结算：双方各扣 0.4
         h->gauge = std::max(0.0f, h->gauge - 0.4f);
-        e->gauge = std::max(0.0f, e->gauge - 0.4f);
+        elec->gauge = std::max(0.0f, elec->gauge - 0.4f);
         // 写入感电脉冲（位掩码 OR；同帧若同时发生其他新元素反应不再互相覆盖）
         elem.mark_reaction(ReactionType::ElectroCharged);
+        // 剧变伤害：每次感电 DoT 结算产生一段（感电系数 1.2）
+        push_transformative_damage(dq, entity, ReactionType::ElectroCharged, em);
         // duration 由自然衰减阶段同步处理，此处只以 gauge 为权威
         elem.electrocharged_cooldown += 1.0f;
         if (h->gauge <= 0.0f) h->clear();
-        if (e->gauge <= 0.0f) e->clear();
+        if (elec->gauge <= 0.0f) elec->clear();
     }
-    if (!h || !e) elem.electrocharged_cooldown = 0.0f;
+    if (!h || !elec) elem.electrocharged_cooldown = 0.0f;
 }
 
 // 构建反应顺序优先级队列：水雷共存先和雷反应，余量再和水反应；单元素目标只返回该元素
@@ -176,12 +221,16 @@ void ElementReactionSystem::update(World& world, float dt) {
     // 全局伤害队列（挂 Entity 0）：增幅反应触发时写入反应伤害事件
     DamageQueue* dmg_queue = world.get_component<DamageQueue>(0);
 
-    // 元素反应伤害增益
+    // 元素反应伤害增益（仅增幅反应）
     float elem_dmg_mult = 1.0f;
+    // 元素精通（剧变反应伤害系数）= 基础值 + MasteryUp 增益叠加
+    float elemental_mastery = 0.0f;
     GameState* gs = world.get_component<GameState>(0);
     if (gs) {
+        elemental_mastery = gs->elemental_mastery;
         for (auto b : gs->active_buffs) {
             if (b == BuffType::ElementDamageUp) elem_dmg_mult += BuffRegistry::get(b).value;
+            else if (b == BuffType::MasteryUp)  elemental_mastery += BuffRegistry::get(b).value;
         }
     }
 
@@ -198,7 +247,7 @@ void ElementReactionSystem::update(World& world, float dt) {
         decay_slots(*elem, dt);
 
         // 阶段 2：感电 1 秒共存 DoT 节拍
-        tick_electrocharged_dot(*elem, dt);
+        tick_electrocharged_dot(*elem, dt, dmg_queue, e, elemental_mastery);
 
         // 阶段 3：解析碰撞命中写入的待处理元素 + 直射伤害
         //   注意：pending_base_damage 每次命中都写入（不受 ICD 限制），
@@ -275,6 +324,8 @@ void ElementReactionSystem::update(World& world, float dt) {
                                 elem->mark_reaction(rule->result);
                                 float mult = get_amplifying_multiplier(rule->result);
                                 if (mult > 0.0f) { damage_mult = mult; damage_reaction = rule->result; }
+                                // 剧变反应（雷打冰→超导）额外伤害
+                                push_transformative_damage(dmg_queue, e, rule->result, elemental_mastery);
                             }
                         }
                     }
@@ -291,6 +342,8 @@ void ElementReactionSystem::update(World& world, float dt) {
                                 elem->mark_reaction(rule->result);
                                 float mult = get_amplifying_multiplier(rule->result);
                                 if (mult > 0.0f) { damage_mult = mult; damage_reaction = rule->result; }
+                                // 剧变反应（雷打冻→超导）额外伤害
+                                push_transformative_damage(dmg_queue, e, rule->result, elemental_mastery);
                                 if (elem->frozen.gauge <= 0.0f) {
                                     elem->frozen.gauge = 0.0f;
                                     elem->frozen.initial_gauge = 0.0f;
@@ -315,6 +368,8 @@ void ElementReactionSystem::update(World& world, float dt) {
                                 hidden->gauge -= consume_target;
                                 if (hidden->gauge <= 0.0f) hidden->clear();
                                 elem->mark_reaction(rule->result);
+                                // 扩散剧变伤害
+                                push_transformative_damage(dmg_queue, e, rule->result, elemental_mastery);
                             }
                         }
                     }
@@ -328,6 +383,8 @@ void ElementReactionSystem::update(World& world, float dt) {
                             if (consume_target > 0.0f) {
                                 elem->frozen.gauge -= consume_target;
                                 elem->mark_reaction(ReactionType::SwirlCryo);
+                                // 扩散剧变伤害
+                                push_transformative_damage(dmg_queue, e, ReactionType::SwirlCryo, elemental_mastery);
                                 if (elem->frozen.gauge <= 0.0f) {
                                     elem->frozen.gauge = 0.0f;
                                     elem->frozen.initial_gauge = 0.0f;
@@ -401,6 +458,8 @@ void ElementReactionSystem::update(World& world, float dt) {
                                 attach_element(*elem, pending_T, pending_S);
                             }
                             elem->mark_reaction(rule->result);
+                            // 感电触发瞬间立即产生一段剧变伤害（与超载/超导一致），后续 DoT 每秒再触发
+                            push_transformative_damage(dmg_queue, e, ReactionType::ElectroCharged, elemental_mastery);
                             // 首次建立感电时启动 DoT 计时
                             if (elem->electrocharged_cooldown <= 0.0f)
                                 elem->electrocharged_cooldown = 1.0f;
@@ -455,6 +514,9 @@ void ElementReactionSystem::update(World& world, float dt) {
                                 damage_mult = mult;
                                 damage_reaction = rule->result;
                             }
+
+                            // 剧变反应：额外一段伤害，仅取决于精通（与 base_damage 无关）
+                            push_transformative_damage(dmg_queue, e, rule->result, elemental_mastery);
                         }
                     }
                     // 无规则匹配：已有附着光环 + 待处理元素不反应 → 直接丢弃触发元素

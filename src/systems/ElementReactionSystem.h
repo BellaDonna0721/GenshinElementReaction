@@ -4,6 +4,8 @@
 #include "../importFiles/myUnorderedMap.hpp"
 #include <utility>
 
+struct DamageQueue;  // 前向声明：头文件只存指针，不引入完整定义
+
 // Hash for std::pair<ElementType, ElementType>
 struct ReactionRuleKeyHash {
     size_t operator()(const std::pair<ElementType, ElementType>& k) const noexcept {
@@ -41,8 +43,8 @@ private:
     // 每个附着槽独立自然衰减（阶段 1）
     void decay_slots(ElementStatus& elem, float dt);
 
-    // 感电 1s DoT 节拍：水-0.4、雷-0.4，写脉冲反应标签（阶段 2）
-    void tick_electrocharged_dot(ElementStatus& elem, float dt);
+    // 感电 1s DoT 节拍：水-0.4、雷-0.4，写脉冲反应标签 + 剧变伤害（阶段 2）
+    void tick_electrocharged_dot(ElementStatus& elem, float dt, DamageQueue* dq, Entity e, float em);
 
     // 构建目标元素槽优先级队列：雷优先、其他按序；n 个槽指针写入 ordered_out
     int build_priority_slots(ElementStatus& elem, AttachedSlot** ordered_out);

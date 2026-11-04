@@ -205,6 +205,7 @@ function readHealthBars(): HealthBarInfo[] {
       y:     f32[(base + 4)  / 4],
       width: f32[(base + 8)  / 4],
       ratio: heap[base + 12],
+      enemy_type: heap[base + 13],
     });
   }
   return result;
@@ -237,6 +238,7 @@ function readDamageNumbers(): DamageNumberInfo[] {
       r:      heap[base + 12],
       g:      heap[base + 13],
       b:      heap[base + 14],
+      is_transformative: heap[base + 15],
     });
   }
   return result;
@@ -286,7 +288,11 @@ function gameLoop(timestamp: number): void {
 
   syncInput();
   wasmModule._wasm_update(dt);
-  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers(), readWalls());
+
+  // 获取玩家血量比例（0~100）
+  const playerHpRatio = wasmModule._wasm_get_player_hp_ratio() / 100;
+
+  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers(), readWalls(), playerHpRatio);
 
   // 关卡模式：检查游戏阶段
   if (currentScene === 'playing') {

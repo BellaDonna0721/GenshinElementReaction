@@ -4,6 +4,8 @@
 #include "../components/IdentityTag.h"
 #include "../components/GameState.h"
 #include "../components/Health.h"
+#include "../components/RenderInfo.h"
+#include "../utils/element_color.h"
 #include "../gameplay/SpawnPreset.h"
 #include "../gameplay/EnemyManager.h"
 #include "../gameplay/Levels.h"
@@ -44,10 +46,10 @@ void LevelSystem::reset(World& world) {
         gs->is_training  = false;  // 进入关卡模式
     }
 
-    load_level(world, 1);
+    load_level(world, 1, true);
 }
 
-void LevelSystem::load_level(World& world, int level_number) {
+void LevelSystem::load_level(World& world, int level_number, bool reset_hp) {
     const auto& levels = get_builtin_levels();
     if (levels.empty()) return;
 
@@ -80,7 +82,7 @@ void LevelSystem::load_level(World& world, int level_number) {
         spawn_wall(world, wd.x, wd.y, wd.w, wd.h);
     }
 
-    // 定位玩家
+    // 定位玩家并重置状态
     for (auto e : world.query<Transform, IdentityTag>()) {
         auto* id = world.get_component<IdentityTag>(e);
         if (id && id->identity_type == Identity::Player) {
@@ -88,6 +90,21 @@ void LevelSystem::load_level(World& world, int level_number) {
             if (t) {
                 t->x = cfg.player_spawn.x;
                 t->y = cfg.player_spawn.y;
+            }
+            // 重置玩家元素为火（和 spawn_player 默认一致）
+            world.set_player_current_element(ElementType::Pyro);
+            auto* ri = world.get_component<RenderInfo>(e);
+            if (ri) {
+                ElementColor c = get_element_color(ElementType::Pyro);
+                ri->color_r = c.r;
+                ri->color_g = c.g;
+                ri->color_b = c.b;
+            }
+            // 重置玩家血量（仅重新开始时重置为满血；过关时继承当前血量）
+            Health* hp = world.get_component<Health>(e);
+            if (hp) {
+                if (reset_hp) hp->current_hp = hp->max_hp;
+                hp->invincible_timer = 0.0f;
             }
             break;
         }
