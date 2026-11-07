@@ -72,7 +72,7 @@ void wasm_init() {
     // 训练模式默认场景：2 面测试墙 + 1 只无限血量史莱姆（用于练习元素反应）
     spawn_wall(*g_world, 420.0f, 200.0f, 30.0f, 220.0f);
     spawn_wall(*g_world, 530.0f, 420.0f, 200.0f, 30.0f);
-    Entity dummy = g_enemy_manager.spawn(*g_world, ENEMY_HYDRO, 650.0f, 350.0f);
+    Entity dummy = g_enemy_manager.spawn(*g_world, ENEMY_TEST, 650.0f, 350.0f);
     // 训练木桩：血量拉到极大值，模拟无限血
     Health* dhp = g_world->get_component<Health>(dummy);
     if (dhp) {

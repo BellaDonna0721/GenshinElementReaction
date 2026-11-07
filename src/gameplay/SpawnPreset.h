@@ -1,6 +1,7 @@
 #pragma once
 #include "../core/World.h"
 #include "../utils/ElementType.h"
+#include "../components/EnemyAI.h"
 #include <cstdint>
 
 // 敌人生成预设：把"不同种类敌人"的差异全部抽成配置数据（ECS 组合优于继承）
@@ -25,6 +26,7 @@ struct EnemyPreset {
     bool        can_be_frozen = true;
 
     // ===== AI 参数（EnemyAI 组件初始值）=====
+    AIType      ai_type        = AIType::RandomPatrol;  // AI 行为类型（小怪随机巡逻，Boss 用状态机）
     float       move_speed     = 60.0f;   // 移动速度（像素/秒）
     float       alert_radius   = 180.0f;  // 警戒范围
     float       attack_radius  = 36.0f;   // 攻击范围（接触伤害）
@@ -36,55 +38,84 @@ struct EnemyPreset {
 
 // 火丘丘：Pyro 弱元素（0.8 实际，9.5s），白色圆肉身（外层元素光环亮橙红），标准体型 20px
 inline const EnemyPreset ENEMY_PYRO = {
-    ElementType::Pyro,
-    ElementStrength::Weak,
-    50.0f,       // max_hp
-    20.0f,
-    255, 255, 255
+    ElementType::Pyro,          // element：初始附着元素
+    ElementStrength::Weak,      // strength：元素强度档
+    50.0f,                      // max_hp：最大血量
+    20.0f,                      // radius：体型半径（像素）
+    255, 255, 255,              // color_r/g/b：颜色
+    true,                       // can_be_frozen：是否可被冻结
+    AIType::RandomPatrol,       // ai_type：AI 行为类型
+    60.0f,                      // move_speed：移动速度（像素/秒）
+    180.0f,                     // alert_radius：警戒范围（像素）
+    36.0f,                      // attack_radius：攻击范围（像素，接触伤害）
+    10.0f,                      // attack_power：每次接触伤害
+    10,                         // score_value：击杀得分
 };
 
 // 水史莱姆：Hydro 弱元素（0.8 实际，9.5s），白色圆，标准体型 20px
 inline const EnemyPreset ENEMY_HYDRO = {
-    ElementType::Hydro,
-    ElementStrength::Weak,
-    50.0f,       // max_hp
-    20.0f,
-    255, 255, 255
+    ElementType::Hydro,         // element：初始附着元素
+    ElementStrength::Weak,      // strength：元素强度档
+    50.0f,                      // max_hp：最大血量
+    20.0f,                      // radius：体型半径（像素）
+    255, 255, 255,              // color_r/g/b：颜色
+    true,                       // can_be_frozen：是否可被冻结
+    AIType::RandomPatrol,       // ai_type：AI 行为类型
+    60.0f,                      // move_speed：移动速度（像素/秒）
+    180.0f,                     // alert_radius：警戒范围（像素）
+    36.0f,                      // attack_radius：攻击范围（像素，接触伤害）
+    10.0f,                      // attack_power：每次接触伤害
+    10,                         // score_value：击杀得分
 };
 
 // 冰大怪：Cryo 中元素（1.2 实际，10.75s），白色圆，体型更大 22px，元素更耐打
 inline const EnemyPreset ENEMY_CRYO = {
-    ElementType::Cryo,
-    ElementStrength::Medium,
-    80.0f,       // max_hp
-    22.0f,
-    255, 255, 255
+    ElementType::Cryo,          // element：初始附着元素
+    ElementStrength::Medium,    // strength：元素强度档
+    80.0f,                      // max_hp：最大血量
+    22.0f,                      // radius：体型半径（像素）
+    255, 255, 255,              // color_r/g/b：颜色
+    true,                       // can_be_frozen：是否可被冻结
+    AIType::RandomPatrol,       // ai_type：AI 行为类型
+    60.0f,                      // move_speed：移动速度（像素/秒）
+    180.0f,                     // alert_radius：警戒范围（像素）
+    36.0f,                      // attack_radius：攻击范围（像素，接触伤害）
+    10.0f,                      // attack_power：每次接触伤害
+    10,                         // score_value：击杀得分
 };
 
 // 测试木桩：Hydro 弱元素，血量 99999（用于长时间测试元素反应/冻结）
 inline const EnemyPreset ENEMY_TEST = {
-    ElementType::Hydro,
-    ElementStrength::Weak,
-    99999.0f,    // max_hp（极高血量，测试用）
-    20.0f,
-    255, 255, 255
+    ElementType::Hydro,         // element：初始附着元素
+    ElementStrength::Weak,      // strength：元素强度档
+    99999.0f,                   // max_hp：最大血量（极高，测试用）
+    20.0f,                      // radius：体型半径（像素）
+    255, 255, 255,              // color_r/g/b：颜色
+    true,                       // can_be_frozen：是否可被冻结
+    AIType::RandomPatrol,       // ai_type：AI 行为类型
+    0.0f,                       // move_speed：移动速度（像素/秒，训练木桩不移动）
+    180.0f,                     // alert_radius：警戒范围（像素）
+    36.0f,                      // attack_radius：攻击范围（像素，接触伤害）
+    0.0f,                      // attack_power：每次接触伤害
+    10,                         // score_value：击杀得分
 };
 
 // Boss：高血量、大体型、高攻击力、高分数
 //   元素为 Electro（雷），中元素强度，体型 36px，血量 300
 //   移速稍慢但攻击范围大，适合作为关卡守关 BOSS
 inline const EnemyPreset ENEMY_BOSS = {
-    ElementType::Electro,
-    ElementStrength::Medium,
-    300.0f,      // max_hp
-    36.0f,       // radius（大体型）
-    180, 120, 220,  // 紫色
-    true,        // can_be_frozen
-    50.0f,       // move_speed（稍慢）
-    220.0f,      // alert_radius（警戒范围大）
-    50.0f,       // attack_radius（攻击范围大）
-    20.0f,       // attack_power（高伤害）
-    100,         // score_value（高分）
+    ElementType::Electro,       // element：初始附着元素
+    ElementStrength::Medium,    // strength：元素强度档
+    300.0f,                     // max_hp：最大血量
+    36.0f,                      // radius：体型半径（像素，大体型）
+    180, 120, 220,              // color_r/g/b：颜色（紫色）
+    true,                       // can_be_frozen：是否可被冻结
+    AIType::StateMachine,       // ai_type：AI 行为类型（Boss 用状态机）
+    50.0f,                      // move_speed：移动速度（像素/秒，稍慢）
+    220.0f,                     // alert_radius：警戒范围（像素）
+    50.0f,                      // attack_radius：攻击范围（像素，接触伤害）
+    20.0f,                      // attack_power：每次接触伤害（高伤害）
+    100,                        // score_value：击杀得分（高分）
 };
 
 // 生成玩家实体

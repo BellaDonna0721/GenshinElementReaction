@@ -6,7 +6,6 @@
 #include "../components/ElementPayload.h"
 #include "../components/ElementStatus.h"
 #include "../components/ElementICDStatus.h"
-#include "../components/AttackPower.h"
 #include "../components/EnemyAI.h"
 #include "../components/Health.h"
 #include "../components/DamageQueue.h"
@@ -147,7 +146,6 @@ void CollisionSystem::update(World& world, float dt) {
         auto* bt      = world.get_component<Transform>(b);
         auto* bc      = world.get_component<SphereCollider>(b);
         auto* payload = world.get_component<ElementPayload>(b);
-        auto* atk     = world.get_component<AttackPower>(b);
         bool  hit     = false;
 
         for (auto en : enemies) {
@@ -161,7 +159,7 @@ void CollisionSystem::update(World& world, float dt) {
                 auto* es  = world.get_component<ElementStatus>(en);
                 auto* icd = world.get_component<ElementICDStatus>(en);
                 if (payload && es) {
-                    es->pending_base_damage = atk ? atk->base_damage : 0.0f;
+                    es->pending_base_damage = payload->base_damage;
 
                     bool allow = true;
                     if (icd) allow = ::icd_hit_allowed(*icd, payload->element, payload->strength);

@@ -127,7 +127,7 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     hp.current_hp = preset.max_hp;
     world.add_component<Health>(e, hp);
 
-    // 8. AI 状态机（参数来自预设）
+    // 8. AI 公共数据（参数来自预设）
     EnemyAI ai;
     ai.enemy_type    = static_cast<uint8_t>(preset.element);  // 临时：存元素类型用于血条显示类型名
     ai.move_speed     = preset.move_speed;
@@ -137,9 +137,20 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     ai.score_value    = preset.score_value;
     ai.home_x         = x;
     ai.home_y         = y;
-    ai.target_x       = x;
-    ai.target_y       = y;
     world.add_component<EnemyAI>(e, ai);
+
+    // 9. 挂载行为组件（根据 ai_type 选择状态机或随机巡逻）
+    if (preset.ai_type == AIType::StateMachine) {
+        StateMachineAI sm;
+        sm.target_x = x;
+        sm.target_y = y;
+        world.add_component<StateMachineAI>(e, sm);
+    } else if (preset.ai_type == AIType::RandomPatrol) {
+        RandomPatrolAI rp;
+        rp.target_x = x;
+        rp.target_y = y;
+        world.add_component<RandomPatrolAI>(e, rp);
+    }
 
     return e;
 }

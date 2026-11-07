@@ -8,7 +8,6 @@
 #include "../components/ElementStatus.h"
 #include "../components/RenderInfo.h"
 #include "../components/FacingDirection.h"
-#include "../components/AttackPower.h"
 #include "../components/GameState.h"
 #include "../gameplay/BuffRegistry.h"
 #include "../utils/element_color.h"
@@ -110,11 +109,6 @@ void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, fl
     life.remaining = 2.5f;
     world.add_component<Lifetime>(e, life);
 
-    ElementPayload payload;
-    payload.element  = elem;
-    payload.strength = strength;
-    world.add_component<ElementPayload>(e, payload);
-
     // 攻击力：基础 10，叠加攻击增益
     //   AttackUp: +20%（百分比）
     //   BulletDamageUp: +5（固定值）
@@ -125,9 +119,12 @@ void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, fl
             else if (b == BuffType::BulletDamageUp) base_damage += BuffRegistry::get(b).value;
         }
     }
-    AttackPower atk;
-    atk.base_damage = base_damage;
-    world.add_component<AttackPower>(e, atk);
+
+    ElementPayload payload;
+    payload.element     = elem;
+    payload.strength    = strength;
+    payload.base_damage = base_damage;
+    world.add_component<ElementPayload>(e, payload);
 
     SphereCollider col;
     col.radius = 6.0f;
