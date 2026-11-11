@@ -7,12 +7,12 @@
 #include "../components/Health.h"
 #include "../components/IdentityTag.h"
 #include "../components/BoxCollider.h"
-#include "../components/DamageNumberQueue.h"
 #include "../components/EnemyAI.h"
+#include "../components/Velocity.h"
+#include <cmath>
 
 std::vector<RenderCommand>   g_render_commands;
 std::vector<HealthBarInfo>   g_health_bars;
-std::vector<DamageNumberInfo> g_damage_numbers;
 std::vector<WallRenderInfo>  g_walls;
 
 namespace {
@@ -51,7 +51,6 @@ void OutputSystem::update(World& world, float dt) {
     (void)dt;
     g_render_commands.clear();
     g_health_bars.clear();
-    g_damage_numbers.clear();
     g_walls.clear();
 
     for (auto e : world.query<Transform, RenderInfo>()) {
@@ -180,26 +179,21 @@ void OutputSystem::update(World& world, float dt) {
             if (payload) {
                 cmd.bullet_strength = static_cast<uint8_t>(payload->strength);
             }
+            // 将子弹速度方向写入 facing_dx/dy（复用现有字段，供 TS 侧绘制飞行拖尾）
+            auto* vel = world.get_component<Velocity>(e);
+            if (vel) {
+                float len = std::sqrt(vel->vx * vel->vx + vel->vy * vel->vy);
+                if (len > 1e-6f) {
+                    cmd.facing_dx = vel->vx / len;
+                    cmd.facing_dy = vel->vy / len;
+                }
+            }
         }
 
         g_render_commands.push_back(cmd);
     }
 
-    // —— 伤害飘字：从 DamageNumberQueue 转存到全局数组供 TS 读取 ——
-    DamageNumberQueue* num_queue = world.get_component<DamageNumberQueue>(0);
-    if (num_queue) {
-        for (const auto& dn : num_queue->numbers) {
-            DamageNumberInfo info;
-            info.x      = dn.x;
-            info.y      = dn.y;
-            info.amount = dn.amount;
-            info.r      = dn.r;
-            info.g      = dn.g;
-            info.b      = dn.b;
-            info.is_transformative = dn.is_transformative;
-            g_damage_numbers.push_back(info);
-        }
-        // 消费后清空（OutputSystem 是唯一消费者）
-        num_queue->numbers.clear();
-    }
+    // 伤害飘字（DamageNumberQueue）和命中特效（HitFxQueue）由写入方
+    // （DamageSystem / CollisionSystem）自行管理帧首清空，wasm_api 直接
+    // 读取组件中的 vector，OutputSystem 不再中转。
 }

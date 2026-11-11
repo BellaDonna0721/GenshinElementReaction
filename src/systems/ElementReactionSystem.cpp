@@ -1,7 +1,7 @@
 #include "ElementReactionSystem.h"
 #include "../components/ElementICDStatus.h"
-#include "../components/DamageQueue.h"
-#include "../components/GameState.h"
+#include "../components/singletonComponents/DamageQueue.h"
+#include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
 #include <cstdio>
 #include <utility>

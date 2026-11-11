@@ -3,7 +3,7 @@
 #include "../components/Velocity.h"
 #include "../components/IdentityTag.h"
 #include "../components/EnemyAI.h"
-#include "../components/GameState.h"
+#include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
 #include "../gameplay/BulletPool.h"
 

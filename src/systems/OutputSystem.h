@@ -1,5 +1,7 @@
 #pragma once
 #include "../core/World.h"
+#include "../components/singletonComponents/DamageNumberQueue.h"
+#include "../components/singletonComponents/HitFxQueue.h"
 #include <cstdint>
 #include <vector>
 
@@ -38,17 +40,10 @@ extern std::vector<HealthBarInfo> g_health_bars;
 
 // =====================================================================
 //  伤害飘字数据（独立通道）
-//  DamageSystem 写入 DamageNumberQueue，OutputSystem 转存到全局数组供 TS 读取
-//  TS 侧负责渐隐 + 上浮动画（复用反应飘字的客户端缓存模式）
+//  DamageSystem 写入 DamageNumberQueue（单例组件），wasm_api 直接读取组件
+//  中的 vector 供 TS 渲染。TS 侧负责渐隐 + 上浮动画。
+//  结构体 DamageNumber 定义见 DamageNumberQueue.h。
 // =====================================================================
-struct DamageNumberInfo {
-    float   x, y;       // 出现位置（怪物坐标）
-    int     amount;     // 整数伤害
-    uint8_t r, g, b;    // 元素颜色
-    uint8_t is_transformative = 0;  // 1=剧变（小字右侧），0=直伤/增幅（大字）
-};
-
-extern std::vector<DamageNumberInfo> g_damage_numbers;
 
 // =====================================================================
 //  墙体渲染数据（独立通道，走矩形而非圆形，不占用 32 字节 RenderCommand）
@@ -70,6 +65,22 @@ struct WallRenderInfo {
 };
 
 extern std::vector<WallRenderInfo> g_walls;
+
+// =====================================================================
+//  命中特效数据（独立通道）
+//  CollisionSystem 写入 HitFxQueue（单例组件），wasm_api 直接读取组件中的
+//  vector 供 TS 渲染。TS 侧负责三层动画（闪光 + 扩散光环 + 迸溅粒子）。
+//
+//  字节布局（16 字节）：
+//    [0,4)   x          (f32)  命中点 X
+//    [4,8)   y          (f32)  命中点 Y
+//    [8]     r          (u8)
+//    [9]     g          (u8)
+//    [10]    b          (u8)
+//    [11]    hit_type   (u8)   0=命中敌人  1=命中墙体
+//    [12,16) scale      (f32)  尺寸系数（敌人按半径自适应）
+//  结构体定义见 HitFxQueue.h（HitFx）。
+// =====================================================================
 
 class OutputSystem : public System {
 public:

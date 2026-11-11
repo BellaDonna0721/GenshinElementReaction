@@ -8,7 +8,10 @@
 #include "../components/ElementICDStatus.h"
 #include "../components/EnemyAI.h"
 #include "../components/Health.h"
-#include "../components/DamageQueue.h"
+#include "../components/RenderInfo.h"
+#include "../components/singletonComponents/DamageQueue.h"
+#include "../components/singletonComponents/HitFxQueue.h"
+#include "../utils/element_color.h"
 #include "../gameplay/BulletPool.h"
 #include <cmath>
 
@@ -70,6 +73,10 @@ void CollisionSystem::update(World& world, float dt) {
     std::vector<Entity> enemies;
     std::vector<Entity> walls;
     Entity player = INVALID_ENTITY;
+
+    HitFxQueue* fx_queue = world.get_component<HitFxQueue>(0);
+    // 帧首清空上一帧命中特效（wasm_api 直接读此 vector，由写入方管理生命周期）
+    if (fx_queue) fx_queue->items.clear();
 
     for (auto e : world.query<Transform, IdentityTag>()) {
         auto* id = world.get_component<IdentityTag>(e);
@@ -168,6 +175,19 @@ void CollisionSystem::update(World& world, float dt) {
                         es->pending_strength = payload->strength;
                     }
                 }
+                // 命中特效：元素色闪光 + 扩散光环 + 粒子迸溅
+                if (fx_queue && payload) {
+                    HitFx fx;
+                    fx.x = bt->x;
+                    fx.y = bt->y;
+                    ElementColor ec = get_element_color(payload->element);
+                    fx.r = ec.r; fx.g = ec.g; fx.b = ec.b;
+                    fx.hit_type = 0;
+                    // 尺寸系数：按敌人渲染半径自适应（20px 为基准 1.0）
+                    auto* eri = world.get_component<RenderInfo>(en);
+                    fx.scale = eri ? (eri->radius / 20.0f) : 1.0f;
+                    fx_queue->items.push_back(fx);
+                }
                 hit = true;
                 break;
             }
@@ -184,6 +204,17 @@ void CollisionSystem::update(World& world, float dt) {
                 if (circle_rect_collide(bt->x, bt->y, bc->radius,
                                         wt->x, wt->y, rc->width * 0.5f, rc->height * 0.5f,
                                         px, py)) {
+                    // 撞墙特效：元素色火花（hit_type=1，墙体无半径自适应）
+                    if (fx_queue && payload) {
+                        HitFx fx;
+                        fx.x = bt->x;
+                        fx.y = bt->y;
+                        ElementColor ec = get_element_color(payload->element);
+                        fx.r = ec.r; fx.g = ec.g; fx.b = ec.b;
+                        fx.hit_type = 1;
+                        fx.scale = 1.0f;
+                        fx_queue->items.push_back(fx);
+                    }
                     hit = true;
                     break;
                 }

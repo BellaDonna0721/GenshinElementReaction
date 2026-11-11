@@ -1,6 +1,6 @@
 #pragma once
-#include "../core/Entity.h"
-#include "../utils/ElementType.h"
+#include "../../core/Entity.h"
+#include "../../utils/ElementType.h"
 #include <vector>
 
 // =====================================================================

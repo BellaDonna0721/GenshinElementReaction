@@ -2,7 +2,7 @@
 #include "../core/World.h"
 #include "../components/Transform.h"
 #include "../components/IdentityTag.h"
-#include "../components/GameState.h"
+#include "../components/singletonComponents/GameState.h"
 #include "../components/Health.h"
 #include "../components/RenderInfo.h"
 #include "../utils/element_color.h"

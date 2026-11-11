@@ -1,5 +1,5 @@
 #pragma once
-#include "../components/GameState.h"
+#include "../components/singletonComponents/GameState.h"
 #include <string>
 
 // =====================================================================

@@ -1,6 +1,6 @@
 #pragma once
 #include "../systems/System.h"
-#include "../components/GameState.h"
+#include "../components/singletonComponents/GameState.h"
 #include "../gameplay/LevelConfig.h"
 #include <cstdint>
 

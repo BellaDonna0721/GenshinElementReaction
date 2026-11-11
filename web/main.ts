@@ -1,5 +1,5 @@
 import {
-  InputState, ElementType, HealthBarInfo, DamageNumberInfo, WallRenderInfo,
+  InputState, ElementType, HealthBarInfo, DamageNumber, WallRenderInfo, HitFx,
 } from './types.js';
 import { Renderer } from './render.js';
 
@@ -19,6 +19,8 @@ interface GameModule {
   _wasm_get_damage_number_count: () => number;
   _wasm_get_wall_data: () => number;
   _wasm_get_wall_count: () => number;
+  _wasm_get_hit_fx_data: () => number;
+  _wasm_get_hit_fx_count: () => number;
   _wasm_spawn_enemy: (preset_id: number, x: number, y: number) => number;
   _wasm_remove_enemy: (entity_id: number) => void;
   _wasm_clear_enemies: () => void;
@@ -211,7 +213,7 @@ function readHealthBars(): HealthBarInfo[] {
   return result;
 }
 
-// 读取伤害飘字数据（DamageNumberInfo，16 字节 stride）
+// 读取伤害飘字数据（DamageNumber，16 字节 stride）
 //   [0,4)  x       (f32)
 //   [4,8)  y       (f32)
 //   [8,12) amount  (i32)
@@ -219,7 +221,7 @@ function readHealthBars(): HealthBarInfo[] {
 //   [13]   g       (u8)
 //   [14]   b       (u8)
 const DAMAGE_STRIDE = 16;
-function readDamageNumbers(): DamageNumberInfo[] {
+function readDamageNumbers(): DamageNumber[] {
   const count = wasmModule._wasm_get_damage_number_count();
   if (count <= 0) return [];
 
@@ -227,7 +229,7 @@ function readDamageNumbers(): DamageNumberInfo[] {
   const heap = wasmModule.HEAPU8;
   const f32  = new Float32Array(heap.buffer);
   const i32  = new Int32Array(heap.buffer);
-  const result: DamageNumberInfo[] = [];
+  const result: DamageNumber[] = [];
 
   for (let i = 0; i < count; i++) {
     const base = ptr + i * DAMAGE_STRIDE;
@@ -279,6 +281,39 @@ function readWalls(): WallRenderInfo[] {
   return result;
 }
 
+// 读取命中特效数据（HitFx，16 字节 stride）
+//   [0,4)   x          (f32)
+//   [4,8)   y          (f32)
+//   [8]     r          (u8)
+//   [9]     g          (u8)
+//   [10]    b          (u8)
+//   [11]    hit_type   (u8)   0=敌人  1=墙体
+//   [12,16) scale      (f32)
+const HIT_FX_STRIDE = 16;
+function readHitFx(): HitFx[] {
+  const count = wasmModule._wasm_get_hit_fx_count();
+  if (count <= 0) return [];
+
+  const ptr = wasmModule._wasm_get_hit_fx_data();
+  const heap = wasmModule.HEAPU8;
+  const f32  = new Float32Array(heap.buffer);
+  const result: HitFx[] = [];
+
+  for (let i = 0; i < count; i++) {
+    const base = ptr + i * HIT_FX_STRIDE;
+    result.push({
+      x:        f32[ base        / 4],
+      y:        f32[(base + 4)  / 4],
+      r:        heap[base + 8],
+      g:        heap[base + 9],
+      b:        heap[base + 10],
+      hit_type: heap[base + 11],
+      scale:    f32[(base + 12) / 4],
+    });
+  }
+  return result;
+}
+
 function gameLoop(timestamp: number): void {
   if (!running) return;
   if (currentScene !== 'training' && currentScene !== 'playing') return;
@@ -292,7 +327,7 @@ function gameLoop(timestamp: number): void {
   // 获取玩家血量比例（0~100）
   const playerHpRatio = wasmModule._wasm_get_player_hp_ratio() / 100;
 
-  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers(), readWalls(), playerHpRatio);
+  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers(), readWalls(), readHitFx(), playerHpRatio);
 
   // 关卡模式：检查游戏阶段
   if (currentScene === 'playing') {

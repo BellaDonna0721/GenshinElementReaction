@@ -125,7 +125,7 @@ export interface HealthBarInfo {
 }
 
 // 伤害飘字数据（独立通道）
-// 与 C++ 侧 DamageNumberInfo 对齐：
+// 与 C++ 侧 DamageNumber 对齐：
 //   [0,4)  x       (f32)
 //   [4,8)  y       (f32)
 //   [8,12) amount  (i32)  整数伤害
@@ -133,7 +133,7 @@ export interface HealthBarInfo {
 //   [13]   g       (u8)
 //   [14]   b       (u8)
 //   [15]   is_transformative (u8)  1=剧变（小字右侧），0=直伤/增幅（大字）
-export interface DamageNumberInfo {
+export interface DamageNumber {
   x: number;
   y: number;
   amount: number;
@@ -162,4 +162,23 @@ export interface WallRenderInfo {
   g: number;
   b: number;
   a: number;
+}
+
+// 命中特效数据（独立通道）
+// 与 C++ 侧 HitFx 对齐（16 字节 stride）：
+//   [0,4)   x          (f32)  命中点 X
+//   [4,8)   y          (f32)  命中点 Y
+//   [8]     r          (u8)
+//   [9]     g          (u8)
+//   [10]    b          (u8)
+//   [11]    hit_type   (u8)   0=命中敌人  1=命中墙体
+//   [12,16) scale      (f32)  尺寸系数（敌人按半径自适应）
+export interface HitFx {
+  x: number;
+  y: number;
+  r: number;
+  g: number;
+  b: number;
+  hit_type: number;
+  scale: number;
 }

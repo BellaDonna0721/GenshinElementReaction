@@ -3,9 +3,9 @@
 #include "../components/Transform.h"
 #include "../components/IdentityTag.h"
 #include "../components/EnemyAI.h"
-#include "../components/DamageQueue.h"
-#include "../components/DamageNumberQueue.h"
-#include "../components/GameState.h"
+#include "../components/singletonComponents/DamageQueue.h"
+#include "../components/singletonComponents/DamageNumberQueue.h"
+#include "../components/singletonComponents/GameState.h"
 #include "../gameplay/EnemyManager.h"
 #include "../utils/element_color.h"
 #include <vector>
@@ -18,6 +18,9 @@ void DamageSystem::update(World& world, float dt) {
 
     DamageNumberQueue* num_queue = world.get_component<DamageNumberQueue>(0);
     GameState* gs = world.get_component<GameState>(0);
+
+    // 帧首清空上一帧飘字（wasm_api 直接读此 vector，由写入方管理生命周期）
+    if (num_queue) num_queue->numbers.clear();
 
     // 本帧死亡的敌人（帧末统一销毁，避免遍历中删实体）
     std::vector<Entity> dead_enemies;

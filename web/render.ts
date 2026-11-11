@@ -1,7 +1,7 @@
 import {
   RenderCommand, EntityType, ElementType,
   ELEMENT_COLORS, ELEMENT_NAMES, REACTION_NAMES, unpackGauge,
-  HealthBarInfo, DamageNumberInfo, WallRenderInfo,
+  HealthBarInfo, DamageNumber, WallRenderInfo, HitFx,
 } from './types.js';
 
 export class Renderer {
@@ -16,6 +16,17 @@ export class Renderer {
   // 伤害飘字缓存（客户端管理渐隐 + 上浮动画）
   // 每项 { x, y, amount, r, g, b, t }：t 为剩余显示时长
   private damageNumbers: Array<{ x: number; y: number; amount: number; r: number; g: number; b: number; t: number; is_transformative: number }> = [];
+
+  // 命中特效缓存（客户端管理三层动画生命周期）
+  // 闪光：径向渐变快速放大淡出
+  private hitFlashes: Array<{ x: number; y: number; r: number; g: number; b: number; t: number; maxT: number; scale: number }> = [];
+  // 扩散光环：圆环从中心向外扩散，alpha 渐隐
+  private hitRings: Array<{ x: number; y: number; r: number; g: number; b: number; t: number; maxT: number; scale: number }> = [];
+  // 迸溅粒子：小颗粒向四周发散，减速+淡出
+  private hitParticles: Array<{ x: number; y: number; vx: number; vy: number; r: number; g: number; b: number; t: number; maxT: number; size: number }> = [];
+
+  // 子弹拖尾点池（跨帧渐隐，形成流体状拖尾）
+  private bulletTrailDots: Array<{ x: number; y: number; r: number; g: number; b: number; t: number; maxT: number; size: number }> = [];
 
   // UI：左侧元素面板高亮的当前选中元素（默认 Pyro，和初始 spawn_player 一致）
   private currentElem: ElementType = ElementType.Pyro;
@@ -49,7 +60,7 @@ export class Renderer {
     this.playerSprite.src = 'assets/paimon.png';
   }
 
-  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumberInfo[], walls: WallRenderInfo[], playerHpRatio: number): void {
+  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumber[], walls: WallRenderInfo[], hitFx: HitFx[], playerHpRatio: number): void {
     const ctx = this.ctx;
 
     // 背景
@@ -82,12 +93,18 @@ export class Renderer {
       else if (c.entity_type === EntityType.Enemy)  enemies.push(c);
       else player.push(c);
     }
+    // 子弹拖尾（在子弹本体之下绘制，形成身后流体光带）
+    this.drawBulletTrails(ctx, bullets);
+
     for (const c of bullets)   this.drawBullet(ctx, c);
     for (const c of enemies)     this.drawEnemy(ctx, c);
     for (const c of player)      this.drawPlayer(ctx, c);
 
     // 血条（在实体之上绘制）
     this.drawHealthBars(ctx, healthBars);
+
+    // 命中特效（闪光+扩散光环+迸溅粒子，在血条之上、伤害飘字之下）
+    this.drawHitFx(ctx, hitFx);
 
     // 伤害飘字（最顶层）
     this.drawDamageNumbers(ctx, damageNumbers);
@@ -211,11 +228,11 @@ export class Renderer {
   }
 
   // ===== 伤害飘字（客户端管理渐隐 + 上浮） =====
-  private drawDamageNumbers(ctx: CanvasRenderingContext2D, newNumbers: DamageNumberInfo[]): void {
+  private drawDamageNumbers(ctx: CanvasRenderingContext2D, newNumbers: DamageNumber[]): void {
     const dtFrame = 1 / 60;
 
     // 1) 按位置分组：同帧同位置的直伤居中大字，剧变在直伤右侧小字
-    const posGroups = new Map<string, DamageNumberInfo[]>();
+    const posGroups = new Map<string, DamageNumber[]>();
     for (const dn of newNumbers) {
       const key = `${dn.x.toFixed(0)},${dn.y.toFixed(0)}`;
       if (!posGroups.has(key)) posGroups.set(key, []);
@@ -259,6 +276,99 @@ export class Renderer {
       ctx.fillText(String(d.amount), d.x, d.y - 20 - rise);
     }
     ctx.globalAlpha = 1.0;
+  }
+
+  // ===== 命中特效：闪光 + 扩散光环 + 迸溅粒子（客户端管理生命周期）=====
+  private drawHitFx(ctx: CanvasRenderingContext2D, newFx: HitFx[]): void {
+    const dtFrame = 1 / 60;
+
+    // 1) 从本帧新命中数据生成三层特效对象
+    for (const fx of newFx) {
+      const { x, y, r, g, b, hit_type, scale } = fx;
+
+      // 闪光：径向渐变快速放大淡出（0.2s）
+      this.hitFlashes.push({ x, y, r, g, b, t: 0.20, maxT: 0.20, scale });
+
+      // 扩散光环：圆环从中心向外扩散（0.35s）
+      this.hitRings.push({ x, y, r, g, b, t: 0.35, maxT: 0.35, scale });
+
+      // 迸溅粒子：8~12 颗向四周发散（0.4s）
+      // 命中敌人时粒子多一些，撞墙时少一些
+      const count = hit_type === 0 ? 10 : 7;
+      for (let i = 0; i < count; i++) {
+        const ang = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.6;
+        const speed = 70 + Math.random() * 70;  // 70~140 px/s
+        this.hitParticles.push({
+          x, y,
+          vx: Math.cos(ang) * speed,
+          vy: Math.sin(ang) * speed,
+          r, g, b,
+          t: 0.40, maxT: 0.40,
+          size: 2 + Math.random() * 2,  // 2~4 px
+        });
+      }
+    }
+
+    // 2) 更新所有活跃特效（扣减寿命、粒子位移+减速）
+    this.hitFlashes = this.hitFlashes.map(f => ({ ...f, t: f.t - dtFrame })).filter(f => f.t > 0);
+    this.hitRings   = this.hitRings.map(f => ({ ...f, t: f.t - dtFrame })).filter(f => f.t > 0);
+    this.hitParticles = this.hitParticles
+      .map(p => ({
+        ...p,
+        t: p.t - dtFrame,
+        x: p.x + p.vx * dtFrame,
+        y: p.y + p.vy * dtFrame,
+        vx: p.vx * 0.92,  // 摩擦减速
+        vy: p.vy * 0.92,
+      }))
+      .filter(p => p.t > 0);
+
+    // 敌人实际半径 = scale * 20（scale 由 radius/20 传入）
+    // 闪光与光环均以敌人半径为基准放大，确保扩散到身体之外清晰可见
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';  // 叠加发光，避免被敌人贴图吃掉
+
+    // 3) 绘制：闪光（底层）→ 光环 → 粒子（顶层）
+    // 闪光：径向渐变快速放大淡出（0.2s），从敌人半径0.3倍扩散到1.6倍
+    for (const f of this.hitFlashes) {
+      const prog = 1 - f.t / f.maxT;  // 0→1
+      const baseR = f.scale * 20;  // 敌人半径
+      const radius = baseR * (0.3 + prog * 1.3);  // 0.3R → 1.6R
+      const alpha = (1 - prog) * 0.85;
+      const grad = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, radius);
+      grad.addColorStop(0,   `rgba(255,255,255,${alpha})`);          // 中心白亮
+      grad.addColorStop(0.3, `rgba(${f.r},${f.g},${f.b},${alpha})`);  // 中段元素色
+      grad.addColorStop(1,   `rgba(${f.r},${f.g},${f.b},0)`);         // 边缘透明
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 扩散光环：圆环从敌人半径0.6倍扩散到2.0倍（0.35s）
+    for (const f of this.hitRings) {
+      const prog = 1 - f.t / f.maxT;  // 0→1
+      const baseR = f.scale * 20;  // 敌人半径
+      const radius = baseR * (0.6 + prog * 1.4);  // 0.6R → 2.0R
+      const alpha = (1 - prog) * 0.9;
+      const lineW = 4 - prog * 2.5;  // 4 → 1.5
+      ctx.beginPath();
+      ctx.arc(f.x, f.y, radius, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(${f.r},${f.g},${f.b},${alpha})`;
+      ctx.lineWidth = lineW;
+      ctx.stroke();
+    }
+
+    // 迸溅粒子：小圆点，随寿命淡出
+    for (const p of this.hitParticles) {
+      const alpha = Math.min(1, p.t / p.maxT * 1.5);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${alpha})`;
+      ctx.fill();
+    }
+
+    ctx.restore();
   }
 
   // ===== 玩家（含朝向箭头） =====
@@ -472,6 +582,53 @@ export class Renderer {
       ctx.globalAlpha = 1.0;
     }
     this.enemyReactions.set(key, cached);
+  }
+
+  // ===== 子弹飞行拖尾（流体状渐变光带） =====
+  // 跨帧点池：每帧在子弹头部生成新点，旧点随寿命递减淡出，形成连续流体拖尾
+  private drawBulletTrails(ctx: CanvasRenderingContext2D, bullets: RenderCommand[]): void {
+    const dtFrame = 1 / 60;
+
+    // 1) 为本帧每个子弹在头部生成新拖尾点
+    for (const bullet of bullets) {
+      const { x, y, radius, r, g, b, facing_dx, facing_dy } = bullet;
+      if (facing_dx === 0 && facing_dy === 0) continue;
+
+      // 在子弹头部沿反方向生成 5 个点，间距 2px，头部宽、尾部窄（锥形）
+      const tx = -facing_dx;
+      const ty = -facing_dy;
+      for (let k = 0; k < 5; k++) {
+        const offset = k * 2;  // 0, 2, 4, 6, 8 px
+        // 头部点明显大于子弹半径，向尾部线性收窄，确保与子弹本体平滑衔接
+        const sizeRatio = 1.6 - k * 0.24;  // 1.6 → 0.64
+        this.bulletTrailDots.push({
+          x: x + tx * offset,
+          y: y + ty * offset,
+          r, g, b,
+          t: 0.28, maxT: 0.28,           // 单颗拖尾点寿命 0.28s
+          size: radius * sizeRatio,
+        });
+      }
+    }
+
+    // 2) 更新所有拖尾点：扣减寿命，过滤过期
+    this.bulletTrailDots = this.bulletTrailDots
+      .map(p => ({ ...p, t: p.t - dtFrame }))
+      .filter(p => p.t > 0);
+
+    // 3) 绘制所有拖尾点（lighter 叠加发光，形成连续流体光带）
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (const p of this.bulletTrailDots) {
+      const fade = p.t / p.maxT;          // 1 → 0
+      const alpha = fade * 0.55;
+      const size  = p.size * (0.3 + fade * 0.7);
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, size, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${alpha})`;
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   // ===== 子弹 =====

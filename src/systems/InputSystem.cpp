@@ -8,7 +8,7 @@
 #include "../components/ElementStatus.h"
 #include "../components/RenderInfo.h"
 #include "../components/FacingDirection.h"
-#include "../components/GameState.h"
+#include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
 #include "../utils/element_color.h"
 #include <cmath>

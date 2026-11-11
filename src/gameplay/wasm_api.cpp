@@ -12,9 +12,10 @@
 #include "../gameplay/SpawnPreset.h"
 #include "../gameplay/BulletPool.h"
 #include "../gameplay/EnemyManager.h"
-#include "../components/DamageQueue.h"
-#include "../components/DamageNumberQueue.h"
-#include "../components/GameState.h"
+#include "../components/singletonComponents/DamageQueue.h"
+#include "../components/singletonComponents/DamageNumberQueue.h"
+#include "../components/singletonComponents/HitFxQueue.h"
+#include "../components/singletonComponents/GameState.h"
 #include "../components/Health.h"
 #include "../components/IdentityTag.h"
 #include <vector>
@@ -61,6 +62,9 @@ void wasm_init() {
 
         DamageNumberQueue dnq;
         g_world->add_component<DamageNumberQueue>(0, dnq);
+
+        HitFxQueue fxq;
+        g_world->add_component<HitFxQueue>(0, fxq);
 
         GameState gs;
         gs.is_training = true;  // wasm_init 默认是训练模式
@@ -132,12 +136,14 @@ int wasm_get_health_count() {
     return static_cast<int>(g_health_bars.size());
 }
 EMSCRIPTEN_KEEPALIVE
-DamageNumberInfo* wasm_get_damage_numbers() {
-    return g_damage_numbers.data();
+DamageNumber* wasm_get_damage_numbers() {
+    auto* q = g_world->get_component<DamageNumberQueue>(0);
+    return q ? q->numbers.data() : nullptr;
 }
 EMSCRIPTEN_KEEPALIVE
 int wasm_get_damage_number_count() {
-    return static_cast<int>(g_damage_numbers.size());
+    auto* q = g_world->get_component<DamageNumberQueue>(0);
+    return q ? static_cast<int>(q->numbers.size()) : 0;
 }
 EMSCRIPTEN_KEEPALIVE
 WallRenderInfo* wasm_get_wall_data() {
@@ -146,6 +152,16 @@ WallRenderInfo* wasm_get_wall_data() {
 EMSCRIPTEN_KEEPALIVE
 int wasm_get_wall_count() {
     return static_cast<int>(g_walls.size());
+}
+EMSCRIPTEN_KEEPALIVE
+HitFx* wasm_get_hit_fx_data() {
+    auto* q = g_world->get_component<HitFxQueue>(0);
+    return q ? q->items.data() : nullptr;
+}
+EMSCRIPTEN_KEEPALIVE
+int wasm_get_hit_fx_count() {
+    auto* q = g_world->get_component<HitFxQueue>(0);
+    return q ? static_cast<int>(q->items.size()) : 0;
 }
 
 // ========== 敌人管理 ==========
