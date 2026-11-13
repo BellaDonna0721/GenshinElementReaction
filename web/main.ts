@@ -327,7 +327,7 @@ function gameLoop(timestamp: number): void {
   // 获取玩家血量比例（0~100）
   const playerHpRatio = wasmModule._wasm_get_player_hp_ratio() / 100;
 
-  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers(), readWalls(), readHitFx(), playerHpRatio);
+  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers(), readWalls(), readHitFx(), playerHpRatio, dt);
 
   // 关卡模式：检查游戏阶段
   if (currentScene === 'playing') {

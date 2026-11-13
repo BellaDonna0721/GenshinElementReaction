@@ -9,9 +9,9 @@ export class Renderer {
   private width: number;
   private height: number;
 
-  // 每个敌人本帧仍在飘字的反应列表（支持一帧多个反应堆叠显示）
-  // 每个元素 { type, t }：type 为 ReactionType 枚举，t 为剩余显示时长 s
-  private enemyReactions: Map<string, { items: Array<{ type: number; t: number }> }> = new Map();
+  // 反应飘字全局缓存（客户端管理渐隐 + 上浮动画）
+  // 每项 { x, y, radius, type, t }：记录飘字生成时的位置，独立于敌人移动
+  private reactionTexts: Array<{ x: number; y: number; radius: number; type: number; t: number }> = [];
 
   // 伤害飘字缓存（客户端管理渐隐 + 上浮动画）
   // 每项 { x, y, amount, r, g, b, t }：t 为剩余显示时长
@@ -60,7 +60,7 @@ export class Renderer {
     this.playerSprite.src = 'assets/paimon.png';
   }
 
-  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumber[], walls: WallRenderInfo[], hitFx: HitFx[], playerHpRatio: number): void {
+  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumber[], walls: WallRenderInfo[], hitFx: HitFx[], playerHpRatio: number, dt: number): void {
     const ctx = this.ctx;
 
     // 背景
@@ -84,30 +84,36 @@ export class Renderer {
     // 墙体（在实体之下绘制，作为场景障碍物）
     this.drawWalls(ctx, walls);
 
-    // 子弹（底层）+ 敌人 + 玩家（顶层）分三层画，防止遮挡
+    // 子弹（底层）+ 道具 + 敌人 + 玩家（顶层）分层画，防止遮挡
     const bullets: RenderCommand[] = [];
+    const pickups: RenderCommand[] = [];
     const enemies: RenderCommand[] = [];
     const player: RenderCommand[] = [];
     for (const c of commands) {
-      if (c.entity_type === EntityType.Bullet) bullets.push(c);
-      else if (c.entity_type === EntityType.Enemy)  enemies.push(c);
-      else player.push(c);
+      if (c.entity_type === EntityType.Bullet)        bullets.push(c);
+      else if (c.entity_type === EntityType.Pickup)   pickups.push(c);
+      else if (c.entity_type === EntityType.Enemy)    enemies.push(c);
+      else                                            player.push(c);
     }
     // 子弹拖尾（在子弹本体之下绘制，形成身后流体光带）
-    this.drawBulletTrails(ctx, bullets);
+    this.drawBulletTrails(ctx, bullets, dt);
 
     for (const c of bullets)   this.drawBullet(ctx, c);
-    for (const c of enemies)     this.drawEnemy(ctx, c);
+    for (const c of pickups)    this.drawPickup(ctx, c);
+    for (const c of enemies)     this.drawEnemy(ctx, c, dt);
     for (const c of player)      this.drawPlayer(ctx, c);
 
     // 血条（在实体之上绘制）
     this.drawHealthBars(ctx, healthBars);
 
     // 命中特效（闪光+扩散光环+迸溅粒子，在血条之上、伤害飘字之下）
-    this.drawHitFx(ctx, hitFx);
+    this.drawHitFx(ctx, hitFx, dt);
 
     // 伤害飘字（最顶层）
-    this.drawDamageNumbers(ctx, damageNumbers);
+    this.drawDamageNumbers(ctx, damageNumbers, dt);
+
+    // 反应飘字（渐隐 + 上浮，独立于敌人位置）
+    this.drawReactionTexts(ctx, dt);
 
     // 玩家血条（HUD，左下角）
     this.drawPlayerHpBar(ctx, playerHpRatio);
@@ -228,8 +234,8 @@ export class Renderer {
   }
 
   // ===== 伤害飘字（客户端管理渐隐 + 上浮） =====
-  private drawDamageNumbers(ctx: CanvasRenderingContext2D, newNumbers: DamageNumber[]): void {
-    const dtFrame = 1 / 60;
+  private drawDamageNumbers(ctx: CanvasRenderingContext2D, newNumbers: DamageNumber[], dt: number): void {
+    const dtFrame = dt;
 
     // 1) 按位置分组：同帧同位置的直伤居中大字，剧变在直伤右侧小字
     const posGroups = new Map<string, DamageNumber[]>();
@@ -278,9 +284,33 @@ export class Renderer {
     ctx.globalAlpha = 1.0;
   }
 
+  // ===== 反应飘字（渐隐 + 上浮，独立于敌人位置） =====
+  private drawReactionTexts(ctx: CanvasRenderingContext2D, dt: number): void {
+    // 1) 每帧扣减剩余时长，过滤已过期
+    this.reactionTexts = this.reactionTexts
+      .map(it => ({ ...it, t: it.t - dt }))
+      .filter(it => it.t > 0);
+
+    // 2) 绘制：统一显示在生成位置的右侧，向上浮动 + 渐隐
+    if (this.reactionTexts.length === 0) return;
+
+    ctx.font = 'bold 14px monospace';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffdd33';
+
+    for (const it of this.reactionTexts) {
+      const name = REACTION_NAMES[it.type] || '';
+      if (!name) continue;
+      const rise = (1.5 - it.t) * 20;  // 向上飘 20px
+      ctx.globalAlpha = Math.min(1, it.t);
+      ctx.fillText(name, it.x + it.radius + 8, it.y - rise);
+    }
+    ctx.globalAlpha = 1.0;
+  }
+
   // ===== 命中特效：闪光 + 扩散光环 + 迸溅粒子（客户端管理生命周期）=====
-  private drawHitFx(ctx: CanvasRenderingContext2D, newFx: HitFx[]): void {
-    const dtFrame = 1 / 60;
+  private drawHitFx(ctx: CanvasRenderingContext2D, newFx: HitFx[], dt: number): void {
+    const dtFrame = dt;
 
     // 1) 从本帧新命中数据生成三层特效对象
     for (const fx of newFx) {
@@ -371,9 +401,55 @@ export class Renderer {
     ctx.restore();
   }
 
-  // ===== 玩家（含朝向箭头） =====
+  // ===== 道具（结晶晶片等） =====
+  private drawPickup(ctx: CanvasRenderingContext2D, cmd: RenderCommand): void {
+    const { x, y, radius, r, g, b, a } = cmd;
+
+    // 外发光光晕
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, radius + 8);
+    glow.addColorStop(0,   `rgba(${r},${g},${b},0.5)`);
+    glow.addColorStop(1,   `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 本体：实心圆 + 白色描边
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${a / 255})`;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // 中心高光点
+    ctx.beginPath();
+    ctx.arc(x, y, radius * 0.35, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fill();
+  }
+
+  // ===== 玩家（含朝向箭头 + 护盾圆圈） =====
   private drawPlayer(ctx: CanvasRenderingContext2D, cmd: RenderCommand): void {
-    const { x, y, radius, r, g, b, a, facing_dx, facing_dy } = cmd;
+    const { x, y, radius, r, g, b, a, facing_dx, facing_dy, bullet_strength } = cmd;
+
+    // 护盾圆圈：bullet_strength 复用为护盾层数（0=无，1~5=层数）
+    // 土黄色半透明圆环，环绕玩家身体外侧
+    if (bullet_strength > 0) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 6, 0, Math.PI * 2);
+      ctx.strokeStyle = 'rgba(200, 170, 80, 0.85)';
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      // 内层淡色填充，体现护盾质感
+      ctx.beginPath();
+      ctx.arc(x, y, radius + 6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(200, 170, 80, 0.12)';
+      ctx.fill();
+      ctx.restore();
+    }
 
     // 身体：贴图优先（圆形裁剪），加载失败则回退到原圆形色块
     if (this.playerSpriteLoaded && this.playerSprite) {
@@ -424,13 +500,12 @@ export class Renderer {
   }
 
   // ===== 敌人（元素光环 × 2 + 元素量条 + 反应标签） =====
-  private drawEnemy(ctx: CanvasRenderingContext2D, cmd: RenderCommand): void {
+  private drawEnemy(ctx: CanvasRenderingContext2D, cmd: RenderCommand, dt: number): void {
     const { x, y, radius, r, g, b, a,
             element1_type, element2_type,
             element1_gauge, element2_gauge,
             reaction_mask_lo, reaction_mask_hi,
             bullet_strength } = cmd;
-    const key = `enemy_${cmd.x}_${cmd.y}`;
     const isFrozen = bullet_strength === 1;  // 冻结标志（复用 bullet_strength 字段）
     const FROZEN_COLOR = '#BFFFFF';          // 冻元素：更亮的淡蓝色，区分普通冰
 
@@ -542,52 +617,20 @@ export class Renderer {
       ctx.fillRect(barX, barY, barW * g2, barH);
     }
 
-    // 反应文字标签（渐隐 + 堆叠，一帧多反应垂直排列）
-    const cached = this.enemyReactions.get(key) || { items: [] };
-
-    // 1) 把本帧位掩码里标记过的新反应，全部 push 进 cache（每项独立渐隐）
-    //    位索引 i = ReactionType；bit=1 表示本帧该反应实际发生过
+    // 反应文字标签：把本帧新反应 push 到全局数组，记录生成时的位置
+    // （不依赖敌人当前位置，避免敌人移动导致飘字丢失）
     const mask: number = (reaction_mask_lo & 0xFF) | ((reaction_mask_hi & 0xFF) << 8);
     for (let i = 1; i <= 16; i++) {
       if ((mask & (1 << i)) !== 0) {
-        cached.items.push({ type: i, t: 1.5 });
+        this.reactionTexts.push({ x, y, radius, type: i, t: 1.5 });
       }
     }
-
-    // 2) 每帧扣减剩余时长，过滤掉已过期的；再按"剩余时间从大到小"保持堆叠顺序稳定
-    const dtFrame = 1 / 60;
-    cached.items = cached.items
-      .map(it => ({ ...it, t: it.t - dtFrame }))
-      .filter(it => it.t > 0)
-      .sort((a, b) => b.t - a.t);
-
-    // 3) 依次画出每一条：统一显示在怪物右侧，垂直堆叠，渐隐
-    if (cached.items.length > 0) {
-      ctx.font = 'bold 14px monospace';
-      ctx.textAlign = 'left';
-      ctx.fillStyle = '#ffdd33';
-      const lineHeight = 18;
-      // 起点在怪物右侧
-      const baseX = x + radius + 8;
-      const baseY = y;
-      for (let i = 0; i < cached.items.length; i++) {
-        const it = cached.items[i];
-        const name = REACTION_NAMES[it.type] || '';
-        if (!name) continue;
-        ctx.globalAlpha = Math.min(1, it.t);
-        // 垂直堆叠，新的在下，老的在上
-        const offset = i * lineHeight;
-        ctx.fillText(name, baseX, baseY - offset);
-      }
-      ctx.globalAlpha = 1.0;
-    }
-    this.enemyReactions.set(key, cached);
   }
 
   // ===== 子弹飞行拖尾（流体状渐变光带） =====
   // 跨帧点池：每帧在子弹头部生成新点，旧点随寿命递减淡出，形成连续流体拖尾
-  private drawBulletTrails(ctx: CanvasRenderingContext2D, bullets: RenderCommand[]): void {
-    const dtFrame = 1 / 60;
+  private drawBulletTrails(ctx: CanvasRenderingContext2D, bullets: RenderCommand[], dt: number): void {
+    const dtFrame = dt;
 
     // 1) 为本帧每个子弹在头部生成新拖尾点
     for (const bullet of bullets) {

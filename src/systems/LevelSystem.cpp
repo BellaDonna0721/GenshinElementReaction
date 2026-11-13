@@ -43,6 +43,7 @@ void LevelSystem::reset(World& world) {
         gs->active_buffs.clear();
         gs->buff_choices.clear();
         gs->shield_count = 0;
+        gs->shield_max   = 5;
         gs->is_training  = false;  // 进入关卡模式
     }
 
@@ -77,6 +78,14 @@ void LevelSystem::load_level(World& world, int level_number, bool reset_hp) {
         if (id && id->identity_type == Identity::Wall) walls.push_back(e);
     }
     for (auto w : walls) world.destroy_entity(w);
+
+    // 清空场上所有道具（结晶晶片等），避免跨关卡残留
+    std::vector<Entity> pickups;
+    for (auto e : world.query<IdentityTag>()) {
+        auto* id = world.get_component<IdentityTag>(e);
+        if (id && id->identity_type == Identity::Pickup) pickups.push_back(e);
+    }
+    for (auto p : pickups) world.destroy_entity(p);
 
     for (const auto& wd : cfg.walls) {
         spawn_wall(world, wd.x, wd.y, wd.w, wd.h);
@@ -265,7 +274,7 @@ void LevelSystem::apply_buff_and_next(World& world, BuffType buff) {
                     hp->current_hp = std::min(hp->max_hp, hp->current_hp + hp->max_hp * BuffRegistry::get(buff).value);
                     break;
                 case BuffType::Shield:
-                    gs->shield_count++;
+                    gs->shield_max++;
                     break;
                 default:
                     break;

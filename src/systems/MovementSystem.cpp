@@ -3,6 +3,7 @@
 #include "../components/Velocity.h"
 #include "../components/IdentityTag.h"
 #include "../components/EnemyAI.h"
+#include "../components/ElementStatus.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
 #include "../gameplay/BulletPool.h"
@@ -38,7 +39,13 @@ void MovementSystem::update(World& world, float dt) {
         } else if (is_player) {
             speed = PLAYER_SPEED * player_speed_mult;
         } else {
-            // 敌人：使用 EnemyAI 的 move_speed
+            // 敌人：冻结时定身，速度归零且不位移
+            auto* es = world.get_component<ElementStatus>(e);
+            if (es && es->frozen.is_frozen) {
+                v->vx = 0.0f;
+                v->vy = 0.0f;
+                continue;
+            }
             auto* ai = world.get_component<EnemyAI>(e);
             speed = ai ? ai->move_speed : PLAYER_SPEED;
         }

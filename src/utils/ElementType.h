@@ -49,9 +49,9 @@ enum class ElementStrength : uint8_t {
     ExtraStrong   = 3,   // 4   理论 GU → 3.2 实际 → 17s
 };
 
-// 元素强度参数（按用户给定表格 1:1 对应，包含 20% 附着瞬间折扣）
+// 元素强度参数（包含 20% 附着瞬间折扣）
 struct ElementStrengthParams {
-    float theoretical_gauge;   // 理论 GU（子弹 payload、预设配置都用这个值）
+    float theoretical_gauge;   // 理论 GU
     float actual_gauge;        // 真实初始附着量 = theoretical × 0.8
     float duration;            // 持续时间（秒，按原神非线性拟合值）
     float decay_rate;          // 每秒衰减速率 = actual_gauge / duration

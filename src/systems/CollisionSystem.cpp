@@ -107,6 +107,7 @@ void CollisionSystem::update(World& world, float dt) {
                     // 接触伤害
                     DamageEvent ev;
                     ev.target   = player;
+                    ev.source   = en;  // 来源：发起接触的敌人
                     ev.amount   = eai->attack_power;
                     ev.element  = ElementType::None;
                     ev.reaction = ReactionType::None;

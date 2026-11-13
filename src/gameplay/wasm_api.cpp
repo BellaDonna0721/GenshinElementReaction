@@ -5,6 +5,7 @@
 #include "../systems/MovementSystem.h"
 #include "../systems/EnemyAISystem.h"
 #include "../systems/CollisionSystem.h"
+#include "../systems/PickupSystem.h"
 #include "../systems/ElementReactionSystem.h"
 #include "../systems/DamageSystem.h"
 #include "../systems/LevelSystem.h"
@@ -36,15 +37,17 @@ void wasm_init() {
     //   3. Movement   — 所有带 Velocity 的实体移动
     //   4. EnemyAI    — 敌人状态机：算速度（巡逻/警戒/战斗/逃跑）
     //   5. Collision  — 子弹-敌人命中、敌人-玩家接触伤害、墙体推开
-    //   6. ElementReaction — 元素反应、衰减、增幅伤害
-    //   7. Damage     — 消费伤害队列、扣血、死亡、加分
-    //   8. Level      — 波次刷怪、通关判定、增益
-    //   9. Output     — 打包渲染数据
+    //   6. Pickup     — 玩家拾取道具（结晶晶片等）
+    //   7. ElementReaction — 元素反应、衰减、增幅伤害
+    //   8. Damage     — 消费伤害队列、扣血、死亡、加分
+    //   9. Level      — 波次刷怪、通关判定、增益
+    //  10. Output     — 打包渲染数据
     g_world->add_system(std::make_unique<InputSystem>());
     g_world->add_system(std::make_unique<LifetimeSystem>());
     g_world->add_system(std::make_unique<MovementSystem>());
     g_world->add_system(std::make_unique<EnemyAISystem>());
     g_world->add_system(std::make_unique<CollisionSystem>());
+    g_world->add_system(std::make_unique<PickupSystem>());
     g_world->add_system(std::make_unique<ElementReactionSystem>());
     g_world->add_system(std::make_unique<DamageSystem>());
     auto* level_sys = new LevelSystem();

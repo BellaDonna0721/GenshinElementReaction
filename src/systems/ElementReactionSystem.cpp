@@ -1,10 +1,18 @@
 #include "ElementReactionSystem.h"
 #include "../components/ElementICDStatus.h"
+#include "../components/Transform.h"
+#include "../components/SphereCollider.h"
+#include "../components/RenderInfo.h"
+#include "../components/Lifetime.h"
+#include "../components/IdentityTag.h"
+#include "../components/ShieldPickup.h"
 #include "../components/singletonComponents/DamageQueue.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
 #include <cstdio>
 #include <utility>
+#include <cmath>
+#include <cstdlib>
 
 // 增幅反应倍率表（仅蒸发/融化；其余反应 0 表示非增幅反应）
 static float get_amplifying_multiplier(ReactionType rt) {
@@ -55,10 +63,90 @@ static void push_transformative_damage(DamageQueue* dq, Entity target, ReactionT
     if (coeff <= 0.0f) return;
     DamageEvent ev;
     ev.target   = target;
+    ev.source   = INVALID_ENTITY;  // 剧变反应伤害：玩家发起，无敌人来源
     ev.amount   = em * coeff;
     ev.element  = get_transformative_damage_element(rt);
     ev.reaction = rt;
     dq->events.push_back(ev);
+}
+
+// =====================================================================
+//  结晶反应：在目标周围生成护盾晶片道具
+//
+//  规则：
+//    · 晶片存活 10 秒（Lifetime 控制，过期由 LifetimeSystem 销毁）
+//    · 场上同时最多存在 3 个晶片，超过则销毁最早生成的（Lifetime.remaining 最小）
+//    · 位置：目标坐标 + 随机方向偏移（避开敌人身体重叠）
+//    · 外观：土黄色小圆（岩元素色）
+// =====================================================================
+static void spawn_crystallize_shard(World& world, Entity target, ElementType reacted_element) {
+    Transform* tt = world.get_component<Transform>(target);
+    if (!tt) return;
+
+    // 场上晶片上限 3：超过则销毁最早生成的（remaining 最小 = 生成最早）
+    std::vector<Entity> shards;
+    for (auto e : world.query<IdentityTag, Lifetime>()) {
+        auto* id = world.get_component<IdentityTag>(e);
+        if (id && id->identity_type == Identity::Pickup) {
+            if (world.has_component<ShieldPickup>(e)) shards.push_back(e);
+        }
+    }
+    while (shards.size() >= 3) {
+        // 找到 remaining 最小的（最早生成的）
+        Entity oldest = shards[0];
+        float min_rem = world.get_component<Lifetime>(oldest)->remaining;
+        for (size_t i = 1; i < shards.size(); ++i) {
+            float r = world.get_component<Lifetime>(shards[i])->remaining;
+            if (r < min_rem) { min_rem = r; oldest = shards[i]; }
+        }
+        world.destroy_entity(oldest);
+        // 从列表移除后重新统计
+        shards.clear();
+        for (auto e : world.query<IdentityTag, Lifetime>()) {
+            auto* id = world.get_component<IdentityTag>(e);
+            if (id && id->identity_type == Identity::Pickup) {
+                if (world.has_component<ShieldPickup>(e)) shards.push_back(e);
+            }
+        }
+    }
+
+    // 创建晶片实体
+    Entity shard = world.create_entity();
+
+    // 位置：目标周围随机方向偏移
+    float angle = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2.0f * 3.14159265f;
+    float offset = 35.0f;  // 偏移距离（敌人半径 + 晶片半径 + 余量）
+    Transform t;
+    t.x = tt->x + std::cos(angle) * offset;
+    t.y = tt->y + std::sin(angle) * offset;
+    world.add_component<Transform>(shard, t);
+
+    SphereCollider col;
+    col.radius = 8.0f;
+    world.add_component<SphereCollider>(shard, col);
+
+    // 土黄色（岩元素色）
+    RenderInfo ri;
+    ri.entity_type = Identity::Pickup;
+    ri.radius = 8.0f;
+    ri.color_r = 200;
+    ri.color_g = 170;
+    ri.color_b = 80;
+    ri.color_a = 255;
+    world.add_component<RenderInfo>(shard, ri);
+
+    Lifetime lt;
+    lt.remaining = 10.0f;  // 10 秒后消失
+    world.add_component<Lifetime>(shard, lt);
+
+    IdentityTag id;
+    id.identity_type = Identity::Pickup;
+    world.add_component<IdentityTag>(shard, id);
+
+    ShieldPickup sp;
+    sp.layers = 1;
+    sp.element = reacted_element;
+    world.add_component<ShieldPickup>(shard, sp);
 }
 
 // 构造函数：注册所有元素反应规则
@@ -112,10 +200,10 @@ ElementReactionSystem::ElementReactionSystem() {
     add_rule(ElementType::Anemo,  ElementType::Electro,ReactionType::SwirlElectro,     true,false, 0.5f);
     add_rule(ElementType::Anemo,  ElementType::Cryo,   ReactionType::SwirlCryo,        true,false, 0.5f);
     // 结晶（岩 × 4）
-    add_rule(ElementType::Geo,    ElementType::Pyro,   ReactionType::Crystallize,      true,true, 1.0f);
-    add_rule(ElementType::Geo,    ElementType::Hydro,  ReactionType::Crystallize,      true,true, 1.0f);
-    add_rule(ElementType::Geo,    ElementType::Electro,ReactionType::Crystallize,      true,true, 1.0f);
-    add_rule(ElementType::Geo,    ElementType::Cryo,   ReactionType::Crystallize,      true,true, 1.0f);
+    add_rule(ElementType::Geo,    ElementType::Pyro,   ReactionType::Crystallize,      true,true, 0.5f);
+    add_rule(ElementType::Geo,    ElementType::Hydro,  ReactionType::Crystallize,      true,true, 0.5f);
+    add_rule(ElementType::Geo,    ElementType::Electro,ReactionType::Crystallize,      true,true, 0.5f);
+    add_rule(ElementType::Geo,    ElementType::Cryo,   ReactionType::Crystallize,      true,true, 0.5f);
     // 燃烧
     add_rule(ElementType::Dendro, ElementType::Pyro,   ReactionType::Burning,          true,true, 1.0f);
     add_rule(ElementType::Pyro,   ElementType::Dendro, ReactionType::Burning,          true,true, 1.0f);
@@ -406,6 +494,7 @@ void ElementReactionSystem::update(World& world, float dt) {
                         elem->frozen.gauge -= consume_target;
                         remaining -= consume_target;
                         elem->mark_reaction(ReactionType::Crystallize);
+                        spawn_crystallize_shard(world, e, ElementType::Cryo);
                         if (elem->frozen.gauge <= 0.0f) {
                             elem->frozen.gauge = 0.0f;
                             elem->frozen.initial_gauge = 0.0f;
@@ -508,6 +597,11 @@ void ElementReactionSystem::update(World& world, float dt) {
                             remaining -= consume_trigger;
                             elem->mark_reaction(rule->result);
 
+                            // 结晶反应：在目标周围生成护盾晶片
+                            if (rule->result == ReactionType::Crystallize) {
+                                spawn_crystallize_shard(world, e, s->type);
+                            }
+
                             // 增幅反应：记录倍率（蒸发/融化），最终伤害 = base_damage × mult
                             float mult = get_amplifying_multiplier(rule->result);
                             if (mult > 0.0f) {
@@ -534,6 +628,7 @@ void ElementReactionSystem::update(World& world, float dt) {
                 if (damage_reaction != ReactionType::None) amount *= elem_dmg_mult;
                 DamageEvent rev;
                 rev.target   = e;
+                rev.source   = INVALID_ENTITY;  // 直射/增幅伤害：玩家发起，无敌人来源
                 rev.amount   = amount;
                 rev.element  = pending_T;
                 rev.reaction = damage_reaction;

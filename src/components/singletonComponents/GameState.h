@@ -29,7 +29,7 @@ enum class BuffType : uint8_t {
     Heal            = 4,  // 立即回复 50% 血量
     ElementDamageUp = 5,  // 元素反应伤害 +25%
     BulletDamageUp  = 6,  // 子弹直射伤害 +5
-    Shield          = 7,  // 获得一层护盾
+    Shield          = 7,  // 护盾层数上限 +1
     MasteryUp       = 8,  // 元素精通 +5
     Count           = 9,  // 增益总数
 };
@@ -44,8 +44,10 @@ struct GameState {
     std::vector<BuffType> active_buffs;    // 已选增益（死亡后清零）
     std::vector<BuffType> buff_choices;    // 本关候选增益（3 个，LevelComplete 时填入）
 
-    // 护盾层数（由 Shield 增益提供，受伤优先消耗护盾）
+    // 护盾层数（由结晶晶片拾取获得，受伤优先消耗护盾）
     int       shield_count   = 0;
+    // 护盾层数上限（默认 5，可选 Shield 增益 +1）
+    int       shield_max     = 5;
 
     // 元素精通：剧变反应（超载/感电/超导/扩散）的伤害系数
     //   剧变伤害 = 精通 × 反应系数（超载2.0/感电1.2/超导1.0/扩散1.2）

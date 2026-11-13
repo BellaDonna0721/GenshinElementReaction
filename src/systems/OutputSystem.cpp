@@ -9,6 +9,7 @@
 #include "../components/BoxCollider.h"
 #include "../components/EnemyAI.h"
 #include "../components/Velocity.h"
+#include "../components/singletonComponents/GameState.h"
 #include <cmath>
 
 std::vector<RenderCommand>   g_render_commands;
@@ -170,6 +171,15 @@ void OutputSystem::update(World& world, float dt) {
         if (face && ri->entity_type == Identity::Player) {
             cmd.facing_dx = face->dx;
             cmd.facing_dy = face->dy;
+        }
+
+        // 玩家护盾标记：复用 bullet_strength 字段（玩家恒为0），写入当前护盾层数
+        // TS 侧据此绘制土黄色护盾圆圈（0=无护盾，1~5=护盾层数）
+        if (ri->entity_type == Identity::Player) {
+            GameState* gs = world.get_component<GameState>(0);
+            if (gs) {
+                cmd.bullet_strength = static_cast<uint8_t>(std::min(gs->shield_count, 255));
+            }
         }
 
         // 子弹特效标记：如果是子弹且带 ElementPayload → 写入 bullet_strength

@@ -31,7 +31,7 @@ public:
     void update(World& world, float dt) override;
 
 private:
-    // 改良 unordered_map 提升缓存命中率，对比标准库近 40% 提升
+    // 改良 unordered_map 提升缓存命中率
     myUnorderedMap<
         std::pair<ElementType, ElementType>,
         ReactionRule,

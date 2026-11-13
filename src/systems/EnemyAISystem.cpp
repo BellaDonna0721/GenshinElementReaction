@@ -5,6 +5,7 @@
 #include "../components/EnemyAI.h"
 #include "../components/Health.h"
 #include "../components/IdentityTag.h"
+#include "../components/ElementStatus.h"
 #include <cmath>
 #include <cstdlib>
 
@@ -38,6 +39,14 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
         auto* ai  = world.get_component<EnemyAI>(e);
         auto* sm  = world.get_component<StateMachineAI>(e);
         auto* hp  = world.get_component<Health>(e);
+
+        // 冻结时停止一切行动：不设速度、不递减攻击冷却
+        auto* es = world.get_component<ElementStatus>(e);
+        if (es && es->frozen.is_frozen) {
+            v->vx = 0.0f;
+            v->vy = 0.0f;
+            continue;
+        }
 
         // 攻击冷却递减
         if (ai->attack_timer > 0.0f) ai->attack_timer -= dt;
@@ -138,6 +147,14 @@ void EnemyAISystem::update_random_patrol(World& world, float dt) {
         auto* v   = world.get_component<Velocity>(e);
         auto* ai  = world.get_component<EnemyAI>(e);
         auto* rp  = world.get_component<RandomPatrolAI>(e);
+
+        // 冻结时停止一切行动：不设速度、不递减攻击冷却
+        auto* es = world.get_component<ElementStatus>(e);
+        if (es && es->frozen.is_frozen) {
+            v->vx = 0.0f;
+            v->vy = 0.0f;
+            continue;
+        }
 
         // 攻击冷却递减（接触伤害仍由 CollisionSystem 处理）
         if (ai->attack_timer > 0.0f) ai->attack_timer -= dt;

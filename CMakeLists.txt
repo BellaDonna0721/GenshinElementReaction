@@ -26,6 +26,7 @@ set(SYSTEM_SOURCES
     src/systems/EnemyAISystem.cpp
     src/systems/LevelSystem.cpp
     src/systems/OutputSystem.cpp
+    src/systems/PickupSystem.cpp
 )
 
 set(BINDING_SOURCES

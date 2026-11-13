@@ -13,6 +13,7 @@ export enum EntityType {
   Player = 0,
   Enemy = 1,
   Bullet = 2,
+  Pickup = 5,  // 可拾取道具（结晶晶片等）
 }
 
 // 与 C++ 侧 RenderCommand 严格对齐（32 字节）

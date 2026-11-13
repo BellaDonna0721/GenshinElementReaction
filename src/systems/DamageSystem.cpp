@@ -3,6 +3,7 @@
 #include "../components/Transform.h"
 #include "../components/IdentityTag.h"
 #include "../components/EnemyAI.h"
+#include "../components/ElementStatus.h"
 #include "../components/singletonComponents/DamageQueue.h"
 #include "../components/singletonComponents/DamageNumberQueue.h"
 #include "../components/singletonComponents/GameState.h"
@@ -43,6 +44,15 @@ void DamageSystem::update(World& world, float dt) {
 
         Health* hp = world.get_component<Health>(ev.target);
         if (!hp) continue;
+
+        // 冻结敌人不造成任何伤害（来源为敌人且处于冻结状态）
+        if (ev.source != INVALID_ENTITY && world.is_alive(ev.source)) {
+            IdentityTag* src_id = world.get_component<IdentityTag>(ev.source);
+            if (src_id && src_id->identity_type == Identity::Enemy) {
+                ElementStatus* src_es = world.get_component<ElementStatus>(ev.source);
+                if (src_es && src_es->frozen.is_frozen) continue;
+            }
+        }
 
         // 玩家在无敌帧内，跳过此伤害
         IdentityTag* id = world.get_component<IdentityTag>(ev.target);

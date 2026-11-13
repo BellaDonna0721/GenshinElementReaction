@@ -18,6 +18,7 @@
 // 伤害事件项（不是独立组件，内聚在 DamageQueue 中）
 struct DamageEvent {
     Entity       target;     // 受伤目标实体 ID
+    Entity       source;     // 伤害来源实体 ID（敌人接触伤害填敌人；剧变反应等填 INVALID_ENTITY）
     float        amount;     // 最终伤害数值（已含反应倍率，显示时取整）
     ElementType  element;    // 伤害元素（决定飘字颜色；未来用于抗性计算）
     ReactionType reaction;   // None=直射伤害，否则对应反应类型
