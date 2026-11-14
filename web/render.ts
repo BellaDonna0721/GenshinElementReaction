@@ -637,18 +637,18 @@ export class Renderer {
       const { x, y, radius, r, g, b, facing_dx, facing_dy } = bullet;
       if (facing_dx === 0 && facing_dy === 0) continue;
 
-      // 在子弹头部沿反方向生成 5 个点，间距 2px，头部宽、尾部窄（锥形）
+      // 在子弹头部沿反方向生成拖尾点，头部宽、尾部窄（锥形）
       const tx = -facing_dx;
       const ty = -facing_dy;
-      for (let k = 0; k < 5; k++) {
-        const offset = k * 2;  // 0, 2, 4, 6, 8 px
+      for (let k = 0; k < 3; k++) {
+        const offset = k * 2;  // 0, 2, 4 px（原 0~8px，现 0~4px，长度减半）
         // 头部点明显大于子弹半径，向尾部线性收窄，确保与子弹本体平滑衔接
-        const sizeRatio = 1.6 - k * 0.24;  // 1.6 → 0.64
+        const sizeRatio = 1.6 - k * 0.48;  // 1.6 → 0.64（3个点线性收窄）
         this.bulletTrailDots.push({
           x: x + tx * offset,
           y: y + ty * offset,
           r, g, b,
-          t: 0.28, maxT: 0.28,           // 单颗拖尾点寿命 0.28s
+          t: 0.14, maxT: 0.14,           // 单颗拖尾点寿命 0.14s（减半）
           size: radius * sizeRatio,
         });
       }

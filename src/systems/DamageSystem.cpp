@@ -67,7 +67,7 @@ void DamageSystem::update(World& world, float dt) {
             if (num_queue) {
                 Transform* t = world.get_component<Transform>(ev.target);
                 if (t) {
-                    DamageNumber dn;
+                    DamageNumberQueue::DamageNumber dn;
                     dn.x = t->x;
                     dn.y = t->y;
                     dn.amount = 0;  // 0 表示护盾抵挡
@@ -90,7 +90,7 @@ void DamageSystem::update(World& world, float dt) {
         Transform* t = world.get_component<Transform>(ev.target);
         if (num_queue && t) {
             ElementColor c = get_element_color(ev.element);
-            DamageNumber dn;
+            DamageNumberQueue::DamageNumber dn;
             dn.x = t->x;
             dn.y = t->y;
             dn.amount = static_cast<int>(std::round(ev.amount));

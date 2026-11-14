@@ -21,7 +21,7 @@ namespace {
     // 新语义（修复用户可见的"空白80%"问题）：比例 = 当前量 / 初始附着量。
     // 这样弱元素 0.8 初始就是 100%，不再被旧的全局 max=4.0 基线压到 20%。
     // 强元素 1.6、超强 3.2 也都从 100% 开始 — 所有档位归一化。
-    inline uint8_t pack_progress_ratio(const AttachedSlot& s) {
+    inline uint8_t pack_progress_ratio(const ElementStatus::AttachedSlot& s) {
         if (s.initial_gauge <= 0.0001f) return 0;
         float ratio = s.gauge / s.initial_gauge;
         if (ratio <= 0.0f) return 0;
@@ -39,7 +39,7 @@ namespace {
     }
 
     // 冻元素量条比例 → uint8（gauge / initial_gauge）
-    inline uint8_t pack_frozen_ratio(const FrozenState& fz) {
+    inline uint8_t pack_frozen_ratio(const ElementStatus::FrozenState& fz) {
         if (fz.initial_gauge <= 0.0001f) return 0;
         float ratio = fz.gauge / fz.initial_gauge;
         if (ratio <= 0.0f) return 0;
@@ -106,10 +106,10 @@ void OutputSystem::update(World& world, float dt) {
                 // （例如雷被超载消耗掉）而水在 attached_slots[1] 时，如果不紧凑，
                 // 仅剩的那个光环只会出现在外虚线环，内圈为空，视觉上很奇怪。
                 // ==============================================================
-                const AttachedSlot* valid[2] = {nullptr, nullptr};
+                const ElementStatus::AttachedSlot* valid[2] = {nullptr, nullptr};
                 int n_valid = 0;
                 for (int i = 0; i < 2 && n_valid < 2; ++i) {
-                    const AttachedSlot& s = elem->attached_slots[i];
+                    const ElementStatus::AttachedSlot& s = elem->attached_slots[i];
                     if (!s.is_valid()) continue;
                     if (!is_attachable_element(s.type)) continue;
                     valid[n_valid++] = &s;

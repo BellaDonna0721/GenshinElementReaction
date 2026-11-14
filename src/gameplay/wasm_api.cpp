@@ -139,7 +139,7 @@ int wasm_get_health_count() {
     return static_cast<int>(g_health_bars.size());
 }
 EMSCRIPTEN_KEEPALIVE
-DamageNumber* wasm_get_damage_numbers() {
+DamageNumberQueue::DamageNumber* wasm_get_damage_numbers() {
     auto* q = g_world->get_component<DamageNumberQueue>(0);
     return q ? q->numbers.data() : nullptr;
 }
@@ -157,7 +157,7 @@ int wasm_get_wall_count() {
     return static_cast<int>(g_walls.size());
 }
 EMSCRIPTEN_KEEPALIVE
-HitFx* wasm_get_hit_fx_data() {
+HitFxQueue::HitFx* wasm_get_hit_fx_data() {
     auto* q = g_world->get_component<HitFxQueue>(0);
     return q ? q->items.data() : nullptr;
 }

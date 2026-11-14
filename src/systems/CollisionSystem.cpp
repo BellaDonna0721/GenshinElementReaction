@@ -105,7 +105,7 @@ void CollisionSystem::update(World& world, float dt) {
                 float r  = pc->radius + ec->radius;
                 if (dx * dx + dy * dy <= r * r && eai->attack_timer <= 0.0f) {
                     // 接触伤害
-                    DamageEvent ev;
+                    DamageQueue::DamageEvent ev;
                     ev.target   = player;
                     ev.source   = en;  // 来源：发起接触的敌人
                     ev.amount   = eai->attack_power;
@@ -140,9 +140,57 @@ void CollisionSystem::update(World& world, float dt) {
             if (circle_rect_collide(t->x, t->y, col->radius,
                                     wt->x, wt->y, rc->width * 0.5f, rc->height * 0.5f,
                                     px, py)) {
+                // 巡逻小怪撞墙：记录推开方向，供 AI 下一帧反向避让
+                if (id->identity_type == Identity::Enemy) {
+                    auto* rp = world.get_component<RandomPatrolAI>(e);
+                    if (rp) {
+                        rp->blocked = true;
+                        rp->block_push_x += px;
+                        rp->block_push_y += py;
+                    }
+                }
                 t->x += px;
                 t->y += py;
             }
+        }
+    }
+
+    // ========== 敌人 vs 敌人：互相推开 ==========
+    // 圆-圆碰撞，重叠时沿连线方向各推开一半，避免敌人叠在一起
+    for (size_t i = 0; i < enemies.size(); ++i) {
+        auto* t1 = world.get_component<Transform>(enemies[i]);
+        auto* c1 = world.get_component<SphereCollider>(enemies[i]);
+        if (!t1 || !c1) continue;
+
+        for (size_t j = i + 1; j < enemies.size(); ++j) {
+            auto* t2 = world.get_component<Transform>(enemies[j]);
+            auto* c2 = world.get_component<SphereCollider>(enemies[j]);
+            if (!t2 || !c2) continue;
+
+            float dx = t1->x - t2->x;
+            float dy = t1->y - t2->y;
+            float r  = c1->radius + c2->radius;
+            if (dx * dx + dy * dy >= r * r) continue;
+
+            float dist = std::sqrt(dx * dx + dy * dy);
+            float ux, uy;
+            if (dist > 0.0001f) {
+                ux = dx / dist;
+                uy = dy / dist;
+            } else {
+                ux = 1.0f; uy = 0.0f;  // 完全重叠：任意方向分开
+            }
+            float half = (r - dist) * 0.5f;
+            t1->x += ux * half;
+            t1->y += uy * half;
+            t2->x -= ux * half;
+            t2->y -= uy * half;
+
+            // 记录阻挡标记，供巡逻 AI 反向避让
+            auto* rp1 = world.get_component<RandomPatrolAI>(enemies[i]);
+            if (rp1) { rp1->blocked = true; rp1->block_push_x += ux; rp1->block_push_y += uy; }
+            auto* rp2 = world.get_component<RandomPatrolAI>(enemies[j]);
+            if (rp2) { rp2->blocked = true; rp2->block_push_x -= ux; rp2->block_push_y -= uy; }
         }
     }
 
@@ -178,7 +226,7 @@ void CollisionSystem::update(World& world, float dt) {
                 }
                 // 命中特效：元素色闪光 + 扩散光环 + 粒子迸溅
                 if (fx_queue && payload) {
-                    HitFx fx;
+                    HitFxQueue::HitFx fx;
                     fx.x = bt->x;
                     fx.y = bt->y;
                     ElementColor ec = get_element_color(payload->element);
@@ -207,7 +255,7 @@ void CollisionSystem::update(World& world, float dt) {
                                         px, py)) {
                     // 撞墙特效：元素色火花（hit_type=1，墙体无半径自适应）
                     if (fx_queue && payload) {
-                        HitFx fx;
+                        HitFxQueue::HitFx fx;
                         fx.x = bt->x;
                         fx.y = bt->y;
                         ElementColor ec = get_element_color(payload->element);

@@ -82,7 +82,9 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
                     float tdist = std::sqrt(tdx * tdx + tdy * tdy);
                     if (tdist < 8.0f || sm->patrol_timer <= 0.0f) {
                         float angle = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 6.2831853f;
-                        float r = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * sm->patrol_radius;
+                        float probability = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+                        float r = std::sqrt(probability) * sm->patrol_radius;
+                        
                         sm->target_x = ai->home_x + std::cos(angle) * r;
                         sm->target_y = ai->home_y + std::sin(angle) * r;
                         sm->patrol_timer = sm->patrol_interval;
@@ -159,6 +161,22 @@ void EnemyAISystem::update_random_patrol(World& world, float dt) {
         // 攻击冷却递减（接触伤害仍由 CollisionSystem 处理）
         if (ai->attack_timer > 0.0f) ai->attack_timer -= dt;
 
+        // 撞障碍避让：沿推开方向（障碍→自身）反向走一段，远离墙/敌人
+        if (rp->blocked) {
+            rp->blocked = false;
+            float plen = std::sqrt(rp->block_push_x * rp->block_push_x +
+                                   rp->block_push_y * rp->block_push_y);
+            if (plen > 0.001f) {
+                float ux = rp->block_push_x / plen;
+                float uy = rp->block_push_y / plen;
+                rp->target_x = t->x + ux * 120.0f;
+                rp->target_y = t->y + uy * 120.0f;
+            }
+            rp->block_push_x = 0.0f;
+            rp->block_push_y = 0.0f;
+            rp->change_timer = rp->change_interval;  // 反向后走满一个周期再随机
+        }
+
         rp->change_timer -= dt;
         float tdx = rp->target_x - t->x;
         float tdy = rp->target_y - t->y;
@@ -167,7 +185,9 @@ void EnemyAISystem::update_random_patrol(World& world, float dt) {
         // 到达目标点或超时 → 选新随机点
         if (tdist < 8.0f || rp->change_timer <= 0.0f) {
             float angle = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 6.2831853f;
-            float r = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * rp->wander_radius;
+            float probability = static_cast<float>(rand()) / static_cast<float>(RAND_MAX);
+            float r = std::sqrt(probability) * rp->wander_radius;
+
             rp->target_x = ai->home_x + std::cos(angle) * r;
             rp->target_y = ai->home_y + std::sin(angle) * r;
             rp->change_timer = rp->change_interval;

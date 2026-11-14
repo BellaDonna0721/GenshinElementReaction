@@ -4,7 +4,7 @@
 // preset_id: 0=Pyro 1=Hydro 2=Cryo 3=Boss
 namespace {
 
-// 第 1 关：基础关，三只水史莱姆
+// 第 1 关：基础关，五只水史莱姆（其中两只紧贴，测试敌人互撞推开）
 LevelConfig make_level_1() {
     LevelConfig cfg;
     cfg.level_id = 1;
@@ -22,6 +22,8 @@ LevelConfig make_level_1() {
         {1, 600.0f, 200.0f, 1, 0.0f},
         {1, 700.0f, 350.0f, 1, 0.5f},
         {1, 600.0f, 500.0f, 1, 0.5f},
+        {1, 500.0f, 300.0f, 1, 0.0f},  // 新增：紧贴下一只，测试敌人互撞推开
+        {1, 550.0f, 300.0f, 1, 0.0f},  // 新增：距离上一只 30px（< 40px 半径和）
     };
     cfg.waves = {w1};
     return cfg;

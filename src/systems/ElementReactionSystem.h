@@ -47,5 +47,5 @@ private:
     void tick_electrocharged_dot(ElementStatus& elem, float dt, DamageQueue* dq, Entity e, float em);
 
     // 构建目标元素槽优先级队列：雷优先、其他按序；n 个槽指针写入 ordered_out
-    int build_priority_slots(ElementStatus& elem, AttachedSlot** ordered_out);
+    int build_priority_slots(ElementStatus& elem, ElementStatus::AttachedSlot** ordered_out);
 };

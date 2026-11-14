@@ -68,4 +68,10 @@ struct RandomPatrolAI {
     float   change_interval = 2.5f;    // 换方向间隔（秒）
     float   target_x        = 0.0f;    // 当前漫游目标点 X
     float   target_y        = 0.0f;    // 当前漫游目标点 Y
+
+    // 被障碍阻挡标记：撞墙或被其他敌人挤开时由 CollisionSystem 写入，
+    // 本帧 EnemyAISystem 消费后清零（AI 沿推开方向反向避让）。
+    bool  blocked      = false;  // 上一帧被障碍阻挡
+    float block_push_x = 0.0f;   // 推开方向（障碍→自身，未归一化，多障碍累加）
+    float block_push_y = 0.0f;
 };

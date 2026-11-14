@@ -61,7 +61,7 @@ static void push_transformative_damage(DamageQueue* dq, Entity target, ReactionT
     if (!dq) return;
     float coeff = get_transformative_coefficient(rt);
     if (coeff <= 0.0f) return;
-    DamageEvent ev;
+    DamageQueue::DamageEvent ev;
     ev.target   = target;
     ev.source   = INVALID_ENTITY;  // 剧变反应伤害：玩家发起，无敌人来源
     ev.amount   = em * coeff;
@@ -223,7 +223,7 @@ const ReactionRule* ElementReactionSystem::find_rule(
 // 阶段 1：每个附着槽独立自然衰减 + 冻元素动态衰减
 void ElementReactionSystem::decay_slots(ElementStatus& elem, float dt) {
     for (int i = 0; i < 2; ++i) {
-        AttachedSlot& s = elem.attached_slots[i];
+        ElementStatus::AttachedSlot& s = elem.attached_slots[i];
         if (!s.is_valid()) continue;
         // 兜底：风/岩绝不能作为附着光环，发现立即清除
         if (!is_attachable_element(s.type)) { s.clear(); continue; }
@@ -237,7 +237,7 @@ void ElementReactionSystem::decay_slots(ElementStatus& elem, float dt) {
     // —— 冻元素衰减 ——
     // 冻结中：初始 0.4/s，每秒 +0.1（递增衰减）
     // 解除后：每秒 -0.2 回归 0.4（为下一次冻结的初始速率做准备）
-    FrozenState& fz = elem.frozen;
+    ElementStatus::FrozenState& fz = elem.frozen;
     if (fz.is_frozen) {
         fz.gauge -= fz.decay_rate * dt;
         fz.decay_timer += dt;
@@ -262,8 +262,8 @@ void ElementReactionSystem::decay_slots(ElementStatus& elem, float dt) {
 
 // 阶段 2：感电 DoT 1 秒节拍（水-0.4、雷-0.4，写脉冲反应标签 + 剧变伤害）
 void ElementReactionSystem::tick_electrocharged_dot(ElementStatus& elem, float dt, DamageQueue* dq, Entity entity, float em) {
-    AttachedSlot* h = elem.find_slot(ElementType::Hydro);
-    AttachedSlot* elec = elem.find_slot(ElementType::Electro);
+    ElementStatus::AttachedSlot* h = elem.find_slot(ElementType::Hydro);
+    ElementStatus::AttachedSlot* elec = elem.find_slot(ElementType::Electro);
     if (!h || !elec) {
         // 未在共存态 → 冷却清零
         elem.electrocharged_cooldown = 0.0f;
@@ -291,12 +291,12 @@ void ElementReactionSystem::tick_electrocharged_dot(ElementStatus& elem, float d
 }
 
 // 构建反应顺序优先级队列：水雷共存先和雷反应，余量再和水反应；单元素目标只返回该元素
-int ElementReactionSystem::build_priority_slots(ElementStatus& elem, AttachedSlot** ordered_out) {
+int ElementReactionSystem::build_priority_slots(ElementStatus& elem, ElementStatus::AttachedSlot** ordered_out) {
     int n = 0;
     // 雷元素优先
     if (auto* s = elem.find_slot(ElementType::Electro)) ordered_out[n++] = s;
     for (int i = 0; i < 2; ++i) {
-        AttachedSlot& s = elem.attached_slots[i];
+        ElementStatus::AttachedSlot& s = elem.attached_slots[i];
         if (!s.is_valid()) continue;
         if (s.type == ElementType::Electro) continue; // 已优先加入
         ordered_out[n++] = &s;
@@ -361,15 +361,15 @@ void ElementReactionSystem::update(World& world, float dt) {
             //   风：冻冰共存只扩散冰；冻水共存扩散冰(冻)+水
             //   草：与冻共存不反应
             if (elem->frozen.is_frozen && elem->frozen.gauge > 0.0f) {
-                AttachedSlot* hidden_hydro = elem->find_slot(ElementType::Hydro);
-                AttachedSlot* hidden_cryo  = elem->find_slot(ElementType::Cryo);
+                ElementStatus::AttachedSlot* hidden_hydro = elem->find_slot(ElementType::Hydro);
+                ElementStatus::AttachedSlot* hidden_cryo  = elem->find_slot(ElementType::Cryo);
                 float remaining = trigger_gauge;
 
                 if (pending_T == ElementType::Hydro || pending_T == ElementType::Cryo) {
                     // 水/冰打冻结目标：
                     //   有对立藏元素 → 1:1 反应生成冻元素（2× 消耗量），后手余量不残留
                     //   无对立藏元素 → 水/冰不与冻反应，附着为藏元素（同元素则刷新）
-                    AttachedSlot* opposite = (pending_T == ElementType::Hydro) ? hidden_cryo : hidden_hydro;
+                    ElementStatus::AttachedSlot* opposite = (pending_T == ElementType::Hydro) ? hidden_cryo : hidden_hydro;
                     if (opposite) {
                         float react = std::min(opposite->gauge, remaining);
                         opposite->gauge -= react;
@@ -381,7 +381,7 @@ void ElementReactionSystem::update(World& world, float dt) {
                         remaining = 0.0f;  // 后手不残留
                     } else {
                         // 无对立藏元素：水/冰不与冻反应，附着为藏元素
-                        AttachedSlot* same = (pending_T == ElementType::Hydro) ? hidden_hydro : hidden_cryo;
+                        ElementStatus::AttachedSlot* same = (pending_T == ElementType::Hydro) ? hidden_hydro : hidden_cryo;
                         if (same) {
                             // 同元素刷新：量取较大者，衰减速率不变
                             ElementStrengthParams const& p = get_element_strength_params(pending_S);
@@ -446,7 +446,7 @@ void ElementReactionSystem::update(World& world, float dt) {
                     // 注：风自身不被扣除（consumes_trigger=false），因此可同时扩散藏元素+冻元素
 
                     // 1. 先扩散藏元素（藏水或藏冰）
-                    AttachedSlot* hidden = hidden_hydro ? hidden_hydro : hidden_cryo;
+                    ElementStatus::AttachedSlot* hidden = hidden_hydro ? hidden_hydro : hidden_cryo;
                     if (hidden) {
                         const ReactionRule* rule = find_rule(ElementType::Anemo, hidden->type);
                         if (rule) {
@@ -504,7 +504,7 @@ void ElementReactionSystem::update(World& world, float dt) {
                 }
                 // 未消耗完的触发元素不残留
                 (void)remaining;
-            } else if (AttachedSlot* s = elem->find_slot(pending_T)) {
+            } else if (ElementStatus::AttachedSlot* s = elem->find_slot(pending_T)) {
                 // 同元素刷新（非共存）：命中相同元素必须刷新已有槽，绝不能写入第二槽
                 // 规则：量取较大者（补充量 <= 剩余量时不更新）；但更新量不改变主元素的衰减速度，
                 //       decay_rate 保持首次附着时的值，仅反算 duration 使 gauge == decay_rate×duration 恒成立。
@@ -531,12 +531,12 @@ void ElementReactionSystem::update(World& world, float dt) {
                     // 首次附着：无反应，damage_mult 保持 1.0
                 } else {
                     // 3-C 通用：单元素或共存目标 + 任意触发元素
-                    AttachedSlot* ordered[2] = {nullptr, nullptr};
+                    ElementStatus::AttachedSlot* ordered[2] = {nullptr, nullptr};
                     int n = build_priority_slots(*elem, ordered);
                     float remaining = trigger_gauge;
 
                     for (int k = 0; k < n && remaining > 0.001f; ++k) {
-                        AttachedSlot* s = ordered[k];
+                        ElementStatus::AttachedSlot* s = ordered[k];
                         if (!s || !s->is_valid()) continue;
                         const ReactionRule* rule = find_rule(pending_T, s->type);
                         if (!rule) continue;
@@ -626,7 +626,7 @@ void ElementReactionSystem::update(World& world, float dt) {
                 float amount = elem->pending_base_damage * damage_mult;
                 // 触发了反应才应用元素反应伤害增益
                 if (damage_reaction != ReactionType::None) amount *= elem_dmg_mult;
-                DamageEvent rev;
+                DamageQueue::DamageEvent rev;
                 rev.target   = e;
                 rev.source   = INVALID_ENTITY;  // 直射/增幅伤害：玩家发起，无敌人来源
                 rev.amount   = amount;
@@ -641,7 +641,7 @@ void ElementReactionSystem::update(World& world, float dt) {
 
         // 末尾：最终槽清理（量为0或时长为0 → 清空类型）
         for (int i = 0; i < 2; ++i) {
-            AttachedSlot& s = elem->attached_slots[i];
+            ElementStatus::AttachedSlot& s = elem->attached_slots[i];
             if (s.type != ElementType::None && (s.gauge <= 0.0f || s.duration <= 0.0f)) {
                 s.clear();
             }

@@ -13,52 +13,57 @@
 //
 //  不再承载 ICD 命中冷却（见 ElementICDStatus.h）—— 两者是正交关注点：
 //  改光环规则只动本文件，改 ICD 规则只动 ElementICDStatus.h。
-// =====================================================================
-
-// 单个附着元素槽
-struct AttachedSlot {
-    ElementType type          = ElementType::None;
-    float       gauge         = 0.0f;   // 当前量（随时间衰减）
-    float       initial_gauge = 0.0f;   // 附着瞬间的初始量（用于量条比例：gauge/initial_gauge = 0~100%）
-    float       duration      = 0.0f;
-    float       decay_rate    = 0.2f;
-
-    bool is_valid() const { return type != ElementType::None && gauge > 0.0f && duration > 0.0f; }
-
-    void clear() {
-        type          = ElementType::None;
-        gauge         = 0.0f;
-        initial_gauge = 0.0f;
-        duration      = 0.0f;
-    }
-};
-
-// =====================================================================
-//  FrozenState —— 冻结状态（冻元素）
 //
-//  水冰 1:1 反应生成冻元素，冻元素表现为冰附着但有独立的动态衰减规则：
-//    · 冻结中：初始 0.4/s，每秒 +0.1（递增衰减）
-//    · 解除后：每秒 -0.2 回归 0.4（为下一次冻结的初始速率做准备）
-//  冻元素可被扩散/融化/超导/碎冰消耗，归零后解除冻结。
-//  藏元素：冻结时未消耗完的水/冰放入 attached_slots 共存。
+//  嵌套子结构：AttachedSlot / FrozenState 是 ElementStatus 的成员类型，
+//  不是独立组件，统一通过 ElementStatus::AttachedSlot 作用域访问。
 // =====================================================================
-struct FrozenState {
-    float gauge         = 0.0f;   // 冻元素量
-    float initial_gauge = 0.0f;   // 本次冻结周期的最大冻元素量（量条基线：gauge/initial_gauge）
-    float decay_rate    = 0.4f;   // 当前衰减速率（冻结中递增，解除后递减回 0.4）
-    float decay_timer   = 0.0f;   // 衰减速率调整计时（每满 1s 调整一次）
-    bool  is_frozen     = false;  // 是否正处于冻结状态
-    bool  can_freeze    = true;   // 是否可被冻结（来自 EnemyPreset.can_be_frozen）
-
-    void clear() {
-        gauge         = 0.0f;
-        initial_gauge = 0.0f;
-        is_frozen     = false;
-        // decay_rate 不重置：解除后按 -0.2/s 逐步回归 0.4
-    }
-};
 
 struct ElementStatus {
+    // =================================================================
+    //  子结构：单个附着元素槽
+    // =================================================================
+    struct AttachedSlot {
+        ElementType type          = ElementType::None;
+        float       gauge         = 0.0f;   // 当前量（随时间衰减）
+        float       initial_gauge = 0.0f;   // 附着瞬间的初始量（用于量条比例：gauge/initial_gauge = 0~100%）
+        float       duration      = 0.0f;
+        float       decay_rate    = 0.2f;
+
+        bool is_valid() const { return type != ElementType::None && gauge > 0.0f && duration > 0.0f; }
+
+        void clear() {
+            type          = ElementType::None;
+            gauge         = 0.0f;
+            initial_gauge = 0.0f;
+            duration      = 0.0f;
+        }
+    };
+
+    // =================================================================
+    //  子结构：冻结状态（冻元素）
+    //
+    //  水冰 1:1 反应生成冻元素，冻元素表现为冰附着但有独立的动态衰减规则：
+    //    · 冻结中：初始 0.4/s，每秒 +0.1（递增衰减）
+    //    · 解除后：每秒 -0.2 回归 0.4（为下一次冻结的初始速率做准备）
+    //  冻元素可被扩散/融化/超导/碎冰消耗，归零后解除冻结。
+    //  藏元素：冻结时未消耗完的水/冰放入 attached_slots 共存。
+    // =================================================================
+    struct FrozenState {
+        float gauge         = 0.0f;   // 冻元素量
+        float initial_gauge = 0.0f;   // 本次冻结周期的最大冻元素量（量条基线：gauge/initial_gauge）
+        float decay_rate    = 0.4f;   // 当前衰减速率（冻结中递增，解除后递减回 0.4）
+        float decay_timer   = 0.0f;   // 衰减速率调整计时（每满 1s 调整一次）
+        bool  is_frozen     = false;  // 是否正处于冻结状态
+        bool  can_freeze    = true;   // 是否可被冻结（来自 EnemyPreset.can_be_frozen）
+
+        void clear() {
+            gauge         = 0.0f;
+            initial_gauge = 0.0f;
+            is_frozen     = false;
+            // decay_rate 不重置：解除后按 -0.2/s 逐步回归 0.4
+        }
+    };
+
     // —— 附着元素（双槽，最多两种共存；水雷相遇即进入该态）——
     AttachedSlot attached_slots[2];
 
@@ -133,7 +138,7 @@ struct ElementStatus {
 // ===== 统一附着入口（兼容旧调用点：找空 slot 写入；没空就覆盖 attached_slots[0]）=====
 inline void attach_element(ElementStatus& s, ElementType type, ElementStrength strength) {
     ElementStrengthParams p = get_element_strength_params(strength);
-    AttachedSlot* target = s.find_empty_slot();
+    ElementStatus::AttachedSlot* target = s.find_empty_slot();
     if (!target) target = &s.attached_slots[0];  // 兜底：没有空槽就覆盖第一个（一般不会发生，共存最多 Hydro+Electro=2 种）
     target->type          = type;
     target->gauge         = p.actual_gauge;
