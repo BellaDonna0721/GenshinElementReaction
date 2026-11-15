@@ -35,6 +35,8 @@ interface GameModule {
   _wasm_select_buff: (buff_id: number) => void;
   _wasm_get_active_buff_count: () => number;
   _wasm_get_active_buff: (idx: number) => number;
+  _wasm_get_world_size: () => number;
+  _wasm_load_levels: (ptr: number, len: number) => void;
   _malloc: (size: number) => number;
   _free: (ptr: number) => void;
   HEAPF32: Float32Array;
@@ -382,6 +384,23 @@ async function enterTraining(): Promise<void> {
   requestAnimationFrame(gameLoop);
 }
 
+// 从 levels.json 加载关卡数据并传入 wasm
+async function loadLevels(): Promise<void> {
+  try {
+    const resp = await fetch('levels/levels.json');
+    if (!resp.ok) throw new Error('levels.json 加载失败');
+    const text = await resp.text();
+    const bytes = new TextEncoder().encode(text);
+    const ptr = wasmModule._malloc(bytes.length + 1);
+    wasmModule.HEAPU8.set(bytes, ptr);
+    wasmModule.HEAPU8[ptr + bytes.length] = 0;
+    wasmModule._wasm_load_levels(ptr, bytes.length);
+    wasmModule._free(ptr);
+  } catch (e) {
+    console.error('关卡加载失败:', e);
+  }
+}
+
 // 开始游戏：关卡模式
 async function enterGame(): Promise<void> {
   showScreen('playing');
@@ -392,6 +411,7 @@ async function enterGame(): Promise<void> {
     wasmModule._wasm_init();
     wasmInited = true;
   }
+  await loadLevels();  // 加载关卡 JSON
   // 重置到第 1 关
   wasmModule._wasm_start_game();
   renderer.setCurrentElement(ElementType.Pyro);
@@ -500,6 +520,9 @@ async function init(): Promise<void> {
   });
   document.getElementById('btnHelp')?.addEventListener('click', () => {
     showScreen('help');
+  });
+  document.getElementById('btnEditor')?.addEventListener('click', () => {
+    window.location.href = 'editor.html';
   });
 
   // ===== 帮助界面返回 =====

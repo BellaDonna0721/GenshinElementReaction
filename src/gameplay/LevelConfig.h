@@ -20,8 +20,6 @@ struct EnemySpawn {
     int   preset_id;   // 敌人预设 ID（对应 wasm_spawn_enemy 的 preset_id）
     float x;           // 生成位置 X
     float y;           // 生成位置 Y
-    int   count;       // 生成数量
-    float interval;    // 同批生成间隔（秒）
 };
 
 // 单个波次配置
@@ -41,6 +39,6 @@ struct LevelConfig {
 
 // 墙体定义（独立于 ECS 组件，仅用于关卡数据描述）
 struct WallDef {
-    float x, y;       // 中心坐标
+    float x, y;       // 中心坐标，原点在左下角
     float w, h;       // 宽高
 };

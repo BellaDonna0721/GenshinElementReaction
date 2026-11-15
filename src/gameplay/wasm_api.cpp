@@ -13,12 +13,14 @@
 #include "../gameplay/SpawnPreset.h"
 #include "../gameplay/BulletPool.h"
 #include "../gameplay/EnemyManager.h"
+#include "../gameplay/LevelLoader.h"
 #include "../components/singletonComponents/DamageQueue.h"
 #include "../components/singletonComponents/DamageNumberQueue.h"
 #include "../components/singletonComponents/HitFxQueue.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../components/Health.h"
 #include "../components/IdentityTag.h"
+#include "../utils/GameConfig.h"
 #include <vector>
 
 static World* g_world = nullptr;
@@ -118,6 +120,25 @@ void wasm_set_input(int move_up, int move_down,
     g_input.mouse_click      = mouse_click != 0;
     g_input.mouse_right_click = mouse_right_click != 0;
     g_input.element_key      = element_key;
+}
+
+// ========== 全局配置导出 ==========
+
+EMSCRIPTEN_KEEPALIVE
+float* wasm_get_world_size() {
+    static float size[2] = { GameConfig::WORLD_W, GameConfig::WORLD_H };
+    return size;
+}
+
+// 从 JSON 字符串加载关卡列表（TS 侧 fetch levels.json 后传入）
+EMSCRIPTEN_KEEPALIVE
+void wasm_load_levels(const char* json_ptr, int len) {
+    if (!json_ptr || len <= 0) return;
+    try {
+        set_levels(parse_levels_json(std::string(json_ptr, len)));
+    } catch (...) {
+        // 解析失败：保持现有关卡数据不变
+    }
 }
 
 // ========== 渲染数据导出 ==========

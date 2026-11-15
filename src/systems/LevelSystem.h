@@ -41,10 +41,6 @@ private:
     int    m_level_index      = 0;    // 当前关卡索引（0-based）
     int    m_wave_index       = 0;    // 当前波次索引
     float  m_wave_timer       = 0.0f; // 波次开始倒计时
-    bool   m_wave_started     = false; // 当前波次是否已开始
-    int    m_spawn_cursor     = 0;    // 当前波次已处理到第几个 spawn
-    int    m_spawned_count    = 0;    // 当前 spawn 已生成数量
-    float  m_spawn_timer      = 0.0f; // 当前 spawn 生成间隔计时
     bool   m_level_complete   = false; // 本关是否已通关
     bool   m_all_waves_done   = false; // 所有波次是否已生成完毕
 };

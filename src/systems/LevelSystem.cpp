@@ -8,7 +8,7 @@
 #include "../utils/element_color.h"
 #include "../gameplay/SpawnPreset.h"
 #include "../gameplay/EnemyManager.h"
-#include "../gameplay/Levels.h"
+#include "../gameplay/LevelLoader.h"
 #include "../gameplay/BuffRegistry.h"
 #include <algorithm>
 #include <cstdlib>
@@ -28,10 +28,6 @@ void LevelSystem::reset(World& world) {
     m_level_index    = 0;
     m_wave_index     = 0;
     m_wave_timer     = 0.0f;
-    m_wave_started   = false;
-    m_spawn_cursor   = 0;
-    m_spawned_count  = 0;
-    m_spawn_timer    = 0.0f;
     m_level_complete = false;
     m_all_waves_done = false;
 
@@ -51,7 +47,7 @@ void LevelSystem::reset(World& world) {
 }
 
 void LevelSystem::load_level(World& world, int level_number, bool reset_hp) {
-    const auto& levels = get_builtin_levels();
+    const auto& levels = get_levels();
     if (levels.empty()) return;
 
     m_level_index = (level_number - 1) % static_cast<int>(levels.size());
@@ -60,10 +56,6 @@ void LevelSystem::load_level(World& world, int level_number, bool reset_hp) {
     // 重置波次状态
     m_wave_index     = 0;
     m_wave_timer     = cfg.waves.empty() ? 0.0f : cfg.waves[0].delay;
-    m_wave_started   = false;
-    m_spawn_cursor   = 0;
-    m_spawned_count  = 0;
-    m_spawn_timer    = 0.0f;
     m_level_complete = false;
     m_all_waves_done = cfg.waves.empty();
 
@@ -130,16 +122,29 @@ void LevelSystem::load_level(World& world, int level_number, bool reset_hp) {
 }
 
 void LevelSystem::start_wave(World& world) {
-    const auto& levels = get_builtin_levels();
+    const auto& levels = get_levels();
     const LevelConfig& cfg = levels[m_level_index];
     if (m_wave_index >= static_cast<int>(cfg.waves.size())) {
         m_all_waves_done = true;
         return;
     }
-    m_wave_started   = true;
-    m_spawn_cursor   = 0;
-    m_spawned_count  = 0;
-    m_spawn_timer    = 0.0f;
+
+    // 一次性刷出本波所有敌人（每个 spawn 位置固定一只）
+    const WaveConfig& wave = cfg.waves[m_wave_index];
+    for (const auto& sp : wave.spawns) {
+        const EnemyPreset* preset = get_preset_by_id(sp.preset_id);
+        if (preset) {
+            g_enemy_manager.spawn(world, *preset, sp.x, sp.y);
+        }
+    }
+
+    // 进入下一波等待
+    m_wave_index++;
+    if (m_wave_index < static_cast<int>(cfg.waves.size())) {
+        m_wave_timer = cfg.waves[m_wave_index].delay;
+    } else {
+        m_all_waves_done = true;
+    }
 }
 
 void LevelSystem::update(World& world, float dt) {
@@ -153,51 +158,16 @@ void LevelSystem::update(World& world, float dt) {
     if (gs->phase != GamePhase::Playing) return;
     if (m_level_complete) return;
 
-    const auto& levels = get_builtin_levels();
+    const auto& levels = get_levels();
     if (levels.empty()) return;
     const LevelConfig& cfg = levels[m_level_index];
 
     // ========== 波次刷怪 ==========
+    // 每波 delay 倒计时归零后，start_wave 一次性刷出本波所有敌人并推进到下一波
     if (!m_all_waves_done) {
-        if (!m_wave_started) {
-            m_wave_timer -= dt;
-            if (m_wave_timer <= 0.0f) {
-                start_wave(world);
-            }
-        } else {
-            const WaveConfig& wave = cfg.waves[m_wave_index];
-            // 逐个处理 spawn
-            while (m_spawn_cursor < static_cast<int>(wave.spawns.size())) {
-                const EnemySpawn& sp = wave.spawns[m_spawn_cursor];
-                if (m_spawned_count < sp.count) {
-                    m_spawn_timer -= dt;
-                    if (m_spawn_timer <= 0.0f) {
-                        const EnemyPreset* preset = get_preset_by_id(sp.preset_id);
-                        if (preset) {
-                            g_enemy_manager.spawn(world, *preset, sp.x, sp.y);
-                        }
-                        m_spawned_count++;
-                        m_spawn_timer = sp.interval;
-                    }
-                    break;  // 等下一帧再继续
-                } else {
-                    // 这个 spawn 完成，进入下一个
-                    m_spawn_cursor++;
-                    m_spawned_count = 0;
-                    m_spawn_timer   = 0.0f;
-                }
-            }
-
-            // 本波所有 spawn 完成
-            if (m_spawn_cursor >= static_cast<int>(wave.spawns.size())) {
-                m_wave_index++;
-                m_wave_started = false;
-                if (m_wave_index < static_cast<int>(cfg.waves.size())) {
-                    m_wave_timer = cfg.waves[m_wave_index].delay;
-                } else {
-                    m_all_waves_done = true;
-                }
-            }
+        m_wave_timer -= dt;
+        if (m_wave_timer <= 0.0f) {
+            start_wave(world);
         }
     }
 
@@ -215,7 +185,7 @@ void LevelSystem::complete_level(World& world) {
     if (!gs) return;
     gs->level_cleared = true;
 
-    const auto& levels = get_builtin_levels();
+    const auto& levels = get_levels();
     const LevelConfig& cfg = levels[m_level_index];
 
     if (cfg.is_boss) {

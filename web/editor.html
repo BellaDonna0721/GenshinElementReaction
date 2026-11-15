@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>关卡编辑器 - GenshinElement</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a1a;
+      color: #ccc;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ===== 顶部栏 ===== */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 16px;
+      background: #141428;
+      border-bottom: 1px solid #333;
+      flex-shrink: 0;
+    }
+    .topbar h1 {
+      font-size: 18px;
+      color: #e0c080;
+      letter-spacing: 2px;
+      margin-right: 16px;
+    }
+    .topbar select, .topbar input[type="text"] {
+      background: #1e1e3a;
+      color: #ddd;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+    .topbar label { font-size: 13px; color: #aaa; display: flex; align-items: center; gap: 4px; }
+    .spacer { flex: 1; }
+
+    /* ===== 主区域 ===== */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ===== 左侧工具栏 ===== */
+    .toolbar {
+      width: 64px;
+      background: #141428;
+      border-right: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .tool-btn {
+      width: 48px;
+      height: 48px;
+      background: #1e1e3a;
+      border: 1px solid #444;
+      border-radius: 6px;
+      color: #ccc;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      transition: all 0.1s;
+      padding: 2px;
+    }
+    .tool-btn:hover { background: #2a2a55; border-color: #88aaff; }
+    .tool-btn.active { background: #3a3a77; border-color: #88ccff; color: #fff; box-shadow: 0 0 6px rgba(136,204,255,0.4); }
+    .tool-btn .icon { font-size: 18px; line-height: 1; margin-bottom: 2px; }
+
+    .tool-divider {
+      height: 1px;
+      background: #333;
+      margin: 6px 4px;
+    }
+
+    /* 敌人预设选择 */
+    .preset-select {
+      width: 48px;
+      background: #1e1e3a;
+      color: #ddd;
+      border: 1px solid #555;
+      border-radius: 4px;
+      padding: 4px 2px;
+      font-size: 10px;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    /* ===== 画布区 ===== */
+    .canvas-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0d0d1a;
+      overflow: auto;
+      padding: 20px;
+    }
+    canvas {
+      background: #1a1a2e;
+      border: 2px solid #444;
+      border-radius: 4px;
+      cursor: crosshair;
+    }
+
+    /* ===== 右侧属性面板 ===== */
+    .panel {
+      width: 280px;
+      background: #141428;
+      border-left: 1px solid #333;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+    .panel-section {
+      border-bottom: 1px solid #333;
+      padding: 10px 12px;
+    }
+    .panel-section h3 {
+      font-size: 12px;
+      color: #e0c080;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .prop-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0;
+    }
+    .prop-row label {
+      width: 70px;
+      font-size: 12px;
+      color: #aaa;
+      flex-shrink: 0;
+    }
+    .prop-row input[type="number"], .prop-row select {
+      flex: 1;
+      background: #1e1e3a;
+      color: #ddd;
+      border: 1px solid #444;
+      border-radius: 3px;
+      padding: 4px 6px;
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .prop-row input[type="checkbox"] {
+      width: 16px; height: 16px; cursor: pointer;
+    }
+
+    /* ===== 波次列表 ===== */
+    .wave-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .wave-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #1e1e3a;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 6px 8px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+    .wave-item:hover { border-color: #88aaff; }
+    .wave-item.active { background: #2a2a55; border-color: #88ccff; }
+    .wave-item .wave-name {
+      font-size: 12px;
+      color: #ccc;
+      flex: 1;
+    }
+    .wave-item .wave-delay {
+      font-size: 11px;
+      color: #888;
+    }
+    .wave-item .wave-del {
+      color: #ff6666;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 2px;
+    }
+    .wave-item .wave-del:hover { color: #ff9999; }
+
+    /* ===== 通用按钮 ===== */
+    .btn {
+      padding: 6px 14px;
+      background: #2a2a55;
+      color: #ddd;
+      border: 1px solid #555;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-family: inherit;
+      transition: all 0.1s;
+    }
+    .btn:hover { background: #3a3a77; border-color: #88aaff; color: #fff; }
+    .btn-primary { background: #2a5538; border-color: #4a8855; }
+    .btn-primary:hover { background: #3a7748; border-color: #66cc77; }
+    .btn-danger { background: #552a2a; border-color: #884444; }
+    .btn-danger:hover { background: #773a3a; border-color: #cc6666; }
+    .btn-sm { padding: 3px 8px; font-size: 11px; }
+
+    .btn-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    /* ===== 提示文字 ===== */
+    .hint {
+      font-size: 11px;
+      color: #666;
+      line-height: 1.6;
+      padding: 8px 12px;
+    }
+    .status-bar {
+      padding: 6px 12px;
+      background: #141428;
+      border-top: 1px solid #333;
+      font-size: 11px;
+      color: #888;
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <!-- ===== 顶部栏 ===== -->
+  <div class="topbar">
+    <h1>关卡编辑器</h1>
+    <label>关卡：
+      <select id="levelSelect"></select>
+    </label>
+    <button class="btn" id="btnAddLevel">+ 新建关卡</button>
+    <button class="btn btn-danger" id="btnDelLevel">删除当前关卡</button>
+    <div class="spacer"></div>
+    <button class="btn" id="btnImport">导入 JSON</button>
+    <button class="btn btn-primary" id="btnExport">导出 JSON</button>
+    <input type="file" id="fileInput" accept=".json" style="display:none">
+  </div>
+
+  <!-- ===== 主区域 ===== -->
+  <div class="main">
+    <!-- 左侧工具栏 -->
+    <div class="toolbar">
+      <button class="tool-btn active" data-tool="select">
+        <span class="icon">↖</span>选择
+      </button>
+      <button class="tool-btn" data-tool="wall">
+        <span class="icon">▭</span>墙
+      </button>
+      <button class="tool-btn" data-tool="enemy">
+        <span class="icon">●</span>敌人
+      </button>
+      <select class="preset-select" id="presetSelect" title="敌人预设">
+        <option value="0">火</option>
+        <option value="1">水</option>
+        <option value="2">冰</option>
+        <option value="3">Boss</option>
+      </select>
+      <button class="tool-btn" data-tool="spawn">
+        <span class="icon">★</span>出生点
+      </button>
+      <button class="tool-btn" data-tool="delete">
+        <span class="icon">✕</span>删除
+      </button>
+    </div>
+
+    <!-- 画布 -->
+    <div class="canvas-wrap">
+      <canvas id="editorCanvas" width="1000" height="700"></canvas>
+    </div>
+
+    <!-- 右侧面板 -->
+    <div class="panel">
+      <!-- 关卡属性 -->
+      <div class="panel-section">
+        <h3>关卡属性</h3>
+        <div class="prop-row">
+          <label>level_id</label>
+          <input type="number" id="propLevelId" min="1" value="1">
+        </div>
+        <div class="prop-row">
+          <label>Boss 关</label>
+          <input type="checkbox" id="propIsBoss">
+        </div>
+      </div>
+
+      <!-- 波次管理 -->
+      <div class="panel-section">
+        <h3>波次 <span style="color:#666;font-weight:normal;font-size:10px;">（放置敌人到当前选中波次）</span></h3>
+        <div class="wave-list" id="waveList"></div>
+        <div class="btn-row" style="margin-top:8px;">
+          <button class="btn btn-sm" id="btnAddWave">+ 添加波次</button>
+        </div>
+      </div>
+
+      <!-- 选中元素属性 -->
+      <div class="panel-section" id="selSection" style="flex:1; overflow-y:auto;">
+        <h3>选中元素</h3>
+        <div id="selProps"><div class="hint">未选中任何元素<br>点击画布中的墙/敌人/出生点进行编辑</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar" id="statusBar">就绪 | 快捷键：V选择 W墙 E敌人 P出生点 D删除 Delete删除选中</div>
+
+  <script type="module" src="../dist/editor.js"></script>
+</body>
+</html>

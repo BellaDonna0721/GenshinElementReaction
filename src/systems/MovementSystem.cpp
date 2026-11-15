@@ -7,12 +7,11 @@
 #include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
 #include "../gameplay/BulletPool.h"
+#include "../utils/GameConfig.h"
 
 void MovementSystem::update(World& world, float dt) {
     const float PLAYER_SPEED   = 200.0f;
     const float BULLET_SPEED   = 520.0f;
-    const float WORLD_W        = 1000.0f;
-    const float WORLD_H        = 700.0f;
 
     // 玩家移速增益
     float player_speed_mult = 1.0f;
@@ -54,16 +53,16 @@ void MovementSystem::update(World& world, float dt) {
         t->y += v->vy * speed * dt;
 
         if (is_bullet) {
-            if (t->x < -20.0f || t->x > WORLD_W + 20.0f ||
-                t->y < -20.0f || t->y > WORLD_H + 20.0f)
+            if (t->x < -GameConfig::WORLD_MARGIN || t->x > GameConfig::WORLD_W + GameConfig::WORLD_MARGIN ||
+                t->y < -GameConfig::WORLD_MARGIN || t->y > GameConfig::WORLD_H + GameConfig::WORLD_MARGIN)
             {
                 out_of_bounds.push_back(e);
             }
         } else {
-            if (t->x < 20.0f)           t->x = 20.0f;
-            if (t->x > WORLD_W - 20.0f) t->x = WORLD_W - 20.0f;
-            if (t->y < 20.0f)           t->y = 20.0f;
-            if (t->y > WORLD_H - 20.0f) t->y = WORLD_H - 20.0f;
+            if (t->x < GameConfig::WORLD_MARGIN)                       t->x = GameConfig::WORLD_MARGIN;
+            if (t->x > GameConfig::WORLD_W - GameConfig::WORLD_MARGIN) t->x = GameConfig::WORLD_W - GameConfig::WORLD_MARGIN;
+            if (t->y < GameConfig::WORLD_MARGIN)                       t->y = GameConfig::WORLD_MARGIN;
+            if (t->y > GameConfig::WORLD_H - GameConfig::WORLD_MARGIN) t->y = GameConfig::WORLD_H - GameConfig::WORLD_MARGIN;
         }
     }
 

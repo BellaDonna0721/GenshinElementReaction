@@ -24,6 +24,8 @@ if %errorlevel% neq 0 goto :error
 echo [3/3] 编译 TypeScript...
 esbuild web\main.ts --bundle --outfile=dist\main.js --format=esm
 if %errorlevel% neq 0 goto :error
+esbuild web\editor.ts --bundle --outfile=dist\editor.js --format=esm
+if %errorlevel% neq 0 goto :error
 
 echo ========================================
 echo   构建成功！执行 serve.bat 启动游戏
