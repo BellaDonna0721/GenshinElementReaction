@@ -2,6 +2,7 @@
 #include "../components/Transform.h"
 #include "../components/Velocity.h"
 #include "../components/IdentityTag.h"
+#include "../components/SphereCollider.h"
 #include "../components/EnemyAI.h"
 #include "../components/ElementStatus.h"
 #include "../components/singletonComponents/GameState.h"
@@ -53,16 +54,24 @@ void MovementSystem::update(World& world, float dt) {
         t->y += v->vy * speed * dt;
 
         if (is_bullet) {
-            if (t->x < -GameConfig::WORLD_MARGIN || t->x > GameConfig::WORLD_W + GameConfig::WORLD_MARGIN ||
-                t->y < -GameConfig::WORLD_MARGIN || t->y > GameConfig::WORLD_H + GameConfig::WORLD_MARGIN)
+            // 子弹：飞出世界外 50px 回收（给粒子尾迹留一点消失缓冲）
+            // padding 独立于碰撞半径，是视觉体验参数
+            constexpr float CULL_PAD = 50.0f;
+            if (t->x < -CULL_PAD || t->x > GameConfig::WORLD_W + CULL_PAD ||
+                t->y < -CULL_PAD || t->y > GameConfig::WORLD_H + CULL_PAD)
             {
                 out_of_bounds.push_back(e);
             }
         } else {
-            if (t->x < GameConfig::WORLD_MARGIN)                       t->x = GameConfig::WORLD_MARGIN;
-            if (t->x > GameConfig::WORLD_W - GameConfig::WORLD_MARGIN) t->x = GameConfig::WORLD_W - GameConfig::WORLD_MARGIN;
-            if (t->y < GameConfig::WORLD_MARGIN)                       t->y = GameConfig::WORLD_MARGIN;
-            if (t->y > GameConfig::WORLD_H - GameConfig::WORLD_MARGIN) t->y = GameConfig::WORLD_H - GameConfig::WORLD_MARGIN;
+            // Player/Enemy：边界 clamp 完全基于自身碰撞半径
+            // 物理约束：圆心 ± radius 不能超出世界范围
+            float pr = 0.0f;
+            auto* col = world.get_component<SphereCollider>(e);
+            if (col) pr = col->radius;
+            if (t->x < pr)                 t->x = pr;
+            if (t->x > GameConfig::WORLD_W - pr) t->x = GameConfig::WORLD_W - pr;
+            if (t->y < pr)                 t->y = pr;
+            if (t->y > GameConfig::WORLD_H - pr) t->y = GameConfig::WORLD_H - pr;
         }
     }
 

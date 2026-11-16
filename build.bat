@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo   GenshinElement - 构建脚本
+echo   GenshinElementReaction - 构建脚本
 echo ========================================
 
 :: 设置 Emscripten 环境

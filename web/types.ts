@@ -16,7 +16,7 @@ export enum EntityType {
   Pickup = 5,  // 可拾取道具（结晶晶片等）
 }
 
-// 与 C++ 侧 RenderCommand 严格对齐（32 字节）
+// 与 C++ 侧 RenderCommand 严格对齐（36 字节）
 // byte layout:
 //   [0,8)    x, y                 (f32, f32)
 //   [8,12)   radius               (f32)
@@ -29,8 +29,10 @@ export enum EntityType {
 //   [21]     element2_gauge       (u8, 0-255 → 进度 0-100%)
 //   [22]     bullet_strength      (u8, ElementStrength: 0Weak 1Medium 2Strong 3Extra; 玩家敌人填0)
 //   [23]     reaction_mask_hi     (u8, 位掩码高 8 位；与 [18] 拼成 uint16)
-//   [24,28)  facing_dx            (f32)
-//   [28,32)  facing_dy            (f32)
+//   [24,28)  facing_dx            (f32)  玩家朝向X / 子弹速度方向X
+//   [28,32)  facing_dy            (f32)  玩家朝向Y / 子弹速度方向Y
+//   [32]     enemy_type           (u8)  敌人本体元素类型（ElementType enum，非敌人填 0）
+//   [33,36)  _pad                 (u8x3) 显式补齐到 36 字节
 export interface RenderCommand {
   x: number;
   y: number;
@@ -49,6 +51,7 @@ export interface RenderCommand {
   reaction_mask_hi: number; // 本帧反应位掩码：高 8 位
   facing_dx: number;
   facing_dy: number;
+  enemy_type: number;      // 敌人本体元素类型（ElementType enum）
 }
 
 export interface InputState {
@@ -110,7 +113,7 @@ export function unpackGauge(u8: number): number {
   return Math.max(0, Math.min(1, u8 / 255));
 }
 
-// 血条数据（独立于 RenderCommand 的 32 字节协议，走单独通道）
+// 血条数据（独立于 RenderCommand 的 36 字节协议，走单独通道）
 // 与 C++ 侧 HealthBarInfo 对齐：
 //   [0,4)  x       (f32)  血条中心 X
 //   [4,8)  y       (f32)  血条中心 Y

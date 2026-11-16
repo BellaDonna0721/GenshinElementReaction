@@ -31,9 +31,9 @@ export class Renderer {
   // UI：左侧元素面板高亮的当前选中元素（默认 Pyro，和初始 spawn_player 一致）
   private currentElem: ElementType = ElementType.Pyro;
 
-  // 敌人贴图（水史莱姆），圆形裁剪后绘制
-  private enemySprite: HTMLImageElement | null = null;
-  private spriteLoaded: boolean = false;
+  // 敌人贴图：按元素类型（ElementType 1~7）索引，圆形裁剪后绘制
+  private enemySprites: Array<HTMLImageElement | null> = [];
+  private enemySpritesLoaded: boolean[] = [];
 
   // 玩家贴图（派蒙），圆形裁剪后绘制
   private playerSprite: HTMLImageElement | null = null;
@@ -49,10 +49,23 @@ export class Renderer {
     this.width = canvas.width;
     this.height = canvas.height;
 
-    // 预加载敌人贴图
-    this.enemySprite = new Image();
-    this.enemySprite.onload = () => { this.spriteLoaded = true; };
-    this.enemySprite.src = 'assets/hydro_slime.png';
+    // 预加载各元素史莱姆贴图（ElementType 1~7 对应 assets 下同名 jpg）
+    const ENEMY_SPRITE_SRC: Record<number, string> = {
+      [ElementType.Pyro]:    'assets/PyroSlime.jpg',
+      [ElementType.Hydro]:   'assets/HydroSlime.jpg',
+      [ElementType.Electro]: 'assets/ElectroSlime.jpg',
+      [ElementType.Cryo]:    'assets/CryoSlime.jpg',
+      [ElementType.Anemo]:   'assets/AnemoSlime.jpg',
+      [ElementType.Geo]:     'assets/GeoSlime.jpg',
+      [ElementType.Dendro]:  'assets/DendroSlime.jpg',
+    };
+    for (const [etStr, src] of Object.entries(ENEMY_SPRITE_SRC)) {
+      const et = Number(etStr);
+      const img = new Image();
+      img.onload = () => { this.enemySpritesLoaded[et] = true; };
+      img.src = src;
+      this.enemySprites[et] = img;
+    }
 
     // 预加载玩家贴图
     this.playerSprite = new Image();
@@ -505,12 +518,17 @@ export class Renderer {
             element1_type, element2_type,
             element1_gauge, element2_gauge,
             reaction_mask_lo, reaction_mask_hi,
-            bullet_strength } = cmd;
+            bullet_strength, enemy_type } = cmd;
     const isFrozen = bullet_strength === 1;  // 冻结标志（复用 bullet_strength 字段）
     const FROZEN_COLOR = '#BFFFFF';          // 冻元素：更亮的淡蓝色，区分普通冰
 
+    // 敌人本体元素类型（独立字段，C++ 端从 EnemyAI.enemy_type 写入）
+    const enemyType = enemy_type;
+    const sprite = this.enemySprites[enemyType] || null;
+    const spriteLoaded = this.enemySpritesLoaded[enemyType] === true;
+
     // 身体：贴图优先（圆形裁剪），加载失败则回退到原圆形色块
-    if (this.spriteLoaded && this.enemySprite) {
+    if (spriteLoaded && sprite) {
       ctx.save();
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
@@ -518,10 +536,16 @@ export class Renderer {
       ctx.arc(x, y, radius, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
-      const size = radius * 2;
-      ctx.drawImage(this.enemySprite, x - radius, y - radius, size, size);
+      // 保持贴图原始宽高比，在圆内缩放到"至少一个维度填满"，超出部分由 clip 裁掉
+      // 竖图（立绘）宽度方向填满、上下溢出被裁；横图高度方向填满、左右溢出被裁
+      const maxSize = radius * 2;
+      const natW = sprite.naturalWidth;
+      const natH = sprite.naturalHeight;
+      const scale = Math.max(maxSize / natW, maxSize / natH);
+      const drawW = natW * scale;
+      const drawH = natH * scale;
+      ctx.drawImage(sprite, x - drawW / 2, y - drawH / 2, drawW, drawH);
       ctx.restore();
-      // 注：贴图自带边缘，不再额外画描边圆圈
     } else {
       // 回退：纯色圆形
       ctx.beginPath();

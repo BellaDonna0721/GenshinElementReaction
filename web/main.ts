@@ -137,7 +137,7 @@ function syncInput(): void {
   input.elemKey = 0;
 }
 
-// 读取 RenderCommand（严格 32 字节 stride）
+// 读取 RenderCommand（严格 36 字节 stride）
 // C++ ↔ TS 统一协议（必须与 OutputSystem.h 的 struct RenderCommand 逐字节对齐）:
 //  [0,8)    x, y                        (f32 × 2)
 //  [8,12)   radius                      (f32)
@@ -150,9 +150,11 @@ function syncInput(): void {
 //  [21]     element2_gauge              (u8, 0-255 线性 → 进度 0-100%)
 //  [22]     bullet_strength             (u8, ElementStrength: 0Weak 1Medium 2Strong 3Extra; 敌人玩家填0)
 //  [23]     reaction_mask_hi            (u8, 位掩码高 8 位，与 [18] 合并)
-//  [24,28)  facing_dx                   (f32)
-//  [28,32)  facing_dy                   (f32)
-const STRIDE = 32;
+//  [24,28)  facing_dx                   (f32)  玩家朝向X / 子弹速度方向X
+//  [28,32)  facing_dy                   (f32)  玩家朝向Y / 子弹速度方向Y
+//  [32]     enemy_type                  (u8)  敌人本体元素类型（ElementType enum，非敌人填 0）
+//  [33,36)  _pad                        (u8 × 3) 显式补齐到 36 字节
+const STRIDE = 36;
 function readRenderCommands(): import('./types.js').RenderCommand[] {
   const count = wasmModule._wasm_get_render_count();
   if (count <= 0) return [];
@@ -182,6 +184,7 @@ function readRenderCommands(): import('./types.js').RenderCommand[] {
       reaction_mask_hi: heap[base + 23],
       facing_dx:      f32[(base + 24)   / 4],
       facing_dy:      f32[(base + 28)   / 4],
+      enemy_type:     heap[base + 32],
     });
   }
   return result;
@@ -552,7 +555,7 @@ async function init(): Promise<void> {
 
   // 默认停留在主菜单
   showScreen('menu');
-  console.log('[GenshinElement] 初始化完成');
+  console.log('[GenshinElementReaction] 初始化完成');
 }
 
 init().catch(err => console.error('Init failed:', err));

@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <vector>
 
-// 渲染命令：C++ → WASM线性内存 → TypeScript Canvas 之间的 32 字节精确协议
+// 渲染命令：C++ → WASM线性内存 → TypeScript Canvas 之间的 36 字节精确协议
 // 任意一边字段顺序/大小改动，另一边必须同步！
 struct RenderCommand {
     float   x, y;           //[0,8)    圆心坐标（像素）
@@ -19,14 +19,17 @@ struct RenderCommand {
     uint8_t element2_gauge; //[21]     元素2剩余量归一化（同上）
     uint8_t bullet_strength;//[22]     子弹强度档（ElementStrength：0Weak/1Medium/2Strong/3Extra；敌人玩家填0）
     uint8_t reaction_mask_hi;  //[23]  反应位掩码高 8 位（与 [18] 拼成 uint16）
-    float   facing_dx;      //[24,28)  玩家朝向X
-    float   facing_dy;      //[28,32)  玩家朝向Y
+    float   facing_dx;      //[24,28)  玩家朝向X / 子弹速度方向X
+    float   facing_dy;      //[28,32)  玩家朝向Y / 子弹速度方向Y
+    uint8_t enemy_type;     //[32]     敌人本体元素类型（ElementType 值，非敌人填 0）
+    uint8_t _pad[3];        //[33,36)  显式补齐到 36 字节（保持 sizeof 确定，不依赖编译器隐式 padding）
 };
+static_assert(sizeof(RenderCommand) == 36, "RenderCommand 必须保持 36 字节");
 
 extern std::vector<RenderCommand> g_render_commands;
 
 // =====================================================================
-//  血条数据（独立于 32 字节 RenderCommand，走单独通道）
+//  血条数据（独立于 36 字节 RenderCommand，走单独通道）
 //  OutputSystem 填充，TS 侧读取并在实体头顶绘制血条
 // =====================================================================
 struct HealthBarInfo {
@@ -46,7 +49,7 @@ extern std::vector<HealthBarInfo> g_health_bars;
 // =====================================================================
 
 // =====================================================================
-//  墙体渲染数据（独立通道，走矩形而非圆形，不占用 32 字节 RenderCommand）
+//  墙体渲染数据（独立通道，走矩形而非圆形，不占用 36 字节 RenderCommand）
 //  OutputSystem 收集 Identity=Wall 的实体写入，TS 侧绘制填充矩形+描边
 //  字节布局（20 字节）：
 //    [0,4)   x       (f32)  矩形中心 X

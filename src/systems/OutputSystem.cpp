@@ -161,9 +161,11 @@ void OutputSystem::update(World& world, float dt) {
             hbi.y     = t->y - ri->radius - 12.0f;  // 头顶上方
             hbi.width = ri->radius * 2.0f;            // 宽度=敌人直径
             hbi.ratio = pack_hp_ratio(hp->current_hp, hp->max_hp);
-            // 临时：从 EnemyAI 读取敌人类型，用于血条上方显示类型名
+            // 从 EnemyAI 读取敌人类型，用于血条上方显示类型名
             EnemyAI* ai = world.get_component<EnemyAI>(e);
             hbi.enemy_type = ai ? ai->enemy_type : 0;
+            // 敌人本体元素类型写入独立字段，供 TS 侧选择对应元素史莱姆贴图
+            cmd.enemy_type = ai ? ai->enemy_type : 0;
             g_health_bars.push_back(hbi);
         }
 

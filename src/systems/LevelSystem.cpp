@@ -28,6 +28,7 @@ void LevelSystem::reset(World& world) {
     m_level_index    = 0;
     m_wave_index     = 0;
     m_wave_timer     = 0.0f;
+    m_wave_spawned   = false;
     m_level_complete = false;
     m_all_waves_done = false;
 
@@ -56,6 +57,7 @@ void LevelSystem::load_level(World& world, int level_number, bool reset_hp) {
     // 重置波次状态
     m_wave_index     = 0;
     m_wave_timer     = cfg.waves.empty() ? 0.0f : cfg.waves[0].delay;
+    m_wave_spawned   = false;
     m_level_complete = false;
     m_all_waves_done = cfg.waves.empty();
 
@@ -138,13 +140,9 @@ void LevelSystem::start_wave(World& world) {
         }
     }
 
-    // 进入下一波等待
+    // 标记本波已刷完，等待玩家杀光后再推进下一波
     m_wave_index++;
-    if (m_wave_index < static_cast<int>(cfg.waves.size())) {
-        m_wave_timer = cfg.waves[m_wave_index].delay;
-    } else {
-        m_all_waves_done = true;
-    }
+    m_wave_spawned = true;
 }
 
 void LevelSystem::update(World& world, float dt) {
@@ -163,11 +161,27 @@ void LevelSystem::update(World& world, float dt) {
     const LevelConfig& cfg = levels[m_level_index];
 
     // ========== 波次刷怪 ==========
-    // 每波 delay 倒计时归零后，start_wave 一次性刷出本波所有敌人并推进到下一波
+    // 状态机：
+    //   A) 本波已刷完，等待敌人全部消灭 → alive_count()==0 后进入 B
+    //   B) 扣 delay 倒计时 → 归零后 start_wave 刷本波，回到 A
     if (!m_all_waves_done) {
-        m_wave_timer -= dt;
-        if (m_wave_timer <= 0.0f) {
-            start_wave(world);
+        if (m_wave_spawned) {
+            // 等本波敌人全灭，再开始下一波 delay
+            if (g_enemy_manager.alive_count() == 0) {
+                if (m_wave_index < static_cast<int>(cfg.waves.size())) {
+                    m_wave_timer = cfg.waves[m_wave_index].delay;
+                    m_wave_spawned = false;
+                } else {
+                    // 最后一波也刷完且敌人全灭
+                    m_all_waves_done = true;
+                }
+            }
+        } else {
+            // 扣 delay 倒计时，归零刷本波
+            m_wave_timer -= dt;
+            if (m_wave_timer <= 0.0f) {
+                start_wave(world);
+            }
         }
     }
 

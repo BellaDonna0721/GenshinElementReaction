@@ -38,9 +38,10 @@ private:
     void complete_level(World& world);
     void pick_buff_choices(World& world);
 
-    int    m_level_index      = 0;    // 当前关卡索引（0-based）
-    int    m_wave_index       = 0;    // 当前波次索引
-    float  m_wave_timer       = 0.0f; // 波次开始倒计时
+    int    m_level_index      = 0;     // 当前关卡索引（0-based）
+    int    m_wave_index       = 0;     // 当前波次索引
+    float  m_wave_timer       = 0.0f;  // 下一波开始倒计时
+    bool   m_wave_spawned     = false; // 本波已刷完，等待敌人全部消灭
     bool   m_level_complete   = false; // 本关是否已通关
-    bool   m_all_waves_done   = false; // 所有波次是否已生成完毕
+    bool   m_all_waves_done   = false;  // 所有波次是否已刷完且敌人全灭
 };

@@ -1,5 +1,6 @@
 #include "CollisionSystem.h"
 #include "../components/Transform.h"
+#include "../components/Velocity.h"
 #include "../components/SphereCollider.h"
 #include "../components/BoxCollider.h"
 #include "../components/IdentityTag.h"
@@ -12,6 +13,7 @@
 #include "../components/singletonComponents/DamageQueue.h"
 #include "../components/singletonComponents/HitFxQueue.h"
 #include "../utils/element_color.h"
+#include "../utils/GameConfig.h"
 #include "../gameplay/BulletPool.h"
 #include <cmath>
 
@@ -152,6 +154,43 @@ void CollisionSystem::update(World& world, float dt) {
                 t->x += px;
                 t->y += py;
             }
+        }
+    }
+
+    // ========== ③ 敌人 vs 世界边界：贴边检测 → AI 反向 ==========
+    // 注意：MovementSystem 已经做了基于 radius 的 clamp（先于 Collision 执行），
+    // 所以到这里实体位置已经在边界上了，越界检测（t->y + pr > WORLD_H）永远不会命中。
+    // 改成检测"贴边且朝边界方向移动"的状态，直接发 blocked 让 AI 下一帧反向。
+    // 坐标不再重复推回（Movement 已保证位置正确）。
+    for (auto en : enemies) {
+        auto* t  = world.get_component<Transform>(en);
+        auto* col = world.get_component<SphereCollider>(en);
+        auto* rp = world.get_component<RandomPatrolAI>(en);
+        auto* v  = world.get_component<Velocity>(en);
+        if (!t || !col || !rp || !v) continue;
+
+        float pr = col->radius;
+        float eps = 0.1f;
+
+        // 贴左边界且还在往左走
+        if (t->x <= pr + eps && v->vx < 0) {
+            rp->blocked = true;
+            rp->block_push_x += 1.0f;   // 方向（右推），归一化在 AI 里做
+        }
+        // 贴右边界且还在往右走
+        if (t->x >= GameConfig::WORLD_W - pr - eps && v->vx > 0) {
+            rp->blocked = true;
+            rp->block_push_x -= 1.0f;
+        }
+        // 贴上边界且还在往上走（y 减小方向）
+        if (t->y <= pr + eps && v->vy < 0) {
+            rp->blocked = true;
+            rp->block_push_y += 1.0f;
+        }
+        // 贴下边界且还在往下走
+        if (t->y >= GameConfig::WORLD_H - pr - eps && v->vy > 0) {
+            rp->blocked = true;
+            rp->block_push_y -= 1.0f;
         }
     }
 

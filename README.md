@@ -1,4 +1,4 @@
-# GenshinElement
+# GenshinElementReaction
 
 仿《原神》元素反应机制的 ECS 架构游戏原型，使用 C++17 + WebAssembly 作为核心逻辑层，TypeScript + HTML5 Canvas 处理输入与渲染，严格遵循数据与逻辑分离的 ECS 设计原则。
 
@@ -16,7 +16,7 @@
   ```bash
   emsdk activate latest
   ```
-  > 若 emsdk 安装在其他路径，需修改 [`build.bat`](file:///d:/study/GenshinElementReaction/build.bat) 第 8 行的 `set PATH=...`，将其中所有 `D:\emsdk` 替换为你的实际安装路径（涉及 `upstream\bin`、`upstream\emscripten`、`node\xxx\bin`、`python\xxx` 四个子路径）。
+  > 若 emsdk 安装在其他路径，需修改 [`build.bat`](file:///d:/study//build.bat) 第 8 行的 `set PATH=...`，将其中所有 `D:\emsdk` 替换为你的实际安装路径（涉及 `upstream\bin`、`upstream\emscripten`、`node\xxx\bin`、`python\xxx` 四个子路径）。
 - **CMake ≥ 3.10**（在 emsdk 环境 PATH 内即可）
 - **Node.js**（编译 TypeScript 用，esbuild 可通过 `npx` 直接调用）
 - Windows 10/11（`build.bat` / `serve.bat` 为 PowerShell/cmd 批处理脚本）
@@ -185,7 +185,7 @@ Cryo 与 Hydro 相遇按 **1:1** 消耗，生成**冻元素**（Freeze），目�
 ## 目录结构
 
 ```
-GenshinElement/
+GenshinElementReaction/
 ├── build.bat                 # 一键：清缓存 + 配置 + 编 WASM + 编 TS
 ├── serve.bat                 # 一键：Python HTTP 服务器 3000 端口
 ├── CMakeLists.txt            # Emscripten 工具链 + POST_BUILD 拷贝到 dist
@@ -219,7 +219,7 @@ GenshinElement/
 │   │   ├── CollisionSystem   # 子弹-敌人圆碰撞 + ICD 判定，写入 pending 元素/伤害
 │   │   ├── ElementReactionSystem  # 衰减 + 查表反应 + 感电 DoT + 链式消耗 + 冻结 + 反应位掩码
 │   │   ├── DamageSystem      # 消费 DamageQueue，扣血，生成飘字，处理死亡
-│   │   └── OutputSystem      # 打包为 32B RenderCommand 数组 + 血条 + 飘字供 TS 读取
+│   │   └── OutputSystem      # 打包为 36B RenderCommand 数组 + 血条 + 飘字供 TS 读取
 │   ├── gameplay/
 │   │   ├── SpawnPreset.h/.cpp  # spawn_player / spawn_enemy 工厂 + EnemyPreset 配置表
 │   │   ├── EnemyManager.h/.cpp # 敌人生成/移除/清空管理
@@ -242,7 +242,7 @@ GenshinElement/
 - **组件正交**：组件之间互不 include，共享类型（如 `ElementType`）抽到 `utils/`，避免循环依赖。
 - **组合优于继承**：实体类型差异（Player / Enemy / Bullet）通过 `IdentityTag` + 组件组合区分，不用类继承。
 - **子弹对象池**：预分配 40 个子弹实体，`acquire`/`release` 复用，避免频繁创建/销毁。
-- **RenderCommand 32 字节对齐**：C++ 与 TS 共享的帧数据内存布局严格一致，字段增减需两端同步。
+- **RenderCommand 36 字节对齐**：C++ 与 TS 共享的帧数据内存布局严格一致，字段增减需两端同步。
 - **组件存储 Sparse Set**：稀疏索引数组 + 稠密数组实现高缓存局部性，`query<Component...>` 遍历高效。
 - **实体 ID 栈式回收**：`create_entity` 从 `m_free_ids` 栈里复用已销毁的 ID。
 - **系统执行顺序固定**：Input → Lifetime → Movement → Collision → ElementReaction → Output，每帧严格按此顺序调度。

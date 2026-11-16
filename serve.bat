@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 echo ========================================
-echo   GenshinElement - 启动服务器
+echo   GenshinElementReaction - 启动服务器
 echo ========================================
 echo.
 echo   浏览器打开: http://localhost:3000/web/index.html

@@ -48,6 +48,9 @@ type Selection =
 
 type Tool = 'select' | 'wall' | 'enemy' | 'spawn' | 'delete';
 
+// 墙体缩放手柄：4 条边（单方向拉伸）+ 4 个角（等比例缩放）
+type ResizeHandle = 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
+
 // ===== 全局状态 =====
 let levels: Level[] = [];
 let currentLevelIndex = 0;
@@ -60,6 +63,10 @@ let isDragging = false;
 let dragStart: { x: number; y: number } | null = null;
 let dragCurrent: { x: number; y: number } | null = null;
 let dragMoved = false;
+
+// 缩放状态
+let resizeHandle: ResizeHandle | null = null;
+let resizeStartWall: Wall | null = null;  // 缩放开始时墙体快照（归一化坐标）
 
 // ===== DOM 引用 =====
 const canvas = document.getElementById('editorCanvas') as HTMLCanvasElement;
@@ -135,6 +142,18 @@ function render(): void {
     ctx.lineWidth = isSel ? 2 : 1;
     ctx.strokeRect(c.x - pw / 2, c.y - ph / 2, pw, ph);
   });
+
+  // 选中墙时绘制 8 个缩放手柄
+  if (selection?.kind === 'wall') {
+    const w = lvl.walls[selection.index];
+    for (const h of getWallHandles(w)) {
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(h.x - HANDLE_HALF, h.y - HANDLE_HALF, HANDLE_HALF * 2, HANDLE_HALF * 2);
+      ctx.strokeStyle = '#3366cc';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(h.x - HANDLE_HALF, h.y - HANDLE_HALF, HANDLE_HALF * 2, HANDLE_HALF * 2);
+    }
+  }
 
   // 敌人（按波次着色外圈）
   lvl.waves.forEach((wave, wi) => {
@@ -245,6 +264,46 @@ function hitTest(px: number, py: number): Selection {
   return null;
 }
 
+// ===== 墙体缩放手柄 =====
+const HANDLE_HALF = 5;  // 手柄正方形的半边长（像素），同时也是命中半径
+
+// 获取墙体 8 个手柄的画布像素坐标
+function getWallHandles(w: Wall): { handle: ResizeHandle; x: number; y: number }[] {
+  const c = normToPixel(w.x, w.y);
+  const hw = (w.w * WORLD_W) / 2;
+  const hh = (w.h * WORLD_H) / 2;
+  return [
+    { handle: 'nw', x: c.x - hw, y: c.y - hh },
+    { handle: 'n',  x: c.x,      y: c.y - hh },
+    { handle: 'ne', x: c.x + hw, y: c.y - hh },
+    { handle: 'e',  x: c.x + hw, y: c.y      },
+    { handle: 'se', x: c.x + hw, y: c.y + hh },
+    { handle: 's',  x: c.x,      y: c.y + hh },
+    { handle: 'sw', x: c.x - hw, y: c.y + hh },
+    { handle: 'w',  x: c.x - hw, y: c.y      },
+  ];
+}
+
+// 命中检测：鼠标是否落在某个手柄上（仅当选了墙时）
+function hitTestHandle(px: number, py: number): ResizeHandle | null {
+  if (selection?.kind !== 'wall') return null;
+  const w = curLevel().walls[selection.index];
+  for (const h of getWallHandles(w)) {
+    if (Math.abs(px - h.x) <= HANDLE_HALF && Math.abs(py - h.y) <= HANDLE_HALF) {
+      return h.handle;
+    }
+  }
+  return null;
+}
+
+// 手柄对应的鼠标光标样式
+const HANDLE_CURSOR: Record<ResizeHandle, string> = {
+  n:  'ns-resize',   s:  'ns-resize',
+  e:  'ew-resize',   w:  'ew-resize',
+  ne: 'nesw-resize', sw: 'nesw-resize',
+  nw: 'nwse-resize', se: 'nwse-resize',
+};
+
 // ===== 鼠标事件 =====
 function getCanvasPos(e: MouseEvent): { x: number; y: number } {
   const rect = canvas.getBoundingClientRect();
@@ -263,6 +322,14 @@ canvas.addEventListener('mousedown', (e) => {
   isDragging = true;
 
   if (currentTool === 'select') {
+    // 优先检测缩放手柄（仅当已选中墙时）
+    const handle = hitTestHandle(pos.x, pos.y);
+    if (handle) {
+      resizeHandle = handle;
+      resizeStartWall = { ...curLevel().walls[selection.index] };
+      render();
+      return;
+    }
     selection = hitTest(pos.x, pos.y);
     updateSelProps();
     render();
@@ -283,7 +350,24 @@ canvas.addEventListener('mousedown', (e) => {
 
 canvas.addEventListener('mousemove', (e) => {
   const pos = getCanvasPos(e);
-  if (!isDragging) return;
+
+  // 缩放拖拽（优先于普通拖拽）
+  if (resizeHandle && resizeStartWall) {
+    resizeWall(pos.x, pos.y);
+    return;
+  }
+
+  // 非拖拽状态：更新鼠标光标（select 模式下悬停手柄时显示对应方向光标）
+  if (!isDragging) {
+    if (currentTool === 'select') {
+      const handle = hitTestHandle(pos.x, pos.y);
+      canvas.style.cursor = handle ? HANDLE_CURSOR[handle] : 'default';
+    } else {
+      canvas.style.cursor = 'default';
+    }
+    return;
+  }
+
   dragCurrent = pos;
   if (Math.abs(pos.x - dragStart!.x) > 3 || Math.abs(pos.y - dragStart!.y) > 3) {
     dragMoved = true;
@@ -298,6 +382,18 @@ canvas.addEventListener('mousemove', (e) => {
 canvas.addEventListener('mouseup', (e) => {
   if (!isDragging) return;
   const pos = getCanvasPos(e);
+
+  // 结束缩放
+  if (resizeHandle) {
+    resizeHandle = null;
+    resizeStartWall = null;
+    isDragging = false;
+    dragStart = null;
+    dragCurrent = null;
+    dragMoved = false;
+    render();
+    return;
+  }
 
   if (currentTool === 'wall' && dragMoved && dragStart) {
     createWall(dragStart.x, dragStart.y, pos.x, pos.y);
@@ -371,6 +467,70 @@ function moveSelection(px: number, py: number): void {
   } else if (selection?.kind === 'spawn') {
     lvl.player_spawn = { x: round4(n.x), y: round4(n.y) };
   }
+  updateSelProps();
+  render();
+}
+
+// 墙体缩放：边手柄单方向拉伸，角手柄等比例缩放
+function resizeWall(mx: number, my: number): void {
+  if (!resizeHandle || !resizeStartWall) return;
+  const MIN_SIZE = 6;  // 最小边长（像素），防止缩成负值
+
+  // 基于原始墙体快照计算四条边的画布像素坐标
+  const w = resizeStartWall;
+  const c = normToPixel(w.x, w.y);
+  const hw = (w.w * WORLD_W) / 2;
+  const hh = (w.h * WORLD_H) / 2;
+  let L = c.x - hw, R = c.x + hw, T = c.y - hh, B = c.y + hh;
+
+  const h = resizeHandle;
+
+  if (h === 'n' || h === 's') {
+    // 上下边：只改 y，对边固定
+    if (h === 'n') T = Math.min(my, B - MIN_SIZE);
+    else           B = Math.max(my, T + MIN_SIZE);
+  } else if (h === 'e' || h === 'w') {
+    // 左右边：只改 x，对边固定
+    if (h === 'e') R = Math.max(mx, L + MIN_SIZE);
+    else           L = Math.min(mx, R - MIN_SIZE);
+  } else {
+    // 四个角：等比例缩放，对角固定
+    let fixedX: number, fixedY: number;
+    if (h === 'nw')      { fixedX = R; fixedY = B; }
+    else if (h === 'ne') { fixedX = L; fixedY = B; }
+    else if (h === 'sw') { fixedX = R; fixedY = T; }
+    else                 { fixedX = L; fixedY = T; }  // 'se'
+
+    const origW = R - L;
+    const origH = B - T;
+    const desiredW = Math.abs(mx - fixedX);
+    const desiredH = Math.abs(my - fixedY);
+    // 取两个方向缩放比例的较小值，保证等比且不超出鼠标范围
+    let scale = Math.min(desiredW / origW, desiredH / origH);
+    const minScale = MIN_SIZE / Math.min(origW, origH);
+    scale = Math.max(scale, minScale);
+
+    const newW = origW * scale;
+    const newH = origH * scale;
+
+    if (h === 'nw')      { L = fixedX - newW; T = fixedY - newH; R = fixedX; B = fixedY; }
+    else if (h === 'ne') { R = fixedX + newW; T = fixedY - newH; L = fixedX; B = fixedY; }
+    else if (h === 'sw') { L = fixedX - newW; B = fixedY + newH; R = fixedX; T = fixedY; }
+    else                 { R = fixedX + newW; B = fixedY + newH; L = fixedX; T = fixedY; }
+  }
+
+  // 转回中心 + 尺寸（归一化）
+  const newCx = (L + R) / 2;
+  const newCy = (T + B) / 2;
+  const newW = R - L;
+  const newH = B - T;
+  const n = pixelToNorm(newCx, newCy);
+
+  const target = curLevel().walls[(selection as { kind: 'wall'; index: number }).index];
+  target.x = round4(n.x);
+  target.y = round4(n.y);
+  target.w = round4(newW / WORLD_W);
+  target.h = round4(newH / WORLD_H);
   updateSelProps();
   render();
 }

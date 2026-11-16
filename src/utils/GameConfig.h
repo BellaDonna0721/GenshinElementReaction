@@ -7,7 +7,6 @@
 namespace GameConfig {
     constexpr float WORLD_W      = 1000.0f;  // 世界宽度（画布宽，原点在左下角）
     constexpr float WORLD_H      = 700.0f;   // 世界高度（画布高）
-    constexpr float WORLD_MARGIN = 20.0f;    // 边界安全余量（玩家/敌人钳制、子弹出界判定）
 
     // 归一化坐标（0~1）→ 世界像素坐标
     inline float to_world_x(float nx) { return nx * WORLD_W; }
