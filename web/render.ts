@@ -73,7 +73,9 @@ export class Renderer {
     this.playerSprite.src = 'assets/paimon.png';
   }
 
-  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumber[], walls: WallRenderInfo[], hitFx: HitFx[], playerHpRatio: number, dt: number): void {
+  draw(commands: RenderCommand[], healthBars: HealthBarInfo[], damageNumbers: DamageNumber[], walls: WallRenderInfo[], hitFx: HitFx[], playerHpRatio: number, dt: number,
+       bossPath?: Array<{ x: number; y: number }>,
+       costmap?: Float32Array | null): void {
     const ctx = this.ctx;
 
     // 背景
@@ -92,6 +94,11 @@ export class Renderer {
       ctx.beginPath();
       ctx.moveTo(0, y); ctx.lineTo(this.width, y);
       ctx.stroke();
+    }
+
+    // Costmap 热力图（调试用，很淡的半透明色块叠在网格上）
+    if (costmap && costmap.length > 0) {
+      this.drawCostmap(ctx, costmap);
     }
 
     // 墙体（在实体之下绘制，作为场景障碍物）
@@ -130,6 +137,11 @@ export class Renderer {
 
     // 玩家血条（HUD，左下角）
     this.drawPlayerHpBar(ctx, playerHpRatio);
+
+    // Boss A* 规划路径（调试可视化，黄色虚线 +  waypoint 圆点）
+    if (bossPath && bossPath.length >= 2) {
+      this.drawBossPath(ctx, bossPath);
+    }
 
     this.drawUI(ctx);
   }
@@ -826,5 +838,60 @@ export class Renderer {
       ctx.fillStyle = color;
       ctx.fillText(name, panelX + 68, centerY);
     }
+  }
+
+  // ===== Costmap 热力图 =====
+  // 每格 25px，代价 0→4+ 映射成透明红色色块叠在网格上
+  private drawCostmap(ctx: CanvasRenderingContext2D, costmap: Float32Array): void {
+    const cellSize = 25;
+    const W = 40;
+    const maxCost = 4.0;  // COSTMAP_CLOSE = 4.0
+
+    for (let cy = 0; cy < 28; cy++) {
+      for (let cx = 0; cx < W; cx++) {
+        const idx = cy * W + cx;
+        const v = costmap[idx];
+        if (v < 0) continue;  // 墙，由 drawWalls 画
+        if (v <= 0.01) continue;  // 无代价，不画
+
+        // 代价 → alpha：离墙越近越红
+        const t = Math.min(1, v / maxCost);
+        const alpha = t * 0.35;  // 最大 35% 透明红
+        ctx.fillStyle = `rgba(255, 80, 80, ${alpha.toFixed(3)})`;
+        ctx.fillRect(cx * cellSize, cy * cellSize, cellSize, cellSize);
+      }
+    }
+  }
+
+  // ===== Boss A* 路径调试可视化 =====
+  // 黄色虚线连接 waypoint + waypoint 圆点 + 终点高亮
+  private drawBossPath(ctx: CanvasRenderingContext2D, path: Array<{ x: number; y: number }>): void {
+    ctx.save();
+
+    // 路径线：黄色虚线
+    ctx.strokeStyle = '#ffeb3b';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(path[0].x, path[0].y);
+    for (let i = 1; i < path.length; i++) {
+      ctx.lineTo(path[i].x, path[i].y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // waypoint 圆点（跳过起点，只画中间点和终点）
+    for (let i = 1; i < path.length; i++) {
+      const p = path[i];
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
+      ctx.fillStyle = i === path.length - 1 ? '#4ade80' : '#ffeb3b';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.7)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 }

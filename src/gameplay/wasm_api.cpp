@@ -20,6 +20,9 @@
 #include "../components/singletonComponents/GameState.h"
 #include "../components/Health.h"
 #include "../components/IdentityTag.h"
+#include "../components/EnemyAI.h"
+#include "../systems/PathfinderSystem.h"
+#include "../components/Transform.h"
 #include "../utils/GameConfig.h"
 #include <vector>
 
@@ -296,6 +299,69 @@ int wasm_get_active_buff(int idx) {
     if (!gs || idx < 0 || idx >= static_cast<int>(gs->active_buffs.size())) return -1;
     return static_cast<int>(gs->active_buffs[idx]);
 }
+
+// ========== Boss 路径调试导出 ==========
+
+// 世界坐标路径缓存（每帧更新，TS 侧读取当前 A* 规划路径做可视化）
+// 2 个 float = {x, y}，最后追加当前 waypoint 索引
+static std::vector<float> g_boss_path_cache;
+
+EMSCRIPTEN_KEEPALIVE
+float* wasm_get_boss_path_data() {
+    if (!g_world) return nullptr;
+    g_boss_path_cache.clear();
+
+    // 遍历找第一个 Boss（带 StateMachineAI + Chase 态有有效路径）
+    for (auto e : g_world->query<Transform, StateMachineAI>()) {
+        auto* sm = g_world->get_component<StateMachineAI>(e);
+        auto* t  = g_world->get_component<Transform>(e);
+        if (!sm || !t) continue;
+        if (sm->path.empty()) continue;
+
+        // Boss 自身坐标作为路径起点
+        g_boss_path_cache.push_back(t->x);
+        g_boss_path_cache.push_back(t->y);
+
+        // cell 坐标路径 → 世界坐标
+        for (const auto& [cx, cy] : sm->path) {
+            float wx = cx * GameConfig::PATH_CELL_SIZE + GameConfig::PATH_CELL_SIZE * 0.5f;
+            float wy = cy * GameConfig::PATH_CELL_SIZE + GameConfig::PATH_CELL_SIZE * 0.5f;
+            g_boss_path_cache.push_back(wx);
+            g_boss_path_cache.push_back(wy);
+        }
+        break;  // 只取第一个 Boss
+    }
+    return g_boss_path_cache.data();
+}
+
+EMSCRIPTEN_KEEPALIVE
+int wasm_get_boss_path_count() {
+    // 注意：必须先调 wasm_get_boss_path_data() 填充缓存
+    // 这里返回的是点数量（float 数 / 2）
+    return static_cast<int>(g_boss_path_cache.size()) / 2;
+}
+
+// ========== Costmap 热力图导出（调试用，每格一个 float 代价）==========
+
+static std::vector<float> g_costmap_cache;
+
+EMSCRIPTEN_KEEPALIVE
+float* wasm_get_costmap_data() {
+    g_costmap_cache.clear();
+    g_costmap_cache.reserve(GameConfig::PATH_GRID_W * GameConfig::PATH_GRID_H);
+    for (int cy = 0; cy < GameConfig::PATH_GRID_H; cy++) {
+        for (int cx = 0; cx < GameConfig::PATH_GRID_W; cx++) {
+            float v = PathfinderSystem::costmap[cy][cx];
+            // 截断：无代价显示为 0，墙显示为 -1
+            if (!PathfinderSystem::grid[cy][cx]) v = -1.0f;
+            else if (v >= 1e8f) v = -1.0f;
+            g_costmap_cache.push_back(v);
+        }
+    }
+    return g_costmap_cache.data();
+}
+
+// ========== 重置 ==========
 
 EMSCRIPTEN_KEEPALIVE
 void wasm_reset() {

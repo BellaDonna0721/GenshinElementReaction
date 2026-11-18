@@ -142,17 +142,33 @@ void CollisionSystem::update(World& world, float dt) {
             if (circle_rect_collide(t->x, t->y, col->radius,
                                     wt->x, wt->y, rc->width * 0.5f, rc->height * 0.5f,
                                     px, py)) {
-                // 巡逻小怪撞墙：记录推开方向，供 AI 下一帧反向避让
+                // 敌人撞墙：记录推开方向，供 AI 下一帧反向避让
+                // StateMachineAI（Boss）和 RandomPatrolAI（小怪）都写
                 if (id->identity_type == Identity::Enemy) {
                     auto* rp = world.get_component<RandomPatrolAI>(e);
-                    if (rp) {
-                        rp->blocked = true;
-                        rp->block_push_x += px;
-                        rp->block_push_y += py;
-                    }
+                    auto* sm = world.get_component<StateMachineAI>(e);
+                    if (rp) { rp->blocked = true; rp->block_push_x += px; rp->block_push_y += py; }
+                    if (sm) { sm->blocked = true; sm->block_push_x += px; sm->block_push_y += py; }
                 }
+
                 t->x += px;
                 t->y += py;
+
+                // === 沿墙滑动：去掉 velocity 的墙法向分量，保留切向 ===
+                // push 向量方向为"墙→实体外"，dot(v, n̂) < 0 表示 velocity 朝墙撞
+                auto* v = world.get_component<Velocity>(e);
+                if (v) {
+                    float plen = std::sqrt(px * px + py * py);
+                    if (plen > 0.001f) {
+                        float nx = px / plen;
+                        float ny = py / plen;
+                        float dot = v->vx * nx + v->vy * ny;
+                        if (dot < 0.0f) {  // dot<0：velocity 朝墙方向撞过来
+                            v->vx -= dot * nx;
+                            v->vy -= dot * ny;
+                        }
+                    }
+                }
             }
         }
     }
@@ -166,31 +182,41 @@ void CollisionSystem::update(World& world, float dt) {
         auto* t  = world.get_component<Transform>(en);
         auto* col = world.get_component<SphereCollider>(en);
         auto* rp = world.get_component<RandomPatrolAI>(en);
+        auto* sm = world.get_component<StateMachineAI>(en);
         auto* v  = world.get_component<Velocity>(en);
-        if (!t || !col || !rp || !v) continue;
+        if (!t || !col || !v) continue;
+        if (!rp && !sm) continue;  // 只有 Boss 或小怪才处理撞墙避让
 
         float pr = col->radius;
         float eps = 0.1f;
 
+        // === 沿边界滑动：贴边时去掉朝边界方向的 velocity 分量，保留切向 ===
+        // 边界 push 向量方向为"边界→实体内"（远离边界），dot(v, n̂) < 0 表示朝边界撞
+        auto mark_blocked_and_slide = [&](float nx, float ny) {
+            if (rp) { rp->blocked = true; rp->block_push_x += nx; rp->block_push_y += ny; }
+            if (sm) { sm->blocked = true; sm->block_push_x += nx; sm->block_push_y += ny; }
+            float dot = v->vx * nx + v->vy * ny;
+            if (dot < 0.0f) {
+                v->vx -= dot * nx;
+                v->vy -= dot * ny;
+            }
+        };
+
         // 贴左边界且还在往左走
         if (t->x <= pr + eps && v->vx < 0) {
-            rp->blocked = true;
-            rp->block_push_x += 1.0f;   // 方向（右推），归一化在 AI 里做
+            mark_blocked_and_slide(1.0f, 0.0f);
         }
         // 贴右边界且还在往右走
         if (t->x >= GameConfig::WORLD_W - pr - eps && v->vx > 0) {
-            rp->blocked = true;
-            rp->block_push_x -= 1.0f;
+            mark_blocked_and_slide(-1.0f, 0.0f);
         }
         // 贴上边界且还在往上走（y 减小方向）
         if (t->y <= pr + eps && v->vy < 0) {
-            rp->blocked = true;
-            rp->block_push_y += 1.0f;
+            mark_blocked_and_slide(0.0f, 1.0f);
         }
         // 贴下边界且还在往下走
         if (t->y >= GameConfig::WORLD_H - pr - eps && v->vy > 0) {
-            rp->blocked = true;
-            rp->block_push_y -= 1.0f;
+            mark_blocked_and_slide(0.0f, -1.0f);
         }
     }
 
@@ -225,11 +251,15 @@ void CollisionSystem::update(World& world, float dt) {
             t2->x -= ux * half;
             t2->y -= uy * half;
 
-            // 记录阻挡标记，供巡逻 AI 反向避让
+            // 记录阻挡标记，供 AI 反向避让（Boss 和小怪都写）
             auto* rp1 = world.get_component<RandomPatrolAI>(enemies[i]);
+            auto* sm1 = world.get_component<StateMachineAI>(enemies[i]);
             if (rp1) { rp1->blocked = true; rp1->block_push_x += ux; rp1->block_push_y += uy; }
+            if (sm1) { sm1->blocked = true; sm1->block_push_x += ux; sm1->block_push_y += uy; }
             auto* rp2 = world.get_component<RandomPatrolAI>(enemies[j]);
+            auto* sm2 = world.get_component<StateMachineAI>(enemies[j]);
             if (rp2) { rp2->blocked = true; rp2->block_push_x -= ux; rp2->block_push_y -= uy; }
+            if (sm2) { sm2->blocked = true; sm2->block_push_x -= ux; sm2->block_push_y -= uy; }
         }
     }
 

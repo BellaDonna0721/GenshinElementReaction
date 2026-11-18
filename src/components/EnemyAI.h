@@ -1,12 +1,14 @@
 #pragma once
 #include <cstdint>
+#include <vector>
+#include <utility>
 
 // =====================================================================
 //  敌人 AI 组件集（组件组合区分行为类型，而非继承）
 //
 //  EnemyAI        —— 公共 AI 数据（所有敌人共享：速度/攻击/得分等）
-//  StateMachineAI —— 状态机行为数据（巡逻/警戒/战斗/逃跑 四态）
-//  RandomPatrolAI —— 随机巡逻行为数据（无目的漫游，不主动追击）
+//  StateMachineAI —— 状态机行为数据（巡逻/追击/逃跑，Boss 用）
+//  RandomPatrolAI —— 随机巡逻行为数据（无目的漫游，普通小怪用）
 //
 //  设计原则：组件组合优于继承。新增 AI 类型 = 新组件 + EnemyAISystem 新 update 函数，
 //  现有代码零改动（开闭原则）。
@@ -14,8 +16,8 @@
 
 // AI 行为类型（用于 EnemyPreset 配置选择挂载哪个行为组件）
 enum class AIType : uint8_t {
-    StateMachine = 0,  // 四态状态机（默认）
-    RandomPatrol = 1,  // 随机巡逻
+    StateMachine = 0,  // 三态状态机（巡逻/追击/逃跑）
+    RandomPatrol = 1,  // 随机巡逻（不追击玩家）
 };
 
 // =====================================================================
@@ -37,13 +39,14 @@ struct EnemyAI {
 };
 
 // =====================================================================
-//  StateMachineAI —— 状态机行为数据
-//  状态转换与行为执行逻辑由 EnemyAISystem::update_state_machine 处理。
+//  StateMachineAI —— 状态机行为数据（Boss 用）
+//  状态：Patrol / Chase / Flee（Alert 枚举保留兼容，不再切换）
+//  Chase 态依赖 PathfinderSystem::find_path 计算绕墙路线
 // =====================================================================
 enum class AIState : uint8_t {
     Patrol = 0,  // 巡逻：在出生点附近随机游走
-    Alert  = 1,  // 警戒：玩家进入警戒范围，停止移动并面向玩家
-    Combat = 2,  // 战斗：玩家进入攻击范围，追击并造成接触伤害
+    Alert  = 1,  // [保留兼容，不再使用]
+    Chase  = 2,  // 追击：A* 路径追玩家，遇墙自动绕路
     Flee   = 3,  // 逃跑：血量低于阈值，朝玩家反方向逃离
 };
 
@@ -55,6 +58,20 @@ struct StateMachineAI {
     float   patrol_radius   = 100.0f;            // 巡逻半径
     float   target_x        = 0.0f;              // 当前巡逻目标点 X
     float   target_y        = 0.0f;              // 当前巡逻目标点 Y
+
+    // === A* 路径缓存（Chase 态消费） ===
+    std::vector<std::pair<short, short>> path;     // cell 坐标路径（不含起点）
+    int   path_index      = 0;                      // 当前走到第几个 waypoint
+    float repath_timer    = 0.0f;                   // 重算冷却（最低 0.5s 间隔）
+    short last_target_cx  = -1;                     // 上次目标（玩家）所在 cell x
+    short last_target_cy  = -1;
+    short last_self_cx    = -1;                     // Boss 上次所在 cell（防止被推挤后路径错位）
+    short last_self_cy    = -1;
+
+    // === 撞墙避让（与 RandomPatrolAI 同口径） ===
+    bool  blocked      = false;  // 上一帧被障碍阻挡（CollisionSystem 写入）
+    float block_push_x = 0.0f;   // 推开方向（障碍→自身，未归一化，多障碍累加）
+    float block_push_y = 0.0f;
 };
 
 // =====================================================================

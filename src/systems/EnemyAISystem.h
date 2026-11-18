@@ -6,8 +6,10 @@
 //  EnemyAISystem —— 敌人 AI 系统
 //
 //  职责：根据挂载的行为组件分派不同 AI 逻辑
-//    · update_state_machine —— 四态状态机（巡逻/警戒/战斗/逃跑）
-//    · update_random_patrol —— 随机巡逻（无目的漫游，不主动追击）
+//    · update_state_machine —— 三态状态机（巡逻/追击/逃跑，Boss 专用）
+//    · update_random_patrol —— 随机巡逻（无目的漫游，不主动追击，普通小怪）
+//
+//  Boss 追击依赖 PathfinderSystem::find_path 计算绕墙最短路径
 //
 //  新增 AI 类型：新建行为组件 + 新增 update_xxx 函数，现有代码零改动。
 //

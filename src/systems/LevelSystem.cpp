@@ -10,6 +10,7 @@
 #include "../gameplay/EnemyManager.h"
 #include "../gameplay/LevelLoader.h"
 #include "../gameplay/BuffRegistry.h"
+#include "PathfinderSystem.h"
 #include <algorithm>
 #include <cstdlib>
 
@@ -121,6 +122,10 @@ void LevelSystem::load_level(World& world, int level_number, bool reset_hp) {
         gs->level_cleared = false;
         gs->buff_choices.clear();
     }
+
+    // === 构建路径网格 ===
+    // 关卡墙矩形 → PathfinderSystem 内部 grid，Boss Chase 态 A* 依赖
+    PathfinderSystem::build_grid(cfg.walls);
 }
 
 void LevelSystem::start_wave(World& world) {

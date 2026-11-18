@@ -21,6 +21,9 @@ interface GameModule {
   _wasm_get_wall_count: () => number;
   _wasm_get_hit_fx_data: () => number;
   _wasm_get_hit_fx_count: () => number;
+  _wasm_get_boss_path_data: () => number;
+  _wasm_get_boss_path_count: () => number;
+  _wasm_get_costmap_data: () => number;
   _wasm_spawn_enemy: (preset_id: number, x: number, y: number) => number;
   _wasm_remove_enemy: (entity_id: number) => void;
   _wasm_clear_enemies: () => void;
@@ -319,6 +322,32 @@ function readHitFx(): HitFx[] {
   return result;
 }
 
+// 读取 Boss A* 路径调试数据（世界坐标点序列）
+function readBossPath(): Array<{ x: number; y: number }> {
+  const ptr = wasmModule._wasm_get_boss_path_data();  // 先填充缓存
+  const count = wasmModule._wasm_get_boss_path_count();
+  if (count <= 0) return [];
+
+  const f32 = new Float32Array(wasmModule.HEAPF32.buffer);
+  const base = ptr >> 2;  // float 索引 = byte ptr / 4
+  const result: Array<{ x: number; y: number }> = [];
+  for (let i = 0; i < count; i++) {
+    result.push({ x: f32[base + i * 2], y: f32[base + i * 2 + 1] });
+  }
+  return result;
+}
+
+// 读取 Costmap 热力图数据（每格一个 float，-1=墙，0=无代价，越大越近墙）
+const PATH_GRID_W = 40;
+const PATH_GRID_H = 28;
+function readCostmap(): Float32Array | null {
+  const ptr = wasmModule._wasm_get_costmap_data();
+  const total = PATH_GRID_W * PATH_GRID_H;
+  if (ptr === 0 || total <= 0) return null;
+  const f32 = new Float32Array(wasmModule.HEAPF32.buffer, ptr, total);
+  return f32;
+}
+
 function gameLoop(timestamp: number): void {
   if (!running) return;
   if (currentScene !== 'training' && currentScene !== 'playing') return;
@@ -332,7 +361,11 @@ function gameLoop(timestamp: number): void {
   // 获取玩家血量比例（0~100）
   const playerHpRatio = wasmModule._wasm_get_player_hp_ratio() / 100;
 
-  renderer.draw(readRenderCommands(), readHealthBars(), readDamageNumbers(), readWalls(), readHitFx(), playerHpRatio, dt);
+  renderer.draw(
+    readRenderCommands(), readHealthBars(), readDamageNumbers(),
+    readWalls(), readHitFx(), playerHpRatio, dt,
+    readBossPath(), readCostmap(),
+  );
 
   // 关卡模式：检查游戏阶段
   if (currentScene === 'playing') {
