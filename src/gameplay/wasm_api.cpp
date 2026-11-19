@@ -311,6 +311,9 @@ float* wasm_get_boss_path_data() {
     if (!g_world) return nullptr;
     g_boss_path_cache.clear();
 
+    // 调试开关关闭时不导出路径数据（前端据此不画黄线）
+    if constexpr (!GameConfig::DEBUG_PATH_VIS) return g_boss_path_cache.data();
+
     // 遍历找第一个 Boss（带 StateMachineAI + Chase 态有有效路径）
     for (auto e : g_world->query<Transform, StateMachineAI>()) {
         auto* sm = g_world->get_component<StateMachineAI>(e);
@@ -341,24 +344,22 @@ int wasm_get_boss_path_count() {
     return static_cast<int>(g_boss_path_cache.size()) / 2;
 }
 
-// ========== Costmap 热力图导出（调试用，每格一个 float 代价）==========
+// ========== Path grid 导出（调试用，墙=-1，可通行=0）==========
 
-static std::vector<float> g_costmap_cache;
+static std::vector<float> g_grid_cache;
 
 EMSCRIPTEN_KEEPALIVE
 float* wasm_get_costmap_data() {
-    g_costmap_cache.clear();
-    g_costmap_cache.reserve(GameConfig::PATH_GRID_W * GameConfig::PATH_GRID_H);
+    if constexpr (!GameConfig::DEBUG_PATH_VIS) return nullptr;
+    g_grid_cache.clear();
+    g_grid_cache.reserve(GameConfig::PATH_GRID_W * GameConfig::PATH_GRID_H);
     for (int cy = 0; cy < GameConfig::PATH_GRID_H; cy++) {
         for (int cx = 0; cx < GameConfig::PATH_GRID_W; cx++) {
-            float v = PathfinderSystem::costmap[cy][cx];
-            // 截断：无代价显示为 0，墙显示为 -1
-            if (!PathfinderSystem::grid[cy][cx]) v = -1.0f;
-            else if (v >= 1e8f) v = -1.0f;
-            g_costmap_cache.push_back(v);
+            float v = PathfinderSystem::grid[cy][cx] ? 0.0f : -1.0f;
+            g_grid_cache.push_back(v);
         }
     }
-    return g_costmap_cache.data();
+    return g_grid_cache.data();
 }
 
 // ========== 重置 ==========

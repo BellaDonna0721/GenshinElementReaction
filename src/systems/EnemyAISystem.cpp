@@ -11,6 +11,54 @@
 #include <cmath>
 #include <cstdlib>
 
+namespace {
+
+// ===== Chase 路径跟随参数 =====
+constexpr float PATH_REPATH_CD   = 0.25f;  // 重算最小间隔（秒），节流避免贴墙每帧抖动
+constexpr float PATH_STUCK_TIME  = 0.4f;   // 持续被挡多久后开始判定卡死
+constexpr float PATH_STUCK_DIST  = 30.0f;  // 卡死窗口内净位移小于此值才算真卡死（px）
+constexpr float PATH_ESCAPE_TIME = 0.6f;   // 脱困态锁定方向的持续时长（秒）
+constexpr float PATH_LOOKAHEAD   = 80.0f;  // 前瞻距离：选该距离内最远的可达航点
+constexpr float PATH_ARRIVE_R    = 18.0f;  // 航点到达半径
+constexpr float PATH_TURN_RATE   = 8.0f;   // 转向平滑速率（/秒，指数插值）
+constexpr float PATH_PUSH_BASE   = 1.2f;   // 正常贴墙时推开方向揉入转向的权重（轻量滑动）
+
+// 从 io_index 开始推进已到达航点，并在 lookahead 内选最远的、从当前位置可达的航点。
+// 可达判定用 segment_walkable（世界坐标采样），即使 Boss 本体压在膨胀格上也能正确取点。
+// 返回 false 表示路径已走完（调用方应直奔玩家）。io_index 会被推进到首个未到达航点。
+bool pick_steer_target(const StateMachineAI& sm, float self_x, float self_y,
+                       int& io_index, float& out_x, float& out_y) {
+    const auto& path = sm.path;
+    const int n = static_cast<int>(path.size());
+    int idx = io_index;
+
+    // 推进已到达航点
+    while (idx < n) {
+        float wx = PathfinderSystem::cell_center(path[idx].first);
+        float wy = PathfinderSystem::cell_center(path[idx].second);
+        float dx = wx - self_x, dy = wy - self_y;
+        if (dx * dx + dy * dy < PATH_ARRIVE_R * PATH_ARRIVE_R) idx++;
+        else break;
+    }
+    io_index = idx;
+    if (idx >= n) return false;
+
+    // 前瞻：在 lookahead 距离内，取沿途最远的可达航点（线段可走即安全，不会穿墙取点）
+    int target = idx;
+    for (int i = idx; i < n; i++) {
+        float wx = PathfinderSystem::cell_center(path[i].first);
+        float wy = PathfinderSystem::cell_center(path[i].second);
+        float dx = wx - self_x, dy = wy - self_y;
+        if (dx * dx + dy * dy > PATH_LOOKAHEAD * PATH_LOOKAHEAD) continue;
+        if (PathfinderSystem::segment_walkable(self_x, self_y, wx, wy, true)) target = i;
+    }
+    out_x = PathfinderSystem::cell_center(path[target].first);
+    out_y = PathfinderSystem::cell_center(path[target].second);
+    return true;
+}
+
+}  // namespace
+
 // =====================================================================
 //  入口：查找玩家，分派到各行为 update 函数
 // =====================================================================
@@ -104,6 +152,10 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
                     // 发现玩家 → 直接切 Chase（不经过 Alert）
                     sm->state = AIState::Chase;
                     sm->repath_timer = 0.0f;  // 立即触发首次路径计算
+                    sm->heading_x = dir_x;    // 航向先对齐玩家，避免从巡逻方向缓慢转过来
+                    sm->heading_y = dir_y;
+                    sm->escape_timer = 0.0f;  // 清理上一次追击的脱困/卡死残留
+                    sm->stuck_timer  = 0.0f;
                 } else {
                     // === 撞墙避让（与 RandomPatrolAI 同口径） ===
                     // Patrol 态自身没路径规划，撞墙时改目标到推开方向，远离墙再随机选点
@@ -164,60 +216,140 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
                     break;
                 }
 
-                // === A* 路径重算 ===
-                sm->repath_timer -= dt;
-                int self_cx = PathfinderSystem::world_to_cell(t->x);
-                int self_cy = PathfinderSystem::world_to_cell(t->y);
-                int tgt_cx  = PathfinderSystem::world_to_cell(pt->x);
-                int tgt_cy  = PathfinderSystem::world_to_cell(pt->y);
-
-                bool need_repath = blocked_consumed ||              // 撞墙了
-                                   sm->repath_timer <= 0.0f ||    // 冷却归零兜底
-                                   tgt_cx != sm->last_target_cx || // 玩家换 cell
-                                   tgt_cy != sm->last_target_cy ||
-                                   self_cx != sm->last_self_cx ||  // Boss 自身换 cell（可能被推开）
-                                   self_cy != sm->last_self_cy ||
-                                   sm->path.empty() ||             // 没路径
-                                   sm->path_index >= static_cast<int>(sm->path.size()); // 路径走完了
-
-                if (need_repath) {
-                    sm->repath_timer = 0.3f;  // 重算冷却，沿墙滑动时响应更快
-                    sm->last_target_cx = static_cast<short>(tgt_cx);
-                    sm->last_target_cy = static_cast<short>(tgt_cy);
-                    sm->last_self_cx   = static_cast<short>(self_cx);
-                    sm->last_self_cy   = static_cast<short>(self_cy);
-                    sm->path.clear();
-                    sm->path_index = 0;
-
-                    if (!PathfinderSystem::find_path(t->x, t->y, pt->x, pt->y, sm->path)) {
-                        // 找不到路径（起点或终点完全被墙封死），直接朝玩家直走兜底
-                        sm->path.clear();
-                    }
+                // === 脱困态优先：卡死时锁定一个方向持续位移，必须先于正常寻路早退 ===
+                // 教训：只把瞬时推开方向揉进转向，方向会每帧来回翻 → 原地左右晃；
+                //       必须进入独立脱困态、锁定方向直到脱离，才不会反复犹豫。
+                if (sm->escape_timer > 0.0f) {
+                    sm->escape_timer -= dt;
+                    v->vx = sm->escape_x;
+                    v->vy = sm->escape_y;
+                    sm->heading_x = sm->escape_x;  // 同步航向，脱困结束后平滑衔接
+                    sm->heading_y = sm->escape_y;
+                    sm->stuck_timer = 0.0f;
+                    break;
                 }
 
-                // === 沿路径走 ===
-                if (!sm->path.empty() && sm->path_index < static_cast<int>(sm->path.size())) {
-                    auto [wcx, wcy] = sm->path[sm->path_index];
-                    float wx = wcx * GameConfig::PATH_CELL_SIZE + GameConfig::PATH_CELL_SIZE * 0.5f;
-                    float wy = wcy * GameConfig::PATH_CELL_SIZE + GameConfig::PATH_CELL_SIZE * 0.5f;
-                    float wdx = wx - t->x;
-                    float wdy = wy - t->y;
-                    float wdist = std::sqrt(wdx * wdx + wdy * wdy);
-
-                    // 到达阈值 12px：给 Boss 足够提前量转向，避免边角处刚到就切下一个导致抖动
-                    if (wdist < 12.0f) {
-                        // 到达当前 waypoint，切下一个
-                        sm->path_index++;
-                    } else {
-                        // 朝 waypoint 方向移动
-                        float inv_wd = 1.0f / wdist;
-                        v->vx = wdx * inv_wd;
-                        v->vy = wdy * inv_wd;
+                // === 窗口式卡死检测 ===
+                // 持续被挡 且 STUCK_TIME 内净位移 < STUCK_DIST 才算真卡死。
+                // 用窗口净位移而非单帧位移：左右晃动时单帧都在动，但净位移≈0，能正确识别。
+                if (blocked_consumed) {
+                    if (sm->stuck_timer <= 0.0f) {  // 刚进入被挡，记录窗口起点
+                        sm->stuck_origin_x = t->x;
+                        sm->stuck_origin_y = t->y;
                     }
+                    sm->stuck_timer += dt;
                 } else {
-                    // 路径走完了 / 找不到路径 → 直接朝玩家走
-                    v->vx = dir_x;
-                    v->vy = dir_y;
+                    sm->stuck_timer = 0.0f;
+                }
+                float net_dx = t->x - sm->stuck_origin_x;
+                float net_dy = t->y - sm->stuck_origin_y;
+                bool stuck = blocked_consumed &&
+                             sm->stuck_timer > PATH_STUCK_TIME &&
+                             (net_dx * net_dx + net_dy * net_dy) < PATH_STUCK_DIST * PATH_STUCK_DIST;
+
+                if (stuck) {
+                    // 锁定脱困方向：优先沿碰撞推开方向（凹角口袋中推开方向指向开阔地），
+                    // 没有推开信息时沿当前朝向走，保证一定产生位移。
+                    float plen = std::sqrt(sm->block_push_x * sm->block_push_x +
+                                           sm->block_push_y * sm->block_push_y);
+                    if (plen > 0.001f) {
+                        sm->escape_x = sm->block_push_x / plen;
+                        sm->escape_y = sm->block_push_y / plen;
+                    } else {
+                        sm->escape_x = sm->heading_x;
+                        sm->escape_y = sm->heading_y;
+                    }
+                    float el = std::sqrt(sm->escape_x * sm->escape_x + sm->escape_y * sm->escape_y);
+                    if (el > 0.001f) { sm->escape_x /= el; sm->escape_y /= el; }
+                    else             { sm->escape_x = 1.0f;  sm->escape_y = 0.0f; }
+
+                    sm->escape_timer = PATH_ESCAPE_TIME;
+                    sm->stuck_timer  = 0.0f;
+                    sm->repath_timer = 0.0f;   // 脱困结束立即重算路径
+                    sm->block_push_x = 0.0f;
+                    sm->block_push_y = 0.0f;
+                    // 本帧直接按脱困方向走（不经平滑，保证立刻位移）
+                    v->vx = sm->escape_x;
+                    v->vy = sm->escape_y;
+                    sm->heading_x = sm->escape_x;
+                    sm->heading_y = sm->escape_y;
+                    break;
+                }
+
+                // === A* 路径重算（节流到就定期重算，保证终点跟随玩家最新位置）===
+                // 触发：节流 CD 归零即重算。原逻辑需"玩家换 cell 或路径走完"才重算，
+                // 但玩家在同一 cell 内移动时路径终点卡在 cell 中心，用户看不到更新。
+                sm->repath_timer -= dt;
+                int tgt_cx = PathfinderSystem::world_to_cell(pt->x);
+                int tgt_cy = PathfinderSystem::world_to_cell(pt->y);
+
+                if (sm->repath_timer <= 0.0f) {
+                    sm->repath_timer   = PATH_REPATH_CD;
+                    sm->last_target_cx = static_cast<short>(tgt_cx);
+                    sm->last_target_cy = static_cast<short>(tgt_cy);
+
+                    sm->path.clear();
+                    sm->path_index = 0;
+                    if (PathfinderSystem::find_path(t->x, t->y, pt->x, pt->y, sm->path)) {
+                        // 保留进度：吸附到离当前位置最近的、可达的航点，
+                        // 避免重算后 path_index 归零导致 Boss 回头走已走过的路。
+                        int best = 0;
+                        float best_d2 = 1e18f;
+                        for (int i = 0; i < static_cast<int>(sm->path.size()); i++) {
+                            float wx = PathfinderSystem::cell_center(sm->path[i].first);
+                            float wy = PathfinderSystem::cell_center(sm->path[i].second);
+                            if (!PathfinderSystem::segment_walkable(t->x, t->y, wx, wy, true)) continue;
+                            float dx = wx - t->x, dy = wy - t->y;
+                            float d2 = dx * dx + dy * dy;
+                            if (d2 < best_d2) { best_d2 = d2; best = i; }
+                        }
+                        sm->path_index = best;
+                    }
+                    // 寻路失败：保持 path 为空，落到直奔玩家兜底，且受 CD 节流不再每帧死算
+                }
+
+                // === 选目标方向 ===
+                float tx, ty;
+                float desired_x, desired_y;
+                if (pick_steer_target(*sm, t->x, t->y, sm->path_index, tx, ty)) {
+                    float dx = tx - t->x, dy = ty - t->y;
+                    float d = std::sqrt(dx * dx + dy * dy);
+                    if (d > 0.001f) { desired_x = dx / d; desired_y = dy / d; }
+                    else            { desired_x = dir_x;  desired_y = dir_y; }
+                } else {
+                    desired_x = dir_x;  // 路径走完 / 无路径 → 直奔玩家
+                    desired_y = dir_y;
+                }
+
+                // === 贴墙轻量滑动：被挡时把推开方向揉进目标方向，拐角不硬切 ===
+                // （真正卡死由脱困态处理，这里只做日常沿墙滑行。）
+                if (blocked_consumed) {
+                    float plen = std::sqrt(sm->block_push_x * sm->block_push_x +
+                                           sm->block_push_y * sm->block_push_y);
+                    if (plen > 0.001f) {
+                        desired_x += (sm->block_push_x / plen) * PATH_PUSH_BASE;
+                        desired_y += (sm->block_push_y / plen) * PATH_PUSH_BASE;
+                    }
+                    sm->block_push_x = 0.0f;  // Chase 消费完清零，避免跨帧累积
+                    sm->block_push_y = 0.0f;
+                }
+                float dl = std::sqrt(desired_x * desired_x + desired_y * desired_y);
+                if (dl > 0.001f) { desired_x /= dl; desired_y /= dl; }
+
+                // === 平滑航向（帧率无关指数插值）→ 写速度 ===
+                // heading 独立存储，不读 Velocity，避免被 CollisionSystem 的投影污染。
+                float blend = 1.0f - std::exp(-PATH_TURN_RATE * dt);
+                sm->heading_x = sm->heading_x * (1.0f - blend) + desired_x * blend;
+                sm->heading_y = sm->heading_y * (1.0f - blend) + desired_y * blend;
+                float hl = std::sqrt(sm->heading_x * sm->heading_x + sm->heading_y * sm->heading_y);
+                if (hl > 0.001f) {
+                    v->vx = sm->heading_x / hl;
+                    v->vy = sm->heading_y / hl;
+                } else {
+                    v->vx = desired_x;
+                    v->vy = desired_y;
+                    sm->heading_x = desired_x;
+                    sm->heading_y = desired_y;
                 }
                 break;
             }
@@ -234,7 +366,7 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
                 v->vx = -dir_x * 1.2f;
                 v->vy = -dir_y * 1.2f;
                 // 跑远了回 Patrol
-                if (dist > ai->alert_radius * 2.5f) {
+                if (dist > ai->alert_radius * 2.0f) {
                     sm->state = AIState::Patrol;
                     sm->patrol_timer = 0.0f;
                 }
@@ -242,7 +374,6 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
             }
 
             default: {
-                // Alert 枚举保留兼容但不再切换，安全兜底回 Patrol
                 sm->state = AIState::Patrol;
                 v->vx = 0.0f;
                 v->vy = 0.0f;

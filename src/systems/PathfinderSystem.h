@@ -4,42 +4,32 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
-#include <queue>
 
 // =====================================================================
 //  PathfinderSystem —— A* 路径规划（独立于 ECS，按需调用）
 //
 //  核心设计：
-//    · 硬膨胀 = 0（不堵通道），改用 Costmap 分级代价场
-//    · 离墙越近代价越高，A* 自动绕行；通道窄时代价虽高但可通行
-//    · 对角规则：No corner cut（两侧正交都可通行才允许）
-//    · 结果自动做视线简化，消除锯齿 waypoint
+//    · 几何膨胀建网格：cell 中心到任一墙体 AABB 的距离 < PATH_AGENT_CLEARANCE
+//      即标记不可通行。等价于把墙体按 agent 半径做 Minkowski 膨胀后再栅格化，
+//      路径中心线恒有 radius 净空，直线段可贴墙且不穿模，运行时无需碰撞兜底。
+//    · 对角规则：No corner cut（两侧正交都可通行才允许）。
+//    · 路径简化：LOS 拉直共线/可直达的中间点，保留方向变化的拐角。
+//      简化在膨胀后的网格上做，拉直后的线段仍满足净空约束。
+//    · 起点/终点若落在不可通行格，取周围 8 邻域欧式最近的可通行格，
+//      避免重算时航点指到身后造成前进-回拉抖动。
 //
 //  不继承 System：不参与每帧调度，只在需要时被调用。
 // =====================================================================
 
 namespace PathfinderSystem {
 
-// === 网格 + 代价场 ===
-// grid: 可通行 true / 阻挡 false
-// costmap: 进入该 cell 的额外代价（离墙越近越高）
+// === 网格 ===
+// true = 可通行，false = 墙 / 边界
 inline std::vector<std::vector<bool>> grid;
-inline std::vector<std::vector<float>> costmap;
-
-// Costmap 参数：离墙距离 → 额外代价
-// 目的：A* 尽量远离墙走中间，通道窄时也能通过（代价高但不堵）
-static constexpr int   COSTMAP_RADIUS = 4;   // 扫描半径（cell）
-static constexpr float COSTMAP_CLOSE  = 64.0f; // 距墙 1 cell
-static constexpr float COSTMAP_NEAR   = 4.0f; // 距墙 2 cell   
-static constexpr float COSTMAP_MID    = 2.0f; // 距墙 3 cell
-static constexpr float COSTMAP_FAR    = 0.0f; // 距墙 4 cell
-// ≥ 4 cell: 0.0（无惩罚）
 
 inline void ensure_size() {
     grid.resize(GameConfig::PATH_GRID_H);
     for (auto& row : grid) row.assign(GameConfig::PATH_GRID_W, false);
-    costmap.resize(GameConfig::PATH_GRID_H);
-    for (auto& row : costmap) row.assign(GameConfig::PATH_GRID_W, 0.0f);
 }
 
 // 世界坐标 → cell 坐标
@@ -50,32 +40,77 @@ inline int world_to_cell(float v) {
     return c;
 }
 
-// 构建 grid + costmap：墙本身为 blocked，周围代价场分级衰减
-inline void build_grid(const std::vector<WallDef>& walls) {
+// cell 坐标 → 该 cell 中心的世界像素坐标（x/y 同公式）
+inline float cell_center(int c) {
+    return c * GameConfig::PATH_CELL_SIZE + GameConfig::PATH_CELL_SIZE * 0.5f;
+}
+
+// 世界坐标线段是否全程落在可通行格上（按半 cell 步长采样）。
+// allow_blocked_start=true 时，允许线段起点本身落在膨胀格（实体贴墙卡住时这是常态）——
+//   仅跳过起点附近的连续不可走采样，一旦进入可走区即要求后续全程可走。
+//   这样既能从卡住位置找到可达格，又不会选到墙对面（中间会被墙挡住）。
+inline bool segment_walkable(float x0, float y0, float x1, float y1,
+                             bool allow_blocked_start = false) {
+    const float step = GameConfig::PATH_CELL_SIZE * 0.5f;
+    float dx = x1 - x0, dy = y1 - y0;
+    float len = std::sqrt(dx * dx + dy * dy);
+    int n = std::max(1, static_cast<int>(len / step));
+    bool enforcing = !allow_blocked_start;  // 是否已进入可走区（开始严格校验）
+    for (int i = 0; i <= n; i++) {
+        float t = static_cast<float>(i) / static_cast<float>(n);
+        int cx = world_to_cell(x0 + dx * t);
+        int cy = world_to_cell(y0 + dy * t);
+        if (cy < 0 || cx < 0 || cy >= GameConfig::PATH_GRID_H || cx >= GameConfig::PATH_GRID_W) {
+            if (!enforcing) continue;
+            return false;
+        }
+        if (!grid[cy][cx]) {
+            if (!enforcing) continue;  // 仍在起点附近的不可走区，跳过
+            return false;
+        }
+        enforcing = true;
+    }
+    return enforcing;  // 全程不可走（没进入过可走区）视为失败
+}
+
+// 点到轴对齐矩形（中心 rx,ry，半宽 hw，半高 hh）的最近距离平方
+inline float point_rect_dist_sq(float px, float py, float rx, float ry, float hw, float hh) {
+    float cx = px < rx - hw ? rx - hw : (px > rx + hw ? rx + hw : px);
+    float cy = py < ry - hh ? ry - hh : (py > ry + hh ? ry + hh : py);
+    float dx = px - cx;
+    float dy = py - cy;
+    return dx * dx + dy * dy;
+}
+
+// 构建 grid：按 agent 净空做几何膨胀
+//   cell 中心到任一墙体 AABB 的距离 < clearance → 标记不可通行。
+//   这等价于把墙体按 clearance 做 Minkowski 膨胀后再栅格化，中心线恒有净空。
+inline void build_grid(const std::vector<WallDef>& walls,
+                       float clearance = GameConfig::PATH_AGENT_CLEARANCE) {
     ensure_size();
     const int W = GameConfig::PATH_GRID_W;
     const int H = GameConfig::PATH_GRID_H;
+    const float half = GameConfig::PATH_CELL_SIZE * 0.5f;
+    const float clear_sq = clearance * clearance;
 
-    // 第一步：墙覆盖 cell 标记 blocked
+    // 初始全 true（可通行）
     for (auto& row : grid) std::fill(row.begin(), row.end(), true);
-    for (const auto& wd : walls) {
-        float x0 = wd.x - wd.w / 2.0f;
-        float x1 = wd.x + wd.w / 2.0f;
-        float y0 = wd.y - wd.h / 2.0f;
-        float y1 = wd.y + wd.h / 2.0f;
 
-        int cx0 = world_to_cell(x0);
-        int cx1 = world_to_cell(x1);
-        int cy0 = world_to_cell(y0);
-        int cy1 = world_to_cell(y1);
-
-        for (int cy = cy0; cy <= cy1 && cy < H; cy++)
-            for (int cx = cx0; cx <= cx1 && cx < W; cx++)
-                if (cx >= 0 && cy >= 0)
+    // 几何膨胀：逐 cell 中心判定净空
+    for (int cy = 0; cy < H; cy++) {
+        for (int cx = 0; cx < W; cx++) {
+            float wx = cx * GameConfig::PATH_CELL_SIZE + half;
+            float wy = cy * GameConfig::PATH_CELL_SIZE + half;
+            for (const auto& wd : walls) {
+                if (point_rect_dist_sq(wx, wy, wd.x, wd.y, wd.w * 0.5f, wd.h * 0.5f) < clear_sq) {
                     grid[cy][cx] = false;
+                    break;
+                }
+            }
+        }
     }
 
-    // 边界一圈标记 false
+    // 边界一圈标记 false（MovementSystem 已按半径 clamp，这里保证中心线不贴边）
     for (int cx = 0; cx < W; cx++) {
         grid[0][cx] = false;
         grid[H - 1][cx] = false;
@@ -84,50 +119,37 @@ inline void build_grid(const std::vector<WallDef>& walls) {
         grid[cy][0] = false;
         grid[cy][W - 1] = false;
     }
-
-    // 第二步：BFS 计算每个 cell 到最近墙的曼哈顿距离，映射成分级代价
-    // 多源 BFS：从所有墙 cell 同时出发，一次 O(W*H) 算出所有距离
-    std::vector<std::vector<int>> dist(H, std::vector<int>(W, COSTMAP_RADIUS + 1));
-    std::queue<std::pair<int,int>> q;
-    for (int cy = 0; cy < H; cy++) {
-        for (int cx = 0; cx < W; cx++) {
-            if (!grid[cy][cx]) { dist[cy][cx] = 0; q.push({cx, cy}); }
-        }
-    }
-
-    // 4 方向 BFS（正交），算的是曼哈顿距离
-    const int bdx[4] = {0, 1, 0, -1};
-    const int bdy[4] = {-1, 0, 1, 0};
-    while (!q.empty()) {
-        auto [cx, cy] = q.front(); q.pop();
-        int cd = dist[cy][cx];
-        if (cd >= COSTMAP_RADIUS) continue;  // 足够远了，不需要再扩散
-        for (int d = 0; d < 4; d++) {
-            int nx = cx + bdx[d], ny = cy + bdy[d];
-            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
-            if (dist[ny][nx] > cd + 1) {
-                dist[ny][nx] = cd + 1;
-                q.push({nx, ny});
-            }
-        }
-    }
-
-    // 距离 → 代价映射
-    for (int cy = 0; cy < H; cy++) {
-        for (int cx = 0; cx < W; cx++) {
-            if (!grid[cy][cx]) { costmap[cy][cx] = 1e9f; continue; }
-            int d = dist[cy][cx];
-            if      (d == 0) costmap[cy][cx] = 1e9f;  // 不应出现（grid==false 已处理）
-            else if (d == 1) costmap[cy][cx] = COSTMAP_CLOSE;
-            else if (d == 2) costmap[cy][cx] = COSTMAP_NEAR;
-            else if (d == 3) costmap[cy][cx] = COSTMAP_MID;
-            else if (d == 4) costmap[cy][cx] = COSTMAP_FAR;
-            else             costmap[cy][cx] = 0.0f;
-        }
-    }
 }
 
-// === Bresenham 视线检测（检查 walkability，不含代价） ===
+// 从世界坐标 (px,py) 出发，在 (cx,cy) 周围找最近的、可达的可通行 cell。
+// 可达 = 从 (px,py) 到该 cell 中心的线段可走（allow_blocked_start：容忍 px,py 自身在膨胀格）。
+// 关键：只按距离选最近格会选到墙对面的格，导致首航点指向墙里、实体反复撞墙卡死；
+//      加线段可达约束后起点一定是实体当前能直接走到的位置。
+inline bool find_reachable_cell(float px, float py, int& cx, int& cy, int max_radius = 8) {
+    const int W = GameConfig::PATH_GRID_W;
+    const int H = GameConfig::PATH_GRID_H;
+
+    int best_cx = -1, best_cy = -1;
+    float best_d2 = 1e18f;
+    for (int dy = -max_radius; dy <= max_radius; dy++) {
+        for (int dx = -max_radius; dx <= max_radius; dx++) {
+            int nx = cx + dx, ny = cy + dy;
+            if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+            if (!grid[ny][nx]) continue;
+            if (!segment_walkable(px, py, cell_center(nx), cell_center(ny), true)) continue;
+            float ddx = px - cell_center(nx);
+            float ddy = py - cell_center(ny);
+            float d2 = ddx * ddx + ddy * ddy;
+            if (d2 < best_d2) { best_d2 = d2; best_cx = nx; best_cy = ny; }
+        }
+    }
+    if (best_cx < 0) return false;
+    cx = best_cx;
+    cy = best_cy;
+    return true;
+}
+
+// === Bresenham 视线检测（检查 walkability）===
 inline bool has_line_of_sight(int x0, int y0, int x1, int y1) {
     int dx = std::abs(x1 - x0);
     int dy = std::abs(y1 - y0);
@@ -145,7 +167,7 @@ inline bool has_line_of_sight(int x0, int y0, int x1, int y1) {
     }
 }
 
-// === A*（Costmap 版） ===
+// === A* ===
 // 输入：起点/终点世界像素坐标，输出：cell 坐标路径（不含起点，已简化）
 inline bool find_path(float sx, float sy, float ex, float ey,
                       std::vector<std::pair<short, short>>& path_out) {
@@ -156,17 +178,10 @@ inline bool find_path(float sx, float sy, float ex, float ey,
     int ecx = world_to_cell(ex);
     int ecy = world_to_cell(ey);
 
-    // 起点 blocked：尝试相邻
-    if (!grid[scy][scx]) {
-        if (scx + 1 < GameConfig::PATH_GRID_W && grid[scy][scx + 1]) scx++;
-        else if (scy + 1 < GameConfig::PATH_GRID_H && grid[scy + 1][scx]) scy++;
-        else return false;
-    }
-    if (!grid[ecy][ecx]) {
-        if (ecx + 1 < GameConfig::PATH_GRID_W && grid[ecy][ecx + 1]) ecx++;
-        else if (ecy + 1 < GameConfig::PATH_GRID_H && grid[ecy + 1][ecx]) ecy++;
-        else return false;
-    }
+    // 起点/终点落在不可通行格（被墙/膨胀区覆盖）：取从当前位置可达的最近可通行格。
+    // 必须 LOS 可达，否则首航点会指向墙对面，实体反复撞墙卡死。
+    if (!find_reachable_cell(sx, sy, scx, scy)) return false;
+    if (!find_reachable_cell(ex, ey, ecx, ecy)) return false;
 
     if (scx == ecx && scy == ecy) return true;
 
@@ -219,9 +234,7 @@ inline bool find_path(float sx, float sy, float ex, float ey,
             int v = vy * W + vx;
             if (closed[v]) continue;
 
-            // step cost = 基础移动代价 + 进入目标 cell 的代价场惩罚
-            float step = cost[d] + costmap[vy][vx];
-            float tentative = g_u + step;
+            float tentative = g_u + cost[d];  // 纯几何代价，无 costmap
             if (tentative < g[v]) {
                 g[v] = tentative;
                 parent[v] = static_cast<short>(u);
@@ -246,7 +259,9 @@ inline bool find_path(float sx, float sy, float ex, float ey,
         path_rev.push_back({static_cast<short>(scx), static_cast<short>(scy)});
     std::reverse(path_rev.begin(), path_rev.end());
 
-    // === 路径简化：视线检测消除冗余 waypoint ===
+    // === 路径简化：视线检测 + 方向一致性 ===
+    // 规则：能直线看到 AND 方向没变 → 跳过中间点
+    // 方向变了（拐角）哪怕能看到也保留
     std::vector<std::pair<short, short>> simplified;
     simplified.push_back(path_rev[0]);
     int i = 0;
@@ -254,7 +269,9 @@ inline bool find_path(float sx, float sy, float ex, float ey,
         int j = i + 1;
         while (j + 1 < static_cast<int>(path_rev.size()) &&
                has_line_of_sight(path_rev[i].first, path_rev[i].second,
-                                 path_rev[j + 1].first, path_rev[j + 1].second)) {
+                                 path_rev[j + 1].first, path_rev[j + 1].second) &&
+               (path_rev[j].first - path_rev[i].first) * (path_rev[j + 1].second - path_rev[j].second) ==
+               (path_rev[j].second - path_rev[i].second) * (path_rev[j + 1].first - path_rev[j].first)) {
             j++;
         }
         simplified.push_back(path_rev[j]);
@@ -271,7 +288,6 @@ struct PathPoint {
     float x, y;
 };
 
-// 将 cell 坐标路径转为世界坐标 waypoint（cell 中心）
 inline std::vector<PathPoint> cell_path_to_world(const std::vector<std::pair<short, short>>& cell_path) {
     std::vector<PathPoint> result;
     result.reserve(cell_path.size());

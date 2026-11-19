@@ -102,7 +102,6 @@ inline const EnemyPreset ENEMY_TEST = {
 
 // Boss：高血量、大体型、高攻击力、高分数
 //   元素为 Electro（雷），中元素强度，体型 36px，血量 300
-//   移速稍慢但攻击范围大，适合作为关卡守关 BOSS
 inline const EnemyPreset ENEMY_BOSS = {
     ElementType::Electro,       // element：初始附着元素
     ElementStrength::Medium,    // strength：元素强度档
@@ -111,8 +110,8 @@ inline const EnemyPreset ENEMY_BOSS = {
     180, 120, 220,              // color_r/g/b：颜色（紫色）
     true,                       // can_be_frozen：是否可被冻结
     AIType::StateMachine,       // ai_type：AI 行为类型（Boss 用状态机）
-    50.0f,                      // move_speed：移动速度（像素/秒，稍慢）
-    220.0f,                     // alert_radius：警戒范围（像素）
+    100.0f,                      // move_speed：移动速度（像素/秒）
+    300.0f,                     // alert_radius：警戒范围（像素）
     50.0f,                      // attack_radius：攻击范围（像素，接触伤害）
     20.0f,                      // attack_power：每次接触伤害（高伤害）
     100,                        // score_value：击杀得分（高分）

@@ -23,9 +23,9 @@ enum class AIType : uint8_t {
 // =====================================================================
 //  EnemyAI —— 公共 AI 数据组件
 //  所有敌人共享，与具体行为无关。
-//  move_speed 被 MovementSystem 读取；攻击字段被 CollisionSystem 读取。
+//  此处为默认值，会被 SpawnPreset 覆盖。
 // =====================================================================
-struct EnemyAI {
+struct EnemyAI {    
     uint8_t enemy_type      = 0;       // 敌人类型（存 ElementType 值，血条显示用）
     float   move_speed      = 60.0f;   // 移动速度（像素/秒）
     float   alert_radius    = 180.0f;  // 警戒/探测范围（像素）
@@ -40,14 +40,13 @@ struct EnemyAI {
 
 // =====================================================================
 //  StateMachineAI —— 状态机行为数据（Boss 用）
-//  状态：Patrol / Chase / Flee（Alert 枚举保留兼容，不再切换）
+//  状态：Patrol / Chase / Flee
 //  Chase 态依赖 PathfinderSystem::find_path 计算绕墙路线
 // =====================================================================
 enum class AIState : uint8_t {
     Patrol = 0,  // 巡逻：在出生点附近随机游走
-    Alert  = 1,  // [保留兼容，不再使用]
-    Chase  = 2,  // 追击：A* 路径追玩家，遇墙自动绕路
-    Flee   = 3,  // 逃跑：血量低于阈值，朝玩家反方向逃离
+    Chase  = 1,  // 追击：A* 路径追玩家，遇墙自动绕路
+    Flee   = 2,  // 逃跑：血量低于阈值，朝玩家反方向逃离
 };
 
 struct StateMachineAI {
@@ -62,16 +61,26 @@ struct StateMachineAI {
     // === A* 路径缓存（Chase 态消费） ===
     std::vector<std::pair<short, short>> path;     // cell 坐标路径（不含起点）
     int   path_index      = 0;                      // 当前走到第几个 waypoint
-    float repath_timer    = 0.0f;                   // 重算冷却（最低 0.5s 间隔）
+    float repath_timer    = 0.0f;                   // 重算冷却计时（最小间隔见 EnemyAISystem）
     short last_target_cx  = -1;                     // 上次目标（玩家）所在 cell x
     short last_target_cy  = -1;
-    short last_self_cx    = -1;                     // Boss 上次所在 cell（防止被推挤后路径错位）
-    short last_self_cy    = -1;
 
     // === 撞墙避让（与 RandomPatrolAI 同口径） ===
     bool  blocked      = false;  // 上一帧被障碍阻挡（CollisionSystem 写入）
     float block_push_x = 0.0f;   // 推开方向（障碍→自身，未归一化，多障碍累加）
     float block_push_y = 0.0f;
+
+    // === 路径跟随（Chase 态消费：平滑转向 + 卡死检测）===
+    float heading_x   = 1.0f;   // 平滑后的移动方向（单位向量，独立于 Velocity 避免碰撞投影污染）
+    float heading_y   = 0.0f;
+    float stuck_timer = 0.0f;   // 持续被挡的累计时长（窗口位移检测用）
+    float stuck_origin_x = 0.0f;// 进入被挡时的位置，用于判定窗口内是否真的没动
+    float stuck_origin_y = 0.0f;
+
+    // === 脱困态（Chase 态：卡死时锁定一个方向持续位移，优先于正常寻路）===
+    float escape_x    = 0.0f;   // 锁定的脱困方向（单位向量）
+    float escape_y    = 0.0f;
+    float escape_timer = 0.0f;  // 脱困剩余时长，>0 表示处于脱困态
 };
 
 // =====================================================================
