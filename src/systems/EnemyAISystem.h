@@ -16,6 +16,12 @@
 //  流水线位置：MovementSystem 之前（先算速度，再移动）
 // =====================================================================
 
+struct Transform;
+struct Velocity;
+struct EnemyAI;
+struct StateMachineAI;
+struct Health;
+
 class EnemyAISystem : public System {
 public:
     void update(World& world, float dt) override;
@@ -25,4 +31,15 @@ private:
     void update_state_machine(World& world, float dt, Entity player);
     // 随机巡逻行为（需 RandomPatrolAI 组件）
     void update_random_patrol(World& world, float dt);
+
+    // ===== 状态机拆分：集中转换 + 行为分离 =====
+    // 集中决定状态转换（含 entry 动作）：只改 sm->state 与 entry 字段，不碰 Velocity
+    void decide_state_transition(StateMachineAI* sm, const EnemyAI* ai, const Health* hp,
+                                 const Transform* pt, float dist, float dir_x, float dir_y);
+    // 各状态行为：只负责算速度，不再改 state
+    void update_patrol_behavior(float dt, Transform* t, Velocity* v, EnemyAI* ai,
+                                StateMachineAI* sm, bool blocked_consumed);
+    void update_chase_behavior(float dt, Transform* t, Velocity* v, StateMachineAI* sm,
+                               const Transform* pt, float dir_x, float dir_y, bool blocked_consumed);
+    void update_flee_behavior(Velocity* v, float dir_x, float dir_y);
 };

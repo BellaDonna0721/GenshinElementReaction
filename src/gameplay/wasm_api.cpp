@@ -39,8 +39,8 @@ void wasm_init() {
     // 系统执行流水线：
     //   1. Input      — 读输入、写速度/朝向、生成子弹
     //   2. Lifetime   — 子弹寿命扣减、回收
-    //   3. Movement   — 所有带 Velocity 的实体移动
-    //   4. EnemyAI    — 敌人状态机：算速度（巡逻/警戒/战斗/逃跑）
+    //   3. EnemyAI    — 敌人状态机：算速度（巡逻/警戒/战斗/逃跑），先算速度再移动
+    //   4. Movement   — 所有带 Velocity 的实体移动
     //   5. Collision  — 子弹-敌人命中、敌人-玩家接触伤害、墙体推开
     //   6. Pickup     — 玩家拾取道具（结晶晶片等）
     //   7. ElementReaction — 元素反应、衰减、增幅伤害
@@ -49,8 +49,8 @@ void wasm_init() {
     //  10. Output     — 打包渲染数据
     g_world->add_system(std::make_unique<InputSystem>());
     g_world->add_system(std::make_unique<LifetimeSystem>());
-    g_world->add_system(std::make_unique<MovementSystem>());
     g_world->add_system(std::make_unique<EnemyAISystem>());
+    g_world->add_system(std::make_unique<MovementSystem>());
     g_world->add_system(std::make_unique<CollisionSystem>());
     g_world->add_system(std::make_unique<PickupSystem>());
     g_world->add_system(std::make_unique<ElementReactionSystem>());
