@@ -3,6 +3,9 @@
 #include "../components/Transform.h"
 #include "../components/Velocity.h"
 #include "../components/EnemyAI.h"
+#include "../components/StateMachineAI.h"
+#include "../components/RandomPatrolAI.h"
+#include "../components/ObstacleContact.h"
 #include "../components/Health.h"
 #include "../components/IdentityTag.h"
 #include "../components/ElementStatus.h"
@@ -96,6 +99,7 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
         auto* ai  = world.get_component<EnemyAI>(e);
         auto* sm  = world.get_component<StateMachineAI>(e);
         auto* hp  = world.get_component<Health>(e);
+        auto* oc  = world.get_component<ObstacleContact>(e);
 
         // 冻结时停止一切行动
         auto* es = world.get_component<ElementStatus>(e);
@@ -103,19 +107,19 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
             v->vx = 0.0f;
             v->vy = 0.0f;
             // 冻结期间也消费 blocked，避免积累
-            if (sm->blocked) { sm->blocked = false; sm->block_push_x = 0; sm->block_push_y = 0; }
+            if (oc->blocked) { oc->blocked = false; oc->block_push_x = 0; oc->block_push_y = 0; }
             continue;
         }
 
-        // 攻击冷却递减
-        if (ai->attack_timer > 0.0f) ai->attack_timer -= dt;
+        // 注意：攻击冷却递减已由 CooldownSystem 统一完成，
+        // 本系统不再处理 attack_timer（Cooldown 组件在 EnemyAI 之外独立递减）。
 
         // === 撞墙避让 ===
-        // CollisionSystem 写 blocked 时也会写给 StateMachineAI（Boss），
+        // CollisionSystem 写入 ObstacleContact 组件，
         // 这里只消费 blocked 标志位；block_push_x/y 留给各状态分支按需读取后自行清零
-        bool blocked_consumed = sm->blocked;
-        if (sm->blocked) {
-            sm->blocked = false;
+        bool blocked_consumed = oc->blocked;
+        if (oc->blocked) {
+            oc->blocked = false;
             // block_push_x/y 暂不清零，Patrol 分支读取后再清
         }
 
@@ -136,10 +140,10 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
         // 阶段2：按当前状态执行行为（只算速度，不再改 state）
         switch (sm->state) {
             case AIState::Patrol:
-                update_patrol_behavior(dt, t, v, ai, sm, blocked_consumed);
+                update_patrol_behavior(dt, t, v, ai, sm, oc, blocked_consumed);
                 break;
             case AIState::Chase:
-                update_chase_behavior(dt, t, v, sm, pt, dir_x, dir_y, blocked_consumed);
+                update_chase_behavior(dt, t, v, sm, pt, dir_x, dir_y, oc, blocked_consumed);
                 break;
             case AIState::Flee:
                 update_flee_behavior(v, dir_x, dir_y);
@@ -240,21 +244,22 @@ void EnemyAISystem::decide_state_transition(StateMachineAI* sm, const EnemyAI* a
 //  只算速度，不改 state（发现玩家 → Chase 的转换已在 decide_state_transition 处理）
 // =====================================================================
 void EnemyAISystem::update_patrol_behavior(float dt, Transform* t, Velocity* v, EnemyAI* ai,
-                                           StateMachineAI* sm, bool blocked_consumed) {
+                                           StateMachineAI* sm, ObstacleContact* oc,
+                                           bool blocked_consumed) {
     // === 撞墙避让（与 RandomPatrolAI 同口径） ===
     // Patrol 态自身没路径规划，撞墙时改目标到推开方向，远离墙再随机选点
     if (blocked_consumed) {
-        float plen = std::sqrt(sm->block_push_x * sm->block_push_x +
-                               sm->block_push_y * sm->block_push_y);
+        float plen = std::sqrt(oc->block_push_x * oc->block_push_x +
+                               oc->block_push_y * oc->block_push_y);
         if (plen > 0.001f) {
-            float ux = sm->block_push_x / plen;
-            float uy = sm->block_push_y / plen;
+            float ux = oc->block_push_x / plen;
+            float uy = oc->block_push_y / plen;
             sm->target_x = t->x + ux * 150.0f;
             sm->target_y = t->y + uy * 150.0f;
             sm->patrol_timer = sm->patrol_interval;  // 推开后走满一个周期再随机
         }
-        sm->block_push_x = 0.0f;
-        sm->block_push_y = 0.0f;
+        oc->block_push_x = 0.0f;
+        oc->block_push_y = 0.0f;
     }
 
     // 正常巡逻
@@ -289,7 +294,8 @@ void EnemyAISystem::update_patrol_behavior(float dt, Transform* t, Velocity* v, 
 // =====================================================================
 void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
                                           StateMachineAI* sm, const Transform* pt,
-                                          float dir_x, float dir_y, bool blocked_consumed) {
+                                          float dir_x, float dir_y,
+                                          ObstacleContact* oc, bool blocked_consumed) {
     // === 脱困态优先：卡死时锁定一个方向持续位移，必须先于正常寻路早退 ===
     // 教训：只把瞬时推开方向揉进转向，方向会每帧来回翻 → 原地左右晃；
     //       必须进入独立脱困态、锁定方向直到脱离，才不会反复犹豫。
@@ -324,11 +330,11 @@ void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
     if (stuck) {
         // 锁定脱困方向：优先沿碰撞推开方向（凹角口袋中推开方向指向开阔地），
         // 没有推开信息时沿当前朝向走，保证一定产生位移。
-        float plen = std::sqrt(sm->block_push_x * sm->block_push_x +
-                               sm->block_push_y * sm->block_push_y);
+        float plen = std::sqrt(oc->block_push_x * oc->block_push_x +
+                               oc->block_push_y * oc->block_push_y);
         if (plen > 0.001f) {
-            sm->escape_x = sm->block_push_x / plen;
-            sm->escape_y = sm->block_push_y / plen;
+            sm->escape_x = oc->block_push_x / plen;
+            sm->escape_y = oc->block_push_y / plen;
         } else {
             sm->escape_x = sm->heading_x;
             sm->escape_y = sm->heading_y;
@@ -340,8 +346,8 @@ void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
         sm->escape_timer = PATH_ESCAPE_TIME;
         sm->stuck_timer  = 0.0f;
         sm->repath_timer = 0.0f;   // 脱困结束立即重算路径
-        sm->block_push_x = 0.0f;
-        sm->block_push_y = 0.0f;
+        oc->block_push_x = 0.0f;
+        oc->block_push_y = 0.0f;
         // 本帧直接按脱困方向走（不经平滑，保证立刻位移）
         v->vx = sm->escape_x;
         v->vy = sm->escape_y;
@@ -398,14 +404,14 @@ void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
     // === 贴墙轻量滑动：被挡时把推开方向揉进目标方向，拐角不硬切 ===
     // （真正卡死由脱困态处理，这里只做日常沿墙滑行。）
     if (blocked_consumed) {
-        float plen = std::sqrt(sm->block_push_x * sm->block_push_x +
-                               sm->block_push_y * sm->block_push_y);
+        float plen = std::sqrt(oc->block_push_x * oc->block_push_x +
+                               oc->block_push_y * oc->block_push_y);
         if (plen > 0.001f) {
-            desired_x += (sm->block_push_x / plen) * PATH_PUSH_BASE;
-            desired_y += (sm->block_push_y / plen) * PATH_PUSH_BASE;
+            desired_x += (oc->block_push_x / plen) * PATH_PUSH_BASE;
+            desired_y += (oc->block_push_y / plen) * PATH_PUSH_BASE;
         }
-        sm->block_push_x = 0.0f;  // Chase 消费完清零，避免跨帧累积
-        sm->block_push_y = 0.0f;
+        oc->block_push_x = 0.0f;  // Chase 消费完清零，避免跨帧累积
+        oc->block_push_y = 0.0f;
     }
     float dl = std::sqrt(desired_x * desired_x + desired_y * desired_y);
     if (dl > 0.001f) { desired_x /= dl; desired_y /= dl; }
@@ -447,6 +453,7 @@ void EnemyAISystem::update_random_patrol(World& world, float dt) {
         auto* v   = world.get_component<Velocity>(e);
         auto* ai  = world.get_component<EnemyAI>(e);
         auto* rp  = world.get_component<RandomPatrolAI>(e);
+        auto* oc  = world.get_component<ObstacleContact>(e);
 
         // 冻结时停止一切行动
         auto* es = world.get_component<ElementStatus>(e);
@@ -456,22 +463,21 @@ void EnemyAISystem::update_random_patrol(World& world, float dt) {
             continue;
         }
 
-        // 攻击冷却递减（接触伤害仍由 CollisionSystem 处理）
-        if (ai->attack_timer > 0.0f) ai->attack_timer -= dt;
+        // 注意：攻击冷却递减已由 CooldownSystem 统一完成。
 
         // 撞障碍避让：沿推开方向（障碍→自身）反向走一段，远离墙/敌人
-        if (rp->blocked) {
-            rp->blocked = false;
-            float plen = std::sqrt(rp->block_push_x * rp->block_push_x +
-                                   rp->block_push_y * rp->block_push_y);
+        if (oc->blocked) {
+            oc->blocked = false;
+            float plen = std::sqrt(oc->block_push_x * oc->block_push_x +
+                                   oc->block_push_y * oc->block_push_y);
             if (plen > 0.001f) {
-                float ux = rp->block_push_x / plen;
-                float uy = rp->block_push_y / plen;
+                float ux = oc->block_push_x / plen;
+                float uy = oc->block_push_y / plen;
                 rp->target_x = t->x + ux * 120.0f;
                 rp->target_y = t->y + uy * 120.0f;
             }
-            rp->block_push_x = 0.0f;
-            rp->block_push_y = 0.0f;
+            oc->block_push_x = 0.0f;
+            oc->block_push_y = 0.0f;
             rp->change_timer = rp->change_interval;  // 反向后走满一个周期再随机
         }
 

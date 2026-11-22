@@ -18,16 +18,13 @@ struct InputState {
 
 extern InputState g_input;  //全局输入实例（wasm_api.cpp 写，InputSystem 读）
 
-// 输入系统：第 1 步流水线（每帧第一个跑）
-//   读 g_input → 写玩家 Velocity/FacingDirection → 点击冷却 → fire() 生成子弹
+// 输入系统：第 2 步流水线（CooldownSystem 之后，冷却已被递减）
+//   读 g_input → 写玩家 Velocity/FacingDirection → 查玩家 Cooldown → fire() 生成子弹
 class InputSystem : public System {
 public:
     void update(World& world, float dt) override;
 
 private:
-    float m_fire_cooldown = 0.0f;                //发射冷却剩余时间（秒），<=0 才能射
-    static constexpr float FIRE_INTERVAL = 0.5f;//发射间隔（秒），每 0.5s 发射一颗
-
     // 数字键 1-7 → 对应 ElementType 枚举值（数组下标即按键，索引 0=不用）
     // 1=Pyro火 2=Hydro水 3=Electro雷 4=Cryo冰 5=Anemo风 6=Geo岩 7=Dendro草
     static constexpr ElementType s_key_to_elem[8] = {

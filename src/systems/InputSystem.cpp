@@ -8,6 +8,7 @@
 #include "../components/ElementStatus.h"
 #include "../components/RenderInfo.h"
 #include "../components/FacingDirection.h"
+#include "../components/Cooldown.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
 #include "../utils/element_color.h"
@@ -19,7 +20,8 @@ InputState g_input;
 // ========== InputSystem ==========
 
 void InputSystem::update(World& world, float dt) {
-    if (m_fire_cooldown > 0.0f) m_fire_cooldown -= dt;
+    // 注意：冷却递减已由流水线最前的 CooldownSystem 统一完成，
+    // 本系统只负责查 remaining → 触发 → 重置。
 
     // 读取全局增益
     GameState* gs = world.get_component<GameState>(0);
@@ -29,10 +31,9 @@ void InputSystem::update(World& world, float dt) {
             if (b == BuffType::AttackSpeedUp) atk_speed_mult -= BuffRegistry::get(b).value;
         }
     }
-    float fire_interval = FIRE_INTERVAL * atk_speed_mult;
 
     // 用 IdentityTag 过滤玩家：逻辑层不读 RenderInfo.entity_type
-    for (auto e : world.query<Transform, Velocity, FacingDirection, IdentityTag, RenderInfo>()) {
+    for (auto e : world.query<Transform, Velocity, FacingDirection, IdentityTag, RenderInfo, Cooldown>()) {
         auto* id = world.get_component<IdentityTag>(e);
         if (id->identity_type != Identity::Player) continue;
 
@@ -40,6 +41,7 @@ void InputSystem::update(World& world, float dt) {
         auto* v    = world.get_component<Velocity>(e);
         auto* face = world.get_component<FacingDirection>(e);
         auto* ri   = world.get_component<RenderInfo>(e);
+        auto* cd   = world.get_component<Cooldown>(e);
 
         // ========== ① 数字键切换玩家元素（1~7）==========
         if (g_input.element_key >= 1 && g_input.element_key <= 7) {
@@ -74,8 +76,8 @@ void InputSystem::update(World& world, float dt) {
 
         // --- 射击 ---
         bool want_fire = g_input.mouse_click || g_input.mouse_right_click;
-        if (want_fire && m_fire_cooldown <= 0.0f) {
-            m_fire_cooldown = fire_interval;
+        if (want_fire && cd && cd->is_ready()) {
+            cd->remaining = cd->duration * atk_speed_mult;  // buff 影响生效冷却时长
             ElementType elem = world.get_player_current_element();
             if (elem == ElementType::None) elem = ElementType::Pyro;
             ElementStrength strength = g_input.mouse_right_click

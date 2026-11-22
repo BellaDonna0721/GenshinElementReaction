@@ -25,13 +25,23 @@ struct EnemyPreset {
     // 冻结免疫（true=可冻结，false=冻元素立即消失）
     bool        can_be_frozen = true;
 
-    // ===== AI 参数（EnemyAI 组件初始值）=====
+    // ===== AI 参数（配置唯一真源：生成时由 spawn_enemy 填入各组件；运行时系统只读组件）=====
     AIType      ai_type        = AIType::RandomPatrol;  // AI 行为类型（小怪随机巡逻，Boss 用状态机）
     float       move_speed     = 60.0f;   // 移动速度（像素/秒）
     float       alert_radius   = 180.0f;  // 警戒范围
     float       attack_radius  = 36.0f;   // 攻击范围（接触伤害）
     float       attack_power   = 10.0f;   // 每次接触伤害
     int         score_value    = 10;      // 击杀得分
+    float       attack_cooldown = 0.6f;   // 攻击间隔（秒）
+
+    // —— StateMachine 专用配置（仅 ai_type==StateMachine 时被 spawn_enemy 消费）——
+    float       flee_hp_ratio   = 0.25f;  // 血量比例低于此值进入逃跑
+    float       patrol_interval = 3.0f;   // 巡逻换点间隔（秒）
+    float       patrol_radius   = 100.0f; // 巡逻半径
+
+    // —— RandomPatrol 专用配置（仅 ai_type==RandomPatrol 时被 spawn_enemy 消费）——
+    float       wander_radius   = 100.0f; // 漫游范围（相对出生点）
+    float       change_interval = 2.5f;   // 换方向间隔（秒）
 };
 
 // ========== 内置常用敌人预设（元素量/时长 100% 按原神模型统一查表，别手填 decay_rate！） ==========
@@ -50,6 +60,7 @@ inline const EnemyPreset ENEMY_PYRO = {
     36.0f,                      // attack_radius：攻击范围（像素，接触伤害）
     10.0f,                      // attack_power：每次接触伤害
     10,                         // score_value：击杀得分
+    0.6f,                       // attack_cooldown：攻击间隔（秒）
 };
 
 // 水史莱姆：Hydro 弱元素（0.8 实际，9.5s），白色圆，标准体型 20px
@@ -66,6 +77,7 @@ inline const EnemyPreset ENEMY_HYDRO = {
     36.0f,                      // attack_radius：攻击范围（像素，接触伤害）
     10.0f,                      // attack_power：每次接触伤害
     10,                         // score_value：击杀得分
+    0.6f,                       // attack_cooldown：攻击间隔（秒）
 };
 
 // 冰大怪：Cryo 中元素（1.2 实际，10.75s），白色圆，体型更大 22px，元素更耐打
@@ -82,6 +94,7 @@ inline const EnemyPreset ENEMY_CRYO = {
     36.0f,                      // attack_radius：攻击范围（像素，接触伤害）
     10.0f,                      // attack_power：每次接触伤害
     10,                         // score_value：击杀得分
+    0.6f,                       // attack_cooldown：攻击间隔（秒）
 };
 
 // 测试木桩：Hydro 弱元素，血量 99999（用于长时间测试元素反应/冻结）
@@ -98,6 +111,7 @@ inline const EnemyPreset ENEMY_TEST = {
     36.0f,                      // attack_radius：攻击范围（像素，接触伤害）
     0.0f,                      // attack_power：每次接触伤害
     10,                         // score_value：击杀得分
+    0.6f,                       // attack_cooldown：攻击间隔（秒）
 };
 
 // Boss：高血量、大体型、高攻击力、高分数
@@ -115,6 +129,10 @@ inline const EnemyPreset ENEMY_BOSS = {
     50.0f,                      // attack_radius：攻击范围（像素，接触伤害）
     20.0f,                      // attack_power：每次接触伤害（高伤害）
     100,                        // score_value：击杀得分（高分）
+    0.6f,                       // attack_cooldown：攻击间隔（秒）
+    0.25f,                      // flee_hp_ratio：血量比例低于此值逃跑
+    3.0f,                       // patrol_interval：巡逻换点间隔（秒）
+    100.0f,                     // patrol_radius：巡逻半径
 };
 
 // 生成玩家实体

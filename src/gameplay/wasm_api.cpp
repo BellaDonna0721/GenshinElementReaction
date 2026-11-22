@@ -1,6 +1,7 @@
 #include <emscripten.h>
 #include "../core/World.h"
 #include "../systems/InputSystem.h"
+#include "../systems/CooldownSystem.h"
 #include "../systems/LifetimeSystem.h"
 #include "../systems/MovementSystem.h"
 #include "../systems/EnemyAISystem.h"
@@ -21,6 +22,7 @@
 #include "../components/Health.h"
 #include "../components/IdentityTag.h"
 #include "../components/EnemyAI.h"
+#include "../components/StateMachineAI.h"
 #include "../systems/PathfinderSystem.h"
 #include "../components/Transform.h"
 #include "../utils/GameConfig.h"
@@ -37,16 +39,18 @@ void wasm_init() {
     g_world = new World();
 
     // 系统执行流水线：
-    //   1. Input      — 读输入、写速度/朝向、生成子弹
-    //   2. Lifetime   — 子弹寿命扣减、回收
-    //   3. EnemyAI    — 敌人状态机：算速度（巡逻/警戒/战斗/逃跑），先算速度再移动
-    //   4. Movement   — 所有带 Velocity 的实体移动
-    //   5. Collision  — 子弹-敌人命中、敌人-玩家接触伤害、墙体推开
-    //   6. Pickup     — 玩家拾取道具（结晶晶片等）
-    //   7. ElementReaction — 元素反应、衰减、增幅伤害
-    //   8. Damage     — 消费伤害队列、扣血、死亡、加分
-    //   9. Level      — 波次刷怪、通关判定、增益
-    //  10. Output     — 打包渲染数据
+    //   1. Cooldown — 统一递减所有 Cooldown 组件（玩家射击/敌人攻击…）
+    //   2. Input      — 读输入、写速度/朝向、生成子弹
+    //   3. Lifetime   — 子弹寿命扣减、回收
+    //   4. EnemyAI    — 敌人状态机：算速度（巡逻/警戒/战斗/逃跑），先算速度再移动
+    //   5. Movement   — 所有带 Velocity 的实体移动
+    //   6. Collision  — 子弹-敌人命中、敌人-玩家接触伤害、墙体推开
+    //   7. Pickup     — 玩家拾取道具（结晶晶片等）
+    //   8. ElementReaction — 元素反应、衰减、增幅伤害
+    //   9. Damage     — 消费伤害队列、扣血、死亡、加分
+    //  10. Level      — 波次刷怪、通关判定、增益
+    //  11. Output     — 打包渲染数据
+    g_world->add_system(std::make_unique<CooldownSystem>());
     g_world->add_system(std::make_unique<InputSystem>());
     g_world->add_system(std::make_unique<LifetimeSystem>());
     g_world->add_system(std::make_unique<EnemyAISystem>());

@@ -8,6 +8,8 @@
 #include "../components/ElementStatus.h"
 #include "../components/ElementICDStatus.h"
 #include "../components/EnemyAI.h"
+#include "../components/Cooldown.h"
+#include "../components/ObstacleContact.h"
 #include "../components/Health.h"
 #include "../components/RenderInfo.h"
 #include "../components/singletonComponents/DamageQueue.h"
@@ -100,12 +102,13 @@ void CollisionSystem::update(World& world, float dt) {
                 auto* et  = world.get_component<Transform>(en);
                 auto* ec  = world.get_component<SphereCollider>(en);
                 auto* eai = world.get_component<EnemyAI>(en);
-                if (!et || !ec || !eai) continue;
+                auto* ecd = world.get_component<Cooldown>(en);
+                if (!et || !ec || !eai || !ecd) continue;
 
                 float dx = pt->x - et->x;
                 float dy = pt->y - et->y;
                 float r  = pc->radius + ec->radius;
-                if (dx * dx + dy * dy <= r * r && eai->attack_timer <= 0.0f) {
+                if (dx * dx + dy * dy <= r * r && ecd->is_ready()) {
                     // 接触伤害
                     DamageQueue::DamageEvent ev;
                     ev.target   = player;
@@ -116,7 +119,7 @@ void CollisionSystem::update(World& world, float dt) {
                     dq->events.push_back(ev);
 
                     // 重置攻击冷却（无敌帧由 DamageSystem 扣血后统一设置，避免同帧误跳过）
-                    eai->attack_timer = eai->attack_cooldown;
+                    ecd->remaining = ecd->duration;
                     break;  // 一帧只受一次接触伤害
                 }
             }
@@ -143,12 +146,9 @@ void CollisionSystem::update(World& world, float dt) {
                                     wt->x, wt->y, rc->width * 0.5f, rc->height * 0.5f,
                                     px, py)) {
                 // 敌人撞墙：记录推开方向，供 AI 下一帧反向避让
-                // StateMachineAI（Boss）和 RandomPatrolAI（小怪）都写
                 if (id->identity_type == Identity::Enemy) {
-                    auto* rp = world.get_component<RandomPatrolAI>(e);
-                    auto* sm = world.get_component<StateMachineAI>(e);
-                    if (rp) { rp->blocked = true; rp->block_push_x += px; rp->block_push_y += py; }
-                    if (sm) { sm->blocked = true; sm->block_push_x += px; sm->block_push_y += py; }
+                    auto* oc = world.get_component<ObstacleContact>(e);
+                    if (oc) { oc->blocked = true; oc->block_push_x += px; oc->block_push_y += py; }
                 }
 
                 t->x += px;
@@ -181,11 +181,10 @@ void CollisionSystem::update(World& world, float dt) {
     for (auto en : enemies) {
         auto* t  = world.get_component<Transform>(en);
         auto* col = world.get_component<SphereCollider>(en);
-        auto* rp = world.get_component<RandomPatrolAI>(en);
-        auto* sm = world.get_component<StateMachineAI>(en);
+        auto* oc = world.get_component<ObstacleContact>(en);
         auto* v  = world.get_component<Velocity>(en);
         if (!t || !col || !v) continue;
-        if (!rp && !sm) continue;  // 只有 Boss 或小怪才处理撞墙避让
+        if (!oc) continue;  // 只有挂了障碍反馈组件的敌人才处理撞墙避让
 
         float pr = col->radius;
         float eps = 0.1f;
@@ -193,8 +192,7 @@ void CollisionSystem::update(World& world, float dt) {
         // === 沿边界滑动：贴边时去掉朝边界方向的 velocity 分量，保留切向 ===
         // 边界 push 向量方向为"边界→实体内"（远离边界），dot(v, n̂) < 0 表示朝边界撞
         auto mark_blocked_and_slide = [&](float nx, float ny) {
-            if (rp) { rp->blocked = true; rp->block_push_x += nx; rp->block_push_y += ny; }
-            if (sm) { sm->blocked = true; sm->block_push_x += nx; sm->block_push_y += ny; }
+            oc->blocked = true; oc->block_push_x += nx; oc->block_push_y += ny;
             float dot = v->vx * nx + v->vy * ny;
             if (dot < 0.0f) {
                 v->vx -= dot * nx;
@@ -251,15 +249,11 @@ void CollisionSystem::update(World& world, float dt) {
             t2->x -= ux * half;
             t2->y -= uy * half;
 
-            // 记录阻挡标记，供 AI 反向避让（Boss 和小怪都写）
-            auto* rp1 = world.get_component<RandomPatrolAI>(enemies[i]);
-            auto* sm1 = world.get_component<StateMachineAI>(enemies[i]);
-            if (rp1) { rp1->blocked = true; rp1->block_push_x += ux; rp1->block_push_y += uy; }
-            if (sm1) { sm1->blocked = true; sm1->block_push_x += ux; sm1->block_push_y += uy; }
-            auto* rp2 = world.get_component<RandomPatrolAI>(enemies[j]);
-            auto* sm2 = world.get_component<StateMachineAI>(enemies[j]);
-            if (rp2) { rp2->blocked = true; rp2->block_push_x -= ux; rp2->block_push_y -= uy; }
-            if (sm2) { sm2->blocked = true; sm2->block_push_x -= ux; sm2->block_push_y -= uy; }
+            // 记录阻挡标记，供 AI 反向避让（挂了障碍反馈组件的都写）
+            auto* oc1 = world.get_component<ObstacleContact>(enemies[i]);
+            if (oc1) { oc1->blocked = true; oc1->block_push_x += ux; oc1->block_push_y += uy; }
+            auto* oc2 = world.get_component<ObstacleContact>(enemies[j]);
+            if (oc2) { oc2->blocked = true; oc2->block_push_x -= ux; oc2->block_push_y -= uy; }
         }
     }
 

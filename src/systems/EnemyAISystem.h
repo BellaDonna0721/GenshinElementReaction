@@ -20,6 +20,7 @@ struct Transform;
 struct Velocity;
 struct EnemyAI;
 struct StateMachineAI;
+struct ObstacleContact;
 struct Health;
 
 class EnemyAISystem : public System {
@@ -38,8 +39,9 @@ private:
                                  const Transform* pt, float dist, float dir_x, float dir_y);
     // 各状态行为：只负责算速度，不再改 state
     void update_patrol_behavior(float dt, Transform* t, Velocity* v, EnemyAI* ai,
-                                StateMachineAI* sm, bool blocked_consumed);
+                                StateMachineAI* sm, ObstacleContact* oc, bool blocked_consumed);
     void update_chase_behavior(float dt, Transform* t, Velocity* v, StateMachineAI* sm,
-                               const Transform* pt, float dir_x, float dir_y, bool blocked_consumed);
+                               const Transform* pt, float dir_x, float dir_y,
+                               ObstacleContact* oc, bool blocked_consumed);
     void update_flee_behavior(Velocity* v, float dir_x, float dir_y);
 };
