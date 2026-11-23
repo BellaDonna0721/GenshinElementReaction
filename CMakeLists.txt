@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 project(GenshinElementReaction LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)  # C++20：std::numbers 数学常量
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CORE_SOURCES

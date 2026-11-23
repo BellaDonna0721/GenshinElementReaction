@@ -22,7 +22,7 @@
 #include "../components/Health.h"
 #include "../components/IdentityTag.h"
 #include "../components/EnemyAI.h"
-#include "../components/StateMachineAI.h"
+#include "../components/PathFollowAI.h"
 #include "../systems/PathfinderSystem.h"
 #include "../components/Transform.h"
 #include "../utils/GameConfig.h"
@@ -318,19 +318,19 @@ float* wasm_get_boss_path_data() {
     // 调试开关关闭时不导出路径数据（前端据此不画黄线）
     if constexpr (!GameConfig::DEBUG_PATH_VIS) return g_boss_path_cache.data();
 
-    // 遍历找第一个 Boss（带 StateMachineAI + Chase 态有有效路径）
-    for (auto e : g_world->query<Transform, StateMachineAI>()) {
-        auto* sm = g_world->get_component<StateMachineAI>(e);
+    // 遍历找第一个 Boss（带 PathFollowAI + Chase 态有有效路径）
+    for (auto e : g_world->query<Transform, PathFollowAI>()) {
+        auto* pf = g_world->get_component<PathFollowAI>(e);
         auto* t  = g_world->get_component<Transform>(e);
-        if (!sm || !t) continue;
-        if (sm->path.empty()) continue;
+        if (!pf || !t) continue;
+        if (pf->path.empty()) continue;
 
         // Boss 自身坐标作为路径起点
         g_boss_path_cache.push_back(t->x);
         g_boss_path_cache.push_back(t->y);
 
         // cell 坐标路径 → 世界坐标
-        for (const auto& [cx, cy] : sm->path) {
+        for (const auto& [cx, cy] : pf->path) {
             float wx = cx * GameConfig::PATH_CELL_SIZE + GameConfig::PATH_CELL_SIZE * 0.5f;
             float wy = cy * GameConfig::PATH_CELL_SIZE + GameConfig::PATH_CELL_SIZE * 0.5f;
             g_boss_path_cache.push_back(wx);

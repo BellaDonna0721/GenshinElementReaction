@@ -2,18 +2,16 @@
 #include <cstdint>
 
 // =====================================================================
-//  敌人 AI 组件集（组件组合区分行为类型，而非继承）
+//  敌人 AI 组件集
 //
 //  EnemyAI        —— 公共 AI 数据（components/EnemyAI.h，所有敌人共享）
-//  StateMachineAI —— 状态机行为数据（components/StateMachineAI.h，Boss 用）
-//  RandomPatrolAI —— 随机巡逻行为数据（components/RandomPatrolAI.h，小怪用）
+//  StateMachineAI —— 状态机决策壳（components/StateMachineAI.h，Boss 用）
+//  PatrolAI       —— 通用巡逻行为数据（components/PatrolAI.h，小怪 + Boss Patrol 态共用）
+//  PathFollowAI   —— A* 寻路追击执行器（components/PathFollowAI.h，Boss Chase 态用）
 //  ObstacleContact—— 障碍接触反馈（components/ObstacleContact.h，通用）
 //
 //  设计原则：组件组合优于继承。新增 AI 类型 = 新组件头文件 +
 //  EnemyAISystem 新 update 函数 + spawn_enemy 新挂载分支，现有代码零改动。
-//
-//  注意：攻击冷却已抽成独立 Cooldown 组件（流水线最前由 CooldownSystem 递减），
-//  EnemyAI 不再持有 attack_cooldown / attack_timer。
 // =====================================================================
 
 // AI 行为类型（用于 EnemyPreset 配置选择挂载哪个行为组件）
@@ -28,7 +26,7 @@ enum class AIType : uint8_t {
 //
 //  字段分三段：
 //    · 配置段   —— 真源在 EnemyPreset，spawn_enemy 填充，运行时只读（此处默认值仅兜底）
-//    · 运行时状态段 —— 已抽离到独立 Cooldown / ObstacleContact / StateMachineAI / RandomPatrolAI
+//    · 运行时状态段 —— 已抽离到独立 Cooldown / ObstacleContact / StateMachineAI / PatrolAI
 //    · 实例段   —— spawn 时确定，之后不变
 // =====================================================================
 struct EnemyAI {

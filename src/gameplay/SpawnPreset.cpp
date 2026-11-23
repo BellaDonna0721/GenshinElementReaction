@@ -11,7 +11,8 @@
 #include "../components/BoxCollider.h"
 #include "../components/EnemyAI.h"
 #include "../components/StateMachineAI.h"
-#include "../components/RandomPatrolAI.h"
+#include "../components/PatrolAI.h"
+#include "../components/PathFollowAI.h"
 #include "../components/ObstacleContact.h"
 #include "../components/Cooldown.h"
 
@@ -157,25 +158,25 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     atk_cd.remaining = 0.0f;  // 初始就绪，进 CollisionSystem 第一帧即可攻击
     world.add_component<Cooldown>(e, atk_cd);
 
-    // 9. 挂载行为组件（根据 ai_type 选择状态机或随机巡逻）
+    // 9. 挂载巡逻组件（通用：小怪随机巡逻 / Boss 状态机 Patrol 态共用）
+    PatrolAI pc;
+    pc.target_x        = x;
+    pc.target_y        = y;
+    pc.patrol_interval = preset.patrol_interval;
+    pc.patrol_radius   = preset.patrol_radius;
+    world.add_component<PatrolAI>(e, pc);
+
+    // 10. 状态机附加组件（仅 ai_type==StateMachine 时挂载，Boss 用）
     if (preset.ai_type == AIType::StateMachine) {
         StateMachineAI sm;
-        sm.target_x        = x;
-        sm.target_y        = y;
-        sm.flee_hp_ratio   = preset.flee_hp_ratio;
-        sm.patrol_interval = preset.patrol_interval;
-        sm.patrol_radius   = preset.patrol_radius;
+        sm.flee_hp_ratio = preset.flee_hp_ratio;
         world.add_component<StateMachineAI>(e, sm);
-    } else if (preset.ai_type == AIType::RandomPatrol) {
-        RandomPatrolAI rp;
-        rp.target_x        = x;
-        rp.target_y        = y;
-        rp.wander_radius   = preset.wander_radius;
-        rp.change_interval = preset.change_interval;
-        world.add_component<RandomPatrolAI>(e, rp);
+
+        PathFollowAI pf;  // A* 寻路追击执行器
+        world.add_component<PathFollowAI>(e, pf);
     }
 
-    // 10. 挂载障碍接触反馈组件（CollisionSystem 写，AI 系统消费，与行为类型无关）
+    // 11. 挂载障碍接触反馈组件（CollisionSystem 写，AI 系统消费，与行为类型无关）
     world.add_component<ObstacleContact>(e, ObstacleContact{});
 
     return e;

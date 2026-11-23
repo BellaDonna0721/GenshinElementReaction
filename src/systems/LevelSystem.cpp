@@ -11,8 +11,8 @@
 #include "../gameplay/LevelLoader.h"
 #include "../gameplay/BuffRegistry.h"
 #include "PathfinderSystem.h"
+#include "../utils/Random.h"
 #include <algorithm>
-#include <cstdlib>
 
 // 根据 preset_id 获取敌人预设（与 wasm_spawn_enemy 的映射一致）
 static const EnemyPreset* get_preset_by_id(int preset_id) {
@@ -227,7 +227,7 @@ void LevelSystem::pick_buff_choices(World& world) {
 
     // Fisher-Yates 洗牌取前 3
     for (int i = static_cast<int>(indices.size()) - 1; i > 0; i--) {
-        int j = rand() % (i + 1);
+        int j = game_rng::range_int(0, i);
         std::swap(indices[i], indices[j]);
     }
 

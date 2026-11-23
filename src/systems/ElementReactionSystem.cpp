@@ -9,10 +9,11 @@
 #include "../components/singletonComponents/DamageQueue.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
+#include "../utils/Random.h"
 #include <cstdio>
 #include <utility>
 #include <cmath>
-#include <cstdlib>
+#include <numbers>
 
 // 增幅反应倍率表（仅蒸发/融化；其余反应 0 表示非增幅反应）
 static float get_amplifying_multiplier(ReactionType rt) {
@@ -114,7 +115,7 @@ static void spawn_crystallize_shard(World& world, Entity target, ElementType rea
     Entity shard = world.create_entity();
 
     // 位置：目标周围随机方向偏移
-    float angle = static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2.0f * 3.14159265f;
+    float angle = game_rng::range(0.0f, std::numbers::pi_v<float> * 2.0f);
     float offset = 35.0f;  // 偏移距离（敌人半径 + 晶片半径 + 余量）
     Transform t;
     t.x = tt->x + std::cos(angle) * offset;

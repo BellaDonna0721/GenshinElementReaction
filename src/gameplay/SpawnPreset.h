@@ -34,14 +34,12 @@ struct EnemyPreset {
     int         score_value    = 10;      // 击杀得分
     float       attack_cooldown = 0.6f;   // 攻击间隔（秒）
 
-    // —— StateMachine 专用配置（仅 ai_type==StateMachine 时被 spawn_enemy 消费）——
-    float       flee_hp_ratio   = 0.25f;  // 血量比例低于此值进入逃跑
-    float       patrol_interval = 3.0f;   // 巡逻换点间隔（秒）
+    // —— 巡逻配置（通用：小怪随机巡逻 / Boss 状态机 Patrol 态共用 PatrolAI 组件）——
+    float       patrol_interval = 2.5f;   // 巡逻换点间隔（秒）
     float       patrol_radius   = 100.0f; // 巡逻半径
 
-    // —— RandomPatrol 专用配置（仅 ai_type==RandomPatrol 时被 spawn_enemy 消费）——
-    float       wander_radius   = 100.0f; // 漫游范围（相对出生点）
-    float       change_interval = 2.5f;   // 换方向间隔（秒）
+    // —— StateMachine 专用配置（仅 ai_type==StateMachine 时被 spawn_enemy 消费）——
+    float       flee_hp_ratio   = 0.25f;  // 血量比例低于此值进入逃跑
 };
 
 // ========== 内置常用敌人预设（元素量/时长 100% 按原神模型统一查表，别手填 decay_rate！） ==========
@@ -130,9 +128,9 @@ inline const EnemyPreset ENEMY_BOSS = {
     20.0f,                      // attack_power：每次接触伤害（高伤害）
     100,                        // score_value：击杀得分（高分）
     0.6f,                       // attack_cooldown：攻击间隔（秒）
-    0.25f,                      // flee_hp_ratio：血量比例低于此值逃跑
     3.0f,                       // patrol_interval：巡逻换点间隔（秒）
     100.0f,                     // patrol_radius：巡逻半径
+    0.25f,                      // flee_hp_ratio：血量比例低于此值逃跑
 };
 
 // 生成玩家实体
