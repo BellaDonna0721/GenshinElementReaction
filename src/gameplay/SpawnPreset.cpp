@@ -15,6 +15,7 @@
 #include "../components/PathFollowAI.h"
 #include "../components/ObstacleContact.h"
 #include "../components/Cooldown.h"
+#include "../components/singletonComponents/GameState.h"
 
 // ========== 玩家工厂（标准配置，目前没有多种玩家变体） ==========
 
@@ -27,10 +28,11 @@ Entity spawn_player(World& world, float x, float y) {
     tform.y = y;
     world.add_component<Transform>(e, tform);
 
-    // 2. 速度（初始静止，WASD 驱动）
+    // 2. 速度（初始静止，WASD 驱动；speed 为移速标量，与方向配合）
     Velocity vel;
-    vel.vx = 0.0f;
-    vel.vy = 0.0f;
+    vel.vx    = 0.0f;
+    vel.vy    = 0.0f;
+    vel.speed = 200.0f;
     world.add_component<Velocity>(e, vel);
 
     // 3. 元素状态（玩家初始身上无附着元素）
@@ -41,8 +43,9 @@ Entity spawn_player(World& world, float x, float y) {
     ElementICDStatus icd;
     world.add_component<ElementICDStatus>(e, icd);
 
-    // 玩家初始射击元素默认 Pyro（存放在 World 级全局状态）
-    world.set_player_current_element(ElementType::Pyro);
+    // 玩家初始射击元素默认 Pyro（存放在 GameState 单例组件）
+    GameState* gs = world.get_component<GameState>(0);
+    if (gs) gs->player_current_element = ElementType::Pyro;
 
     // 4. 朝向（初始朝右，InputSystem 每帧跟随鼠标覆盖）
     FacingDirection face;
@@ -52,7 +55,6 @@ Entity spawn_player(World& world, float x, float y) {
 
     // 5. 渲染信息（火红 22px 圆，和 Pyro 元素色一致）
     RenderInfo ri;
-    ri.entity_type = Identity::Player;
     ri.radius      = 22.0f;
     ri.color_r     = 255;
     ri.color_g     = 70;
@@ -97,10 +99,11 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     tform.y = y;
     world.add_component<Transform>(e, tform);
 
-    // 2. 速度
+    // 2. 速度（speed 真源在 EnemyPreset.move_speed）
     Velocity vel;
-    vel.vx = 0.0f;
-    vel.vy = 0.0f;
+    vel.vx    = 0.0f;
+    vel.vy    = 0.0f;
+    vel.speed = preset.move_speed;
     world.add_component<Velocity>(e, vel);
 
     // 3. 元素状态（从 preset.element + preset.strength 统一查表：×0.8 八折、duration、decay_rate 全是原神模型）
@@ -115,7 +118,6 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
 
     // 4. 渲染信息（颜色+半径来自 preset）
     RenderInfo ri;
-    ri.entity_type = Identity::Enemy;
     ri.radius      = preset.radius;
     ri.color_r     = preset.color_r;
     ri.color_g     = preset.color_g;
@@ -143,7 +145,6 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     EnemyAI ai;
     ai.ai_type       = preset.ai_type;
     ai.enemy_type    = static_cast<uint8_t>(preset.element);  // 临时：存元素类型用于血条显示类型名
-    ai.move_speed     = preset.move_speed;
     ai.alert_radius   = preset.alert_radius;
     ai.attack_radius  = preset.attack_radius;
     ai.attack_power   = preset.attack_power;
@@ -208,7 +209,6 @@ Entity spawn_wall(World& world, float x, float y, float w, float h) {
 
     // 4. 渲染颜色（石墙灰，供 OutputSystem 墙体通道读取）
     RenderInfo ri;
-    ri.entity_type = Identity::Wall;
     ri.radius      = 0.0f;  // 墙体无视觉半径，此字段无意义
     ri.color_r     = 120;
     ri.color_g     = 120;

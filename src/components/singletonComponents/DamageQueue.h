@@ -22,7 +22,7 @@ struct DamageQueue {
         Entity       target;     // 受伤目标实体 ID
         Entity       source;     // 伤害来源实体 ID（敌人接触伤害填敌人；剧变反应等填 INVALID_ENTITY）
         float        amount;     // 最终伤害数值（已含反应倍率，显示时取整）
-        ElementType  element;    // 伤害元素（决定飘字颜色；未来用于抗性计算）
+        ElementType  element;    // 伤害元素
         ReactionType reaction;   // None=直射伤害，否则对应反应类型
     };
 

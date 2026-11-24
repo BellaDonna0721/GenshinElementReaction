@@ -32,7 +32,7 @@ void InputSystem::update(World& world, float dt) {
         }
     }
 
-    // 用 IdentityTag 过滤玩家：逻辑层不读 RenderInfo.entity_type
+    // 用 IdentityTag 过滤玩家
     for (auto e : world.query<Transform, Velocity, FacingDirection, IdentityTag, RenderInfo, Cooldown>()) {
         auto* id = world.get_component<IdentityTag>(e);
         if (id->identity_type != Identity::Player) continue;
@@ -47,7 +47,7 @@ void InputSystem::update(World& world, float dt) {
         if (g_input.element_key >= 1 && g_input.element_key <= 7) {
             ElementType new_elem = s_key_to_elem[g_input.element_key];
             if (new_elem != ElementType::None) {
-                world.set_player_current_element(new_elem);
+                gs->player_current_element = new_elem;
                 ElementColor c = get_element_color(new_elem);
                 ri->color_r = c.r;
                 ri->color_g = c.g;
@@ -78,7 +78,7 @@ void InputSystem::update(World& world, float dt) {
         bool want_fire = g_input.mouse_click || g_input.mouse_right_click;
         if (want_fire && cd && cd->is_ready()) {
             cd->remaining = cd->duration * atk_speed_mult;  // buff 影响生效冷却时长
-            ElementType elem = world.get_player_current_element();
+            ElementType elem = gs->player_current_element;
             if (elem == ElementType::None) elem = ElementType::Pyro;
             ElementStrength strength = g_input.mouse_right_click
                                          ? ElementStrength::Strong
@@ -103,8 +103,9 @@ void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, fl
     world.add_component<Transform>(e, tform);
 
     Velocity vel;
-    vel.vx = dir_x;
-    vel.vy = dir_y;
+    vel.vx    = dir_x;
+    vel.vy    = dir_y;
+    vel.speed = 520.0f;
     world.add_component<Velocity>(e, vel);
 
     Lifetime life;
@@ -137,7 +138,6 @@ void InputSystem::fire(World& world, float from_x, float from_y, float dir_x, fl
     world.add_component<IdentityTag>(e, bid);
 
     RenderInfo ri;
-    ri.entity_type = Identity::Bullet;
     ri.radius      = 6.0f;
     ri.color_r     = bc.r;   // 子弹颜色=元素颜色（火=红/水=深蓝/雷=紫…）
     ri.color_g     = bc.g;

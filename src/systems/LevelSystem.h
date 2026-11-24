@@ -13,6 +13,9 @@
 //    · 通关判定（所有波次完成 + 场上无敌人）
 //    · Boss 关通关后随机生成 3 个增益候选，写入 GameState
 //
+//  无状态约定：所有关卡进度（level / level_cleared / wave_*）统一存储在
+//  GameState 单例组件（Entity 0）中，本系统不持有任何成员状态，只读写 GameState。
+//
 //  流水线位置：EnemyAISystem 之后、CollisionSystem 之前
 //  （先刷怪，AI 再处理新敌人）
 // =====================================================================
@@ -30,18 +33,11 @@ public:
     // 应用增益并进入下一关
     void apply_buff_and_next(World& world, BuffType buff);
 
-    // 当前是否处于 LevelComplete 等待选增益
-    bool is_level_complete() const { return m_level_complete; }
-
 private:
     void start_wave(World& world);
     void complete_level(World& world);
     void pick_buff_choices(World& world);
 
-    int    m_level_index      = 0;     // 当前关卡索引（0-based）
-    int    m_wave_index       = 0;     // 当前波次索引
-    float  m_wave_timer       = 0.0f;  // 下一波开始倒计时
-    bool   m_wave_spawned     = false; // 本波已刷完，等待敌人全部消灭
-    bool   m_level_complete   = false; // 本关是否已通关
-    bool   m_all_waves_done   = false;  // 所有波次是否已刷完且敌人全灭
+    // 由 gs->level 推导当前关卡在 levels 数组中的索引（0-based）
+    int level_index(World& world) const;
 };

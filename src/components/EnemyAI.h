@@ -33,7 +33,6 @@ struct EnemyAI {
     // —— 配置段（真源：EnemyPreset）——
     AIType   ai_type        = AIType::RandomPatrol;  // AI 行为类型（生成时决定挂载哪个行为组件，运行时只读）
     uint8_t enemy_type      = 0;       // 敌人类型（存 ElementType 值，血条显示用）
-    float   move_speed      = 60.0f;   // 移动速度（像素/秒）
     float   alert_radius    = 180.0f;  // 警戒/探测范围（像素）
     float   attack_radius   = 36.0f;   // 攻击范围（像素，接触伤害）
     float   attack_power    = 10.0f;   // 每次接触伤害

@@ -2,9 +2,10 @@
 #include "../core/World.h"
 
 // 移动系统：第 3 步流水线（在碰撞检测之前先算本帧新位置）
-//   遍历所有 Transform+Velocity → 按 IdentityTag 分支：
-//     - Bullet：SPEED=520，飞出世界边界立即归还池
-//     - 玩家/敌人：SPEED=200，边界夹紧(不出屏幕)+ 摩擦衰减(vx*=0.85)
+//   遍历所有 Transform+Velocity → 通用位移：方向(vx,vy) × 大小(speed)
+//   速度完全数据驱动（Velocity.speed），不再按身份硬编码；
+//   冻结定身由 EnemyAISystem 在算速度前把 vx/vy 归零，此处不查 ElementStatus。
+//   位移后按身份做边界约束：子弹出界回收，玩家/敌人夹紧不出屏幕。
 class MovementSystem : public System {
 public:
     void update(World& world, float dt) override;

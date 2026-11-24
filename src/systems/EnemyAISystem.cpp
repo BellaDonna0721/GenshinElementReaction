@@ -177,6 +177,8 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
         decide_state_transition(sm, ai, pc, pf, hp, pt, dist, dir_x, dir_y);
 
         // 阶段2：按当前状态执行行为（只算速度，不再改 state）
+        // 每帧先重置临时倍率为 1.0，Flee 态再覆盖为 1.2，切走即自动恢复（无需各退出点写恢复）
+        v->speed_mult = 1.0f;
         switch (sm->state) {
             case AIState::Patrol:
                 update_patrol_behavior(dt, t, v, ai, pc, oc, blocked_consumed);
@@ -185,6 +187,7 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
                 update_chase_behavior(dt, t, v, pf, pt, dir_x, dir_y, oc, blocked_consumed);
                 break;
             case AIState::Flee:
+                v->speed_mult = 1.2f;  // 逃跑 1.2 倍速：倍率走速度字段，方向保持归一化
                 update_flee_behavior(v, dir_x, dir_y);
                 break;
             default:
@@ -458,9 +461,9 @@ void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
 //  只算速度，不改 state（无玩家 / 跑远回 Patrol 的转换已在 decide_state_transition 处理）
 // =====================================================================
 void EnemyAISystem::update_flee_behavior(Velocity* v, float dir_x, float dir_y) {
-    // 朝玩家反方向跑
-    v->vx = -dir_x * 1.2f;
-    v->vy = -dir_y * 1.2f;
+    // 朝玩家反方向跑（方向归一化；1.2 倍速由调用方写入 speed_mult）
+    v->vx = -dir_x;
+    v->vy = -dir_y;
 }
 
 

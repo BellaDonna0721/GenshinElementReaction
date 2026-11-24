@@ -4,6 +4,7 @@
 #include "../components/IdentityTag.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../components/Health.h"
+#include "../components/Velocity.h"
 #include "../components/RenderInfo.h"
 #include "../utils/element_color.h"
 #include "../gameplay/SpawnPreset.h"
@@ -25,24 +26,36 @@ static const EnemyPreset* get_preset_by_id(int preset_id) {
     }
 }
 
-void LevelSystem::reset(World& world) {
-    m_level_index    = 0;
-    m_wave_index     = 0;
-    m_wave_timer     = 0.0f;
-    m_wave_spawned   = false;
-    m_level_complete = false;
-    m_all_waves_done = false;
+// 由 gs->level 推导当前关卡在 levels 数组中的索引（0-based）
+// 单一权威来源：所有关卡索引只从这里取，禁止各处自行 (level-1)%size 散写
+int LevelSystem::level_index(World& world) const {
+    const auto& levels = get_levels();
+    if (levels.empty()) return 0;
+    const GameState* gs = world.get_component<GameState>(0);
+    int lv = gs ? gs->level : 1;
+    int sz = static_cast<int>(levels.size());
+    int idx = (lv - 1) % sz;
+    if (idx < 0) idx += sz;  // 防御：level 异常为负时回绕
+    return idx;
+}
 
+void LevelSystem::reset(World& world) {
     GameState* gs = world.get_component<GameState>(0);
     if (gs) {
-        gs->phase        = GamePhase::Playing;
-        gs->level        = 1;
-        gs->score        = 0;
+        gs->phase          = GamePhase::Playing;
+        gs->level          = 1;
+        gs->score          = 0;
+        gs->level_cleared  = false;
         gs->active_buffs.clear();
         gs->buff_choices.clear();
-        gs->shield_count = 0;
-        gs->shield_max   = 5;
-        gs->is_training  = false;  // 进入关卡模式
+        gs->shield_count   = 0;
+        gs->shield_max     = 5;
+        gs->is_training    = false;  // 进入关卡模式
+        // 波次进度重置
+        gs->wave_index     = 0;
+        gs->wave_timer     = 0.0f;
+        gs->wave_spawned   = false;
+        gs->all_waves_done = false;
     }
 
     load_level(world, 1, true);
@@ -52,15 +65,25 @@ void LevelSystem::load_level(World& world, int level_number, bool reset_hp) {
     const auto& levels = get_levels();
     if (levels.empty()) return;
 
-    m_level_index = (level_number - 1) % static_cast<int>(levels.size());
-    const LevelConfig& cfg = levels[m_level_index];
+    GameState* gs = world.get_component<GameState>(0);
 
-    // 重置波次状态
-    m_wave_index     = 0;
-    m_wave_timer     = cfg.waves.empty() ? 0.0f : cfg.waves[0].delay;
-    m_wave_spawned   = false;
-    m_level_complete = false;
-    m_all_waves_done = cfg.waves.empty();
+    // 先写入对外显示的关卡编号，后续关卡索引从 gs->level 推导（单一权威来源）
+    if (gs) {
+        gs->level         = level_number;
+        gs->phase         = GamePhase::Playing;
+        gs->level_cleared = false;
+        gs->buff_choices.clear();
+    }
+
+    const LevelConfig& cfg = levels[level_index(world)];
+
+    // 重置波次状态（写回 GameState）
+    if (gs) {
+        gs->wave_index     = 0;
+        gs->wave_timer     = cfg.waves.empty() ? 0.0f : cfg.waves[0].delay;
+        gs->wave_spawned   = false;
+        gs->all_waves_done = cfg.waves.empty();
+    }
 
     // 清空旧敌人
     g_enemy_manager.clear_all(world);
@@ -96,7 +119,7 @@ void LevelSystem::load_level(World& world, int level_number, bool reset_hp) {
                 t->y = cfg.player_spawn.y;
             }
             // 重置玩家元素为火（和 spawn_player 默认一致）
-            world.set_player_current_element(ElementType::Pyro);
+            if (gs) gs->player_current_element = ElementType::Pyro;
             auto* ri = world.get_component<RenderInfo>(e);
             if (ri) {
                 ElementColor c = get_element_color(ElementType::Pyro);
@@ -114,30 +137,24 @@ void LevelSystem::load_level(World& world, int level_number, bool reset_hp) {
         }
     }
 
-    // 更新 GameState
-    GameState* gs = world.get_component<GameState>(0);
-    if (gs) {
-        gs->level       = level_number;
-        gs->phase       = GamePhase::Playing;
-        gs->level_cleared = false;
-        gs->buff_choices.clear();
-    }
-
     // === 构建路径网格 ===
     // 关卡墙矩形 → PathfinderSystem 内部 grid，Boss Chase 态 A* 依赖
     PathfinderSystem::build_grid(cfg.walls);
 }
 
 void LevelSystem::start_wave(World& world) {
+    GameState* gs = world.get_component<GameState>(0);
+    if (!gs) return;
+
     const auto& levels = get_levels();
-    const LevelConfig& cfg = levels[m_level_index];
-    if (m_wave_index >= static_cast<int>(cfg.waves.size())) {
-        m_all_waves_done = true;
+    const LevelConfig& cfg = levels[level_index(world)];
+    if (gs->wave_index >= static_cast<int>(cfg.waves.size())) {
+        gs->all_waves_done = true;
         return;
     }
 
     // 一次性刷出本波所有敌人（每个 spawn 位置固定一只）
-    const WaveConfig& wave = cfg.waves[m_wave_index];
+    const WaveConfig& wave = cfg.waves[gs->wave_index];
     for (const auto& sp : wave.spawns) {
         const EnemyPreset* preset = get_preset_by_id(sp.preset_id);
         if (preset) {
@@ -146,8 +163,8 @@ void LevelSystem::start_wave(World& world) {
     }
 
     // 标记本波已刷完，等待玩家杀光后再推进下一波
-    m_wave_index++;
-    m_wave_spawned = true;
+    gs->wave_index++;
+    gs->wave_spawned = true;
 }
 
 void LevelSystem::update(World& world, float dt) {
@@ -159,53 +176,51 @@ void LevelSystem::update(World& world, float dt) {
 
     // 非 Playing 阶段不处理
     if (gs->phase != GamePhase::Playing) return;
-    if (m_level_complete) return;
+    if (gs->level_cleared) return;
 
     const auto& levels = get_levels();
     if (levels.empty()) return;
-    const LevelConfig& cfg = levels[m_level_index];
+    const LevelConfig& cfg = levels[level_index(world)];
 
     // ========== 波次刷怪 ==========
     // 状态机：
     //   A) 本波已刷完，等待敌人全部消灭 → alive_count()==0 后进入 B
     //   B) 扣 delay 倒计时 → 归零后 start_wave 刷本波，回到 A
-    if (!m_all_waves_done) {
-        if (m_wave_spawned) {
+    if (!gs->all_waves_done) {
+        if (gs->wave_spawned) {
             // 等本波敌人全灭，再开始下一波 delay
             if (g_enemy_manager.alive_count() == 0) {
-                if (m_wave_index < static_cast<int>(cfg.waves.size())) {
-                    m_wave_timer = cfg.waves[m_wave_index].delay;
-                    m_wave_spawned = false;
+                if (gs->wave_index < static_cast<int>(cfg.waves.size())) {
+                    gs->wave_timer = cfg.waves[gs->wave_index].delay;
+                    gs->wave_spawned = false;
                 } else {
                     // 最后一波也刷完且敌人全灭
-                    m_all_waves_done = true;
+                    gs->all_waves_done = true;
                 }
             }
         } else {
             // 扣 delay 倒计时，归零刷本波
-            m_wave_timer -= dt;
-            if (m_wave_timer <= 0.0f) {
+            gs->wave_timer -= dt;
+            if (gs->wave_timer <= 0.0f) {
                 start_wave(world);
             }
         }
     }
 
     // ========== 通关判定 ==========
-    if (m_all_waves_done && g_enemy_manager.alive_count() == 0) {
+    if (gs->all_waves_done && g_enemy_manager.alive_count() == 0) {
         complete_level(world);
     }
 }
 
 void LevelSystem::complete_level(World& world) {
-    if (m_level_complete) return;
-    m_level_complete = true;
-
     GameState* gs = world.get_component<GameState>(0);
     if (!gs) return;
+    if (gs->level_cleared) return;  // 幂等：同一帧只触发一次通关
     gs->level_cleared = true;
 
     const auto& levels = get_levels();
-    const LevelConfig& cfg = levels[m_level_index];
+    const LevelConfig& cfg = levels[level_index(world)];
 
     if (cfg.is_boss) {
         // Boss 关：进入 LevelComplete，等待选增益
@@ -268,6 +283,11 @@ void LevelSystem::apply_buff_and_next(World& world, BuffType buff) {
                 default:
                     break;
             }
+        }
+        // 移速增益：修改玩家 Velocity.speed（不依赖 Health，独立处理）
+        if (buff == BuffType::MoveSpeedUp) {
+            Velocity* vel = world.get_component<Velocity>(player);
+            if (vel) vel->speed *= (1.0f + BuffRegistry::get(buff).value);
         }
     }
 

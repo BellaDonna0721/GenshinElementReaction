@@ -54,12 +54,13 @@ void OutputSystem::update(World& world, float dt) {
     g_health_bars.clear();
     g_walls.clear();
 
-    for (auto e : world.query<Transform, RenderInfo>()) {
+    for (auto e : world.query<Transform, RenderInfo, IdentityTag>()) {
         auto* t  = world.get_component<Transform>(e);
         auto* ri = world.get_component<RenderInfo>(e);
+        auto* id = world.get_component<IdentityTag>(e);
 
         // —— 墙体：走独立矩形通道，不写入 RenderCommand ——
-        if (ri->entity_type == Identity::Wall) {
+        if (id->identity_type == Identity::Wall) {
             auto* rc = world.get_component<BoxCollider>(e);
             if (rc) {
                 WallRenderInfo wi;
@@ -84,7 +85,7 @@ void OutputSystem::update(World& world, float dt) {
         cmd.g            = ri->color_g;
         cmd.b            = ri->color_b;
         cmd.a            = ri->color_a;
-        cmd.entity_type  = static_cast<uint8_t>(ri->entity_type);
+        cmd.entity_type  = static_cast<uint8_t>(id->identity_type);
         cmd.element1_type  = 0;
         cmd.element2_type  = 0;
         cmd.element1_gauge = 0;
@@ -96,7 +97,7 @@ void OutputSystem::update(World& world, float dt) {
 
         auto* elem = world.get_component<ElementStatus>(e);
         if (elem) {
-            if (ri->entity_type == Identity::Enemy) {
+            if (id->identity_type == Identity::Enemy) {
                 // ==============================================================
                 // 写入光环字段前先紧凑有效附着槽。
                 // 元素1（内实心环）= 第一个有效光环（主显示）
@@ -155,7 +156,7 @@ void OutputSystem::update(World& world, float dt) {
 
         // —— 血条：仅敌人显示（玩家血条预留，未来可在 UI 面板单独展示）——
         Health* hp = world.get_component<Health>(e);
-        if (hp && ri->entity_type == Identity::Enemy) {
+        if (hp && id->identity_type == Identity::Enemy) {
             HealthBarInfo hbi;
             hbi.x     = t->x;
             hbi.y     = t->y - ri->radius - 12.0f;  // 头顶上方
@@ -170,14 +171,14 @@ void OutputSystem::update(World& world, float dt) {
         }
 
         auto* face = world.get_component<FacingDirection>(e);
-        if (face && ri->entity_type == Identity::Player) {
+        if (face && id->identity_type == Identity::Player) {
             cmd.facing_dx = face->dx;
             cmd.facing_dy = face->dy;
         }
 
         // 玩家护盾标记：复用 bullet_strength 字段（玩家恒为0），写入当前护盾层数
         // TS 侧据此绘制土黄色护盾圆圈（0=无护盾，1~5=护盾层数）
-        if (ri->entity_type == Identity::Player) {
+        if (id->identity_type == Identity::Player) {
             GameState* gs = world.get_component<GameState>(0);
             if (gs) {
                 cmd.bullet_strength = static_cast<uint8_t>(std::min(gs->shield_count, 255));
@@ -186,7 +187,7 @@ void OutputSystem::update(World& world, float dt) {
 
         // 子弹特效标记：如果是子弹且带 ElementPayload → 写入 bullet_strength
         // 渲染层据此画外层火焰环（仅 Strong/ExtraStrong 有特效）
-        if (ri->entity_type == Identity::Bullet) {
+        if (id->identity_type == Identity::Bullet) {
             auto* payload = world.get_component<ElementPayload>(e);
             if (payload) {
                 cmd.bullet_strength = static_cast<uint8_t>(payload->strength);

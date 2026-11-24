@@ -128,7 +128,6 @@ static void spawn_crystallize_shard(World& world, Entity target, ElementType rea
 
     // 土黄色（岩元素色）
     RenderInfo ri;
-    ri.entity_type = Identity::Pickup;
     ri.radius = 8.0f;
     ri.color_r = 200;
     ri.color_g = 170;

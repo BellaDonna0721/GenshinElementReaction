@@ -1,9 +1,7 @@
 #pragma once
 #include <cstdint>
 
-// 实体身份类型枚举（逻辑层内部使用，不暴露给 TS/渲染层）
-// 与 RenderInfo.entity_type 语义一致但物理分离：逻辑层只读取 IdentityTag
-// RenderInfo.entity_type 完全交给渲染系统 OutputSystem 使用
+// 实体身份类型枚举：实体身份的唯一来源，逻辑层与渲染层（OutputSystem）统一读取本组件
 enum class Identity : uint8_t {
     Player   = 0,  //玩家
     Enemy    = 1,  //敌人
