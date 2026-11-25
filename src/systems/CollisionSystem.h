@@ -1,11 +1,10 @@
 #pragma once
 #include "../core/World.h"
 
-// 碰撞系统：第 4 步流水线
-//   处理三类碰撞：
-//     ① 玩家/敌人（球 SphereCollider） vs 墙体（矩 BoxCollider）→ 沿法线推开
-//     ② 子弹（球） vs 敌人（球）→ 命中写 pending_element/pending_gauge + 子弹归池
-//     ③ 子弹（球） vs 墙体（矩）→ 子弹撞墙销毁归池
+// 碰撞系统：流水线第 6 步
+//   职责：纯几何碰撞检测 + 物理响应（推开/沿墙滑动/敌人互推）+ 碰撞→AI 反馈
+//   命中后只写 HitEventQueue（碰撞事实的唯一出口），
+//   附着/特效/归池等业务由后续系统（ElementReactionSystem / OutputSystem）消费
 class CollisionSystem : public System {
 public:
     void update(World& world, float dt) override;

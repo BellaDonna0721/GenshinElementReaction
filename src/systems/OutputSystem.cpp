@@ -10,6 +10,10 @@
 #include "../components/EnemyAI.h"
 #include "../components/Velocity.h"
 #include "../components/singletonComponents/GameState.h"
+#include "../components/singletonComponents/HitEventQueue.h"
+#include "../components/singletonComponents/HitFxQueue.h"
+#include "../utils/element_color.h"
+#include "../gameplay/BulletPool.h"
 #include <cmath>
 
 std::vector<RenderCommand>   g_render_commands;
@@ -53,6 +57,10 @@ void OutputSystem::update(World& world, float dt) {
     g_render_commands.clear();
     g_health_bars.clear();
     g_walls.clear();
+
+    // 帧首清空上一帧命中特效（由本系统写入，wasm_api 直接读取组件 vector）
+    HitFxQueue* fx_queue = world.get_component<HitFxQueue>(0);
+    if (fx_queue) fx_queue->items.clear();
 
     for (auto e : world.query<Transform, RenderInfo, IdentityTag>()) {
         auto* t  = world.get_component<Transform>(e);
@@ -206,7 +214,40 @@ void OutputSystem::update(World& world, float dt) {
         g_render_commands.push_back(cmd);
     }
 
-    // 伤害飘字（DamageNumberQueue）和命中特效（HitFxQueue）由写入方
-    // （DamageSystem / CollisionSystem）自行管理帧首清空，wasm_api 直接
-    // 读取组件中的 vector，OutputSystem 不再中转。
+    // ========== 消费 HitEventQueue：生成命中特效 + 归池子弹 + 清空队列 ==========
+    // OutputSystem 是流水线最后一个系统，作为 HitEventQueue 的最后消费者：
+    // 先读取子弹 payload 生成特效，再归池子弹（归池会移除组件，必须在读完之后）。
+    HitEventQueue* hit_queue = world.get_component<HitEventQueue>(0);
+    if (hit_queue && fx_queue) {
+        for (const auto& ev : hit_queue->events) {
+            // 仅子弹事件生成特效 + 归池；接触类事件（敌人/道具）无子弹，跳过
+            if (ev.type != HitEventQueue::Type::BulletHitEnemy &&
+                ev.type != HitEventQueue::Type::BulletHitWall) continue;
+
+            ElementPayload* payload = world.get_component<ElementPayload>(ev.aggressor);
+            if (!payload) continue;  // 无 payload 的子弹不生成特效
+
+            HitFxQueue::HitFx fx;
+            fx.x = ev.x;
+            fx.y = ev.y;
+            ElementColor ec = get_element_color(payload->element);
+            fx.r = ec.r;
+            fx.g = ec.g;
+            fx.b = ec.b;
+            if (ev.type == HitEventQueue::Type::BulletHitWall) {
+                fx.hit_type = 1;  // 撞墙火花
+                fx.scale = 1.0f;
+            } else {
+                fx.hit_type = 0;  // 命中敌人
+                // 尺寸系数：按敌人渲染半径自适应（20px 为基准 1.0）
+                RenderInfo* eri = world.get_component<RenderInfo>(ev.victim);
+                fx.scale = eri ? (eri->radius / 20.0f) : 1.0f;
+            }
+            fx_queue->items.push_back(fx);
+
+            // 归池命中的子弹（命中敌人或撞墙都归池）
+            release_bullet_entity(world, ev.aggressor);
+        }
+        hit_queue->events.clear();  // 消费完清空，供下帧 CollisionSystem 重写
+    }
 }

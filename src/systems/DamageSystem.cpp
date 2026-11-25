@@ -4,8 +4,10 @@
 #include "../components/IdentityTag.h"
 #include "../components/EnemyAI.h"
 #include "../components/ElementStatus.h"
+#include "../components/Cooldown.h"
 #include "../components/singletonComponents/DamageQueue.h"
 #include "../components/singletonComponents/DamageNumberQueue.h"
+#include "../components/singletonComponents/HitEventQueue.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../gameplay/EnemyManager.h"
 #include "../utils/element_color.h"
@@ -33,6 +35,39 @@ void DamageSystem::update(World& world, float dt) {
             Health* php = world.get_component<Health>(e);
             if (php && php->invincible_timer > 0.0f) {
                 php->invincible_timer -= dt;
+            }
+        }
+    }
+
+    // ========== 敌人接触玩家：消费 HitEventQueue 产生接触伤害事件 ==========
+    // 碰撞事实由 CollisionSystem 唯一写入 HitEventQueue（EnemyTouchPlayer 类型），
+    // 这里只做伤害侧逻辑：冷却就绪 → 写 DamageQueue + 重置敌人冷却。
+    // 几何接触判定已在 CollisionSystem 完成，本系统不再重做距离检测。
+    HitEventQueue* hit_queue = world.get_component<HitEventQueue>(0);
+    Entity player = INVALID_ENTITY;
+    for (auto e : world.query<Transform, Health, IdentityTag>()) {
+        auto* id = world.get_component<IdentityTag>(e);
+        if (id && id->identity_type == Identity::Player) { player = e; break; }
+    }
+    if (hit_queue && player != INVALID_ENTITY) {
+        Health* php = world.get_component<Health>(player);
+        if (php && php->invincible_timer <= 0.0f) {
+            for (const auto& ev : hit_queue->events) {
+                if (ev.type != HitEventQueue::Type::EnemyTouchPlayer) continue;
+                EnemyAI* eai = world.get_component<EnemyAI>(ev.aggressor);
+                Cooldown* ecd = world.get_component<Cooldown>(ev.aggressor);
+                if (!eai || !ecd || !ecd->is_ready()) continue;
+
+                DamageQueue::DamageEvent dev;
+                dev.target   = ev.victim;     // 玩家
+                dev.source   = ev.aggressor;  // 发起接触的敌人
+                dev.amount   = eai->attack_power;
+                dev.element  = ElementType::None;
+                dev.reaction = ReactionType::None;
+                queue->events.push_back(dev);
+
+                ecd->remaining = ecd->duration;  // 重置攻击冷却
+                break;  // 一帧只受一次接触伤害
             }
         }
     }

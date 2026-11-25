@@ -6,7 +6,9 @@
 #include "../components/Lifetime.h"
 #include "../components/IdentityTag.h"
 #include "../components/ShieldPickup.h"
+#include "../components/ElementPayload.h"
 #include "../components/singletonComponents/DamageQueue.h"
+#include "../components/singletonComponents/HitEventQueue.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
 #include "../utils/Random.h"
@@ -319,6 +321,28 @@ void ElementReactionSystem::update(World& world, float dt) {
         for (auto b : gs->active_buffs) {
             if (b == BuffType::ElementDamageUp) elem_dmg_mult += BuffRegistry::get(b).value;
             else if (b == BuffType::MasteryUp)  elemental_mastery += BuffRegistry::get(b).value;
+        }
+    }
+
+    // 消费 HitEventQueue：把子弹命中事件翻译成待处理附着（pending）
+    //   pending_base_damage 每次命中都写（不受 ICD 限制）；
+    //   pending_element / pending_strength 仅在 ICD 通过时写入。
+    //   此时子弹尚未归池（归池由 OutputSystem 在流水线末尾完成），可安全读取 payload。
+    HitEventQueue* hit_queue = world.get_component<HitEventQueue>(0);
+    if (hit_queue) {
+        for (const auto& ev : hit_queue->events) {
+            if (ev.type != HitEventQueue::Type::BulletHitEnemy) continue;  // 只处理子弹命中敌人
+            ElementStatus* es = world.get_component<ElementStatus>(ev.victim);
+            ElementPayload* payload = world.get_component<ElementPayload>(ev.aggressor);
+            if (!es || !payload) continue;
+            es->pending_base_damage = payload->base_damage;
+            bool allow = true;
+            ElementICDStatus* icd = world.get_component<ElementICDStatus>(ev.victim);
+            if (icd) allow = icd_hit_allowed(*icd, payload->element, payload->strength);
+            if (allow) {
+                es->pending_element  = payload->element;
+                es->pending_strength = payload->strength;
+            }
         }
     }
 

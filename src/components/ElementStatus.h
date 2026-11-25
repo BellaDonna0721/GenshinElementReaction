@@ -8,7 +8,7 @@
 //
 //  单一职责：
 //    · 双槽附着元素（水雷共存用）的 gauge/duration 数据
-//    · 待处理命中元素（碰撞写入，本帧统一结算）
+//    · 待处理命中元素（ElementReactionSystem 消费 HitEventQueue 写入，本帧统一结算）
 //    · 反应脉冲位掩码（OutputSystem 消费后渲染飘字）
 //
 //  不再承载 ICD 命中冷却（见 ElementICDStatus.h）—— 两者是正交关注点：
@@ -74,10 +74,10 @@ struct ElementStatus {
     // 只有同时存在 Hydro + Electro 时才 >0；其他情况自动为 0
     float electrocharged_cooldown = 0.0f;
 
-    // —— 待处理命中元素（碰撞写，本帧统一处理）——
+    // —— 待处理命中元素（ElementReactionSystem 写，本帧统一处理）——
     ElementType     pending_element  = ElementType::None;
     ElementStrength pending_strength = ElementStrength::Weak;
-    float           pending_base_damage = 0.0f;  // 触发攻击的基础伤害（增幅反应倍率计算用，CollisionSystem 写入）
+    float           pending_base_damage = 0.0f;  // 触发攻击的基础伤害（增幅反应倍率计算用，ElementReactionSystem 写入）
 
     // —— 反应脉冲位掩码（OutputSystem 每帧消费一次，16 位最多同时标记 16 种反应）
     //   位 index = static_cast<int>(ReactionType)：

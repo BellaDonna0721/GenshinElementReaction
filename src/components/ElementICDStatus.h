@@ -44,7 +44,7 @@ struct ElementICDStatus {
 // 设计说明：
 //   这两个函数只读写 ElementICDStatus 自身的数据（外加传入的触发元素/档位参数），
 //   不触碰 ElementStatus，因此可以安全地放在本组件头里作为"组件 API"。
-//   真正的每帧调度由 ElementReactionSystem（decay）和 CollisionSystem（hit_allowed）负责。
+//   真正的每帧调度由 ElementReactionSystem（decay + hit_allowed）负责。
 
 // ① 每帧衰减：从 1..7（None=0 不用循环）
 inline void icd_decay_tick(ElementICDStatus& icd, float dt) {

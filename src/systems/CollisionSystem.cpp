@@ -4,19 +4,9 @@
 #include "../components/SphereCollider.h"
 #include "../components/BoxCollider.h"
 #include "../components/IdentityTag.h"
-#include "../components/ElementPayload.h"
-#include "../components/ElementStatus.h"
-#include "../components/ElementICDStatus.h"
-#include "../components/EnemyAI.h"
-#include "../components/Cooldown.h"
 #include "../components/ObstacleContact.h"
-#include "../components/Health.h"
-#include "../components/RenderInfo.h"
-#include "../components/singletonComponents/DamageQueue.h"
-#include "../components/singletonComponents/HitFxQueue.h"
-#include "../utils/element_color.h"
+#include "../components/singletonComponents/HitEventQueue.h"
 #include "../utils/GameConfig.h"
-#include "../gameplay/BulletPool.h"
 #include <cmath>
 
 namespace {
@@ -76,57 +66,19 @@ void CollisionSystem::update(World& world, float dt) {
     std::vector<Entity> bullets;
     std::vector<Entity> enemies;
     std::vector<Entity> walls;
+    std::vector<Entity> pickups;
     Entity player = INVALID_ENTITY;
-
-    HitFxQueue* fx_queue = world.get_component<HitFxQueue>(0);
-    // 帧首清空上一帧命中特效（wasm_api 直接读此 vector，由写入方管理生命周期）
-    if (fx_queue) fx_queue->items.clear();
 
     for (auto e : world.query<Transform, IdentityTag>()) {
         auto* id = world.get_component<IdentityTag>(e);
         if (id->identity_type == Identity::Bullet)       bullets.push_back(e);
         else if (id->identity_type == Identity::Enemy)   enemies.push_back(e);
         else if (id->identity_type == Identity::Wall)    walls.push_back(e);
+        else if (id->identity_type == Identity::Pickup)  pickups.push_back(e);
         else if (id->identity_type == Identity::Player)  player = e;
     }
 
-    // ========== ① 敌人 vs 玩家：接触伤害 ==========
-    if (player != INVALID_ENTITY) {
-        auto* pt  = world.get_component<Transform>(player);
-        auto* pc  = world.get_component<SphereCollider>(player);
-        auto* php = world.get_component<Health>(player);
-        DamageQueue* dq = world.get_component<DamageQueue>(0);
-
-        if (pt && pc && php && dq && php->invincible_timer <= 0.0f) {
-            for (auto en : enemies) {
-                auto* et  = world.get_component<Transform>(en);
-                auto* ec  = world.get_component<SphereCollider>(en);
-                auto* eai = world.get_component<EnemyAI>(en);
-                auto* ecd = world.get_component<Cooldown>(en);
-                if (!et || !ec || !eai || !ecd) continue;
-
-                float dx = pt->x - et->x;
-                float dy = pt->y - et->y;
-                float r  = pc->radius + ec->radius;
-                if (dx * dx + dy * dy <= r * r && ecd->is_ready()) {
-                    // 接触伤害
-                    DamageQueue::DamageEvent ev;
-                    ev.target   = player;
-                    ev.source   = en;  // 来源：发起接触的敌人
-                    ev.amount   = eai->attack_power;
-                    ev.element  = ElementType::None;
-                    ev.reaction = ReactionType::None;
-                    dq->events.push_back(ev);
-
-                    // 重置攻击冷却（无敌帧由 DamageSystem 扣血后统一设置，避免同帧误跳过）
-                    ecd->remaining = ecd->duration;
-                    break;  // 一帧只受一次接触伤害
-                }
-            }
-        }
-    }
-
-    // ========== ② 可移动实体（玩家/敌人） vs 墙体：推开 ==========
+    // ========== ① 可移动实体（玩家/敌人） vs 墙体：推开 ==========
     // 玩家和敌人都是球形 SphereCollider，墙体是 BoxCollider
     for (auto e : world.query<Transform, SphereCollider, IdentityTag>()) {
         auto* id = world.get_component<IdentityTag>(e);
@@ -173,7 +125,7 @@ void CollisionSystem::update(World& world, float dt) {
         }
     }
 
-    // ========== ③ 敌人 vs 世界边界：贴边检测 → AI 反向 ==========
+    // ========== ② 敌人 vs 世界边界：贴边检测 → AI 反向 ==========
     // 注意：MovementSystem 已经做了基于 radius 的 clamp（先于 Collision 执行），
     // 所以到这里实体位置已经在边界上了，越界检测（t->y + pr > WORLD_H）永远不会命中。
     // 改成检测"贴边且朝边界方向移动"的状态，直接发 blocked 让 AI 下一帧反向。
@@ -218,7 +170,7 @@ void CollisionSystem::update(World& world, float dt) {
         }
     }
 
-    // ========== 敌人 vs 敌人：互相推开 ==========
+    // ========== ③ 敌人 vs 敌人：互相推开 ==========
     // 圆-圆碰撞，重叠时沿连线方向各推开一半，避免敌人叠在一起
     for (size_t i = 0; i < enemies.size(); ++i) {
         auto* t1 = world.get_component<Transform>(enemies[i]);
@@ -257,87 +209,103 @@ void CollisionSystem::update(World& world, float dt) {
         }
     }
 
-    // ========== ② 子弹 vs 敌人（圆-圆，原有逻辑） ==========
-    std::vector<Entity> consumed;
-    consumed.reserve(bullets.size());
+    // ========== ④ 子弹命中检测：只记录事件，不处理业务 ==========
+    // 命中后 push 到 HitEventQueue，由 ElementReactionSystem（写附着）和
+    // OutputSystem（生成特效 + 归池）顺序消费
+    HitEventQueue* hit_queue = world.get_component<HitEventQueue>(0);
+    if (!hit_queue) return;
 
     for (auto b : bullets) {
-        auto* bt      = world.get_component<Transform>(b);
-        auto* bc      = world.get_component<SphereCollider>(b);
-        auto* payload = world.get_component<ElementPayload>(b);
-        bool  hit     = false;
+        auto* bt = world.get_component<Transform>(b);
+        auto* bc = world.get_component<SphereCollider>(b);
+        if (!bt || !bc) continue;
 
+        HitEventQueue::HitEvent ev;
+        ev.aggressor = b;
+        ev.victim    = INVALID_ENTITY;
+        ev.x         = bt->x;
+        ev.y         = bt->y;
+        bool hit = false;
+
+        // 先检测命中敌人
         for (auto en : enemies) {
-            auto* et  = world.get_component<Transform>(en);
-            auto* ec  = world.get_component<SphereCollider>(en);
+            auto* et = world.get_component<Transform>(en);
+            auto* ec = world.get_component<SphereCollider>(en);
+            if (!et || !ec) continue;
             float dx = bt->x - et->x;
             float dy = bt->y - et->y;
             float r  = bc->radius + ec->radius;
-
             if (dx*dx + dy*dy <= r * r) {
-                auto* es  = world.get_component<ElementStatus>(en);
-                auto* icd = world.get_component<ElementICDStatus>(en);
-                if (payload && es) {
-                    es->pending_base_damage = payload->base_damage;
-
-                    bool allow = true;
-                    if (icd) allow = ::icd_hit_allowed(*icd, payload->element, payload->strength);
-                    if (allow) {
-                        es->pending_element  = payload->element;
-                        es->pending_strength = payload->strength;
-                    }
-                }
-                // 命中特效：元素色闪光 + 扩散光环 + 粒子迸溅
-                if (fx_queue && payload) {
-                    HitFxQueue::HitFx fx;
-                    fx.x = bt->x;
-                    fx.y = bt->y;
-                    ElementColor ec = get_element_color(payload->element);
-                    fx.r = ec.r; fx.g = ec.g; fx.b = ec.b;
-                    fx.hit_type = 0;
-                    // 尺寸系数：按敌人渲染半径自适应（20px 为基准 1.0）
-                    auto* eri = world.get_component<RenderInfo>(en);
-                    fx.scale = eri ? (eri->radius / 20.0f) : 1.0f;
-                    fx_queue->items.push_back(fx);
-                }
+                ev.type   = HitEventQueue::Type::BulletHitEnemy;
+                ev.victim = en;
                 hit = true;
-                break;
+                break;  // 一颗子弹只命中第一个敌人
             }
         }
 
-        // 子弹未命中敌人 → 检测是否撞墙
+        // 未命中敌人 → 检测撞墙
         if (!hit) {
             for (auto w : walls) {
                 auto* wt = world.get_component<Transform>(w);
                 auto* rc = world.get_component<BoxCollider>(w);
                 if (!wt || !rc) continue;
-
                 float px = 0.0f, py = 0.0f;
                 if (circle_rect_collide(bt->x, bt->y, bc->radius,
                                         wt->x, wt->y, rc->width * 0.5f, rc->height * 0.5f,
                                         px, py)) {
-                    // 撞墙特效：元素色火花（hit_type=1，墙体无半径自适应）
-                    if (fx_queue && payload) {
-                        HitFxQueue::HitFx fx;
-                        fx.x = bt->x;
-                        fx.y = bt->y;
-                        ElementColor ec = get_element_color(payload->element);
-                        fx.r = ec.r; fx.g = ec.g; fx.b = ec.b;
-                        fx.hit_type = 1;
-                        fx.scale = 1.0f;
-                        fx_queue->items.push_back(fx);
-                    }
+                    ev.type = HitEventQueue::Type::BulletHitWall;
                     hit = true;
                     break;
                 }
             }
         }
 
-        if (hit) consumed.push_back(b);
+        if (hit) hit_queue->events.push_back(ev);
     }
 
-    // 命中的子弹（敌人 或 墙体）：归还对象池
-    for (auto b : consumed) {
-        release_bullet_entity(world, b);
+    // ========== ⑤ 敌人 vs 玩家：接触检测 → 写接触事件 ==========
+    // 只记录几何接触事实，不做物理推开、不处理冷却/伤害；
+    // 冷却判定与伤害由 DamageSystem 消费 EnemyTouchPlayer 事件完成。
+    if (player != INVALID_ENTITY) {
+        auto* pt = world.get_component<Transform>(player);
+        auto* pc = world.get_component<SphereCollider>(player);
+        if (pt && pc) {
+            for (auto en : enemies) {
+                auto* et = world.get_component<Transform>(en);
+                auto* ec = world.get_component<SphereCollider>(en);
+                if (!et || !ec) continue;
+                float dx = pt->x - et->x;
+                float dy = pt->y - et->y;
+                float r  = pc->radius + ec->radius;
+                if (dx * dx + dy * dy <= r * r) {
+                    HitEventQueue::HitEvent cev;
+                    cev.type      = HitEventQueue::Type::EnemyTouchPlayer;
+                    cev.aggressor = en;
+                    cev.victim    = player;
+                    cev.x         = et->x;
+                    cev.y         = et->y;
+                    hit_queue->events.push_back(cev);
+                }
+            }
+
+            // ⑥ 玩家 vs 道具：接触检测 → PickupSystem 消费
+            for (auto pk : pickups) {
+                auto* kt = world.get_component<Transform>(pk);
+                auto* kc = world.get_component<SphereCollider>(pk);
+                if (!kt || !kc) continue;
+                float dx = pt->x - kt->x;
+                float dy = pt->y - kt->y;
+                float r  = pc->radius + kc->radius;
+                if (dx * dx + dy * dy <= r * r) {
+                    HitEventQueue::HitEvent pev;
+                    pev.type      = HitEventQueue::Type::PlayerTouchPickup;
+                    pev.aggressor = player;
+                    pev.victim    = pk;
+                    pev.x         = kt->x;
+                    pev.y         = kt->y;
+                    hit_queue->events.push_back(pev);
+                }
+            }
+        }
     }
 }

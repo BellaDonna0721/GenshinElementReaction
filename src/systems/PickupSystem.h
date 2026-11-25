@@ -5,7 +5,7 @@
 //  PickupSystem —— 道具拾取系统
 //
 //  职责：
-//    · 遍历所有 Identity=Pickup 的实体，与玩家做圆-圆碰撞检测
+//    · 消费 CollisionSystem 写入的 PlayerTouchPickup 碰撞事件
 //    · 拾取后根据道具挂载的效果组件执行对应效果：
 //        ShieldPickup → GameState.shield_count += layers（受 shield_max 约束）
 //    · 拾取后销毁道具实体

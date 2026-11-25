@@ -5,11 +5,11 @@
 // =====================================================================
 //  HitFxQueue —— 命中特效事件队列（单例组件，挂 Entity 0）
 //
-//  写入方：CollisionSystem（帧首清空，子弹命中敌人/墙体时 push 一条）
+//  写入方：OutputSystem（帧首清空，消费 HitEventQueue 生成命中/撞墙特效）
 //  消费方：wasm_api 直接读取 items vector 供 TS 渲染
 //
-//  生命周期由写入方管理：CollisionSystem::update 开头 clear，本帧写入的
-//  特效留存至下一帧 CollisionSystem 清空之前，TS 在系统管线结束后读取。
+//  生命周期由写入方管理：OutputSystem::update 开头 clear，本帧写入的
+//  特效留存至下一帧 OutputSystem 清空之前，TS 在系统管线结束后读取。
 //
 //  特效内容（TS 侧负责逐帧动画）：
 //    1. 闪光：命中点元素色径向渐变，快速放大淡出（0.15s）

@@ -18,6 +18,7 @@
 #include "../components/singletonComponents/DamageQueue.h"
 #include "../components/singletonComponents/DamageNumberQueue.h"
 #include "../components/singletonComponents/HitFxQueue.h"
+#include "../components/singletonComponents/HitEventQueue.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../components/Health.h"
 #include "../components/IdentityTag.h"
@@ -44,7 +45,7 @@ void wasm_init() {
     //   3. Lifetime   — 子弹寿命扣减、回收
     //   4. EnemyAI    — 敌人状态机：算速度（巡逻/警戒/战斗/逃跑），先算速度再移动
     //   5. Movement   — 所有带 Velocity 的实体移动
-    //   6. Collision  — 子弹-敌人命中、敌人-玩家接触伤害、墙体推开
+    //   6. Collision  — 碰撞检测、物理推开、写命中事件（HitEventQueue）
     //   7. Pickup     — 玩家拾取道具（结晶晶片等）
     //   8. ElementReaction — 元素反应、衰减、增幅伤害
     //   9. Damage     — 消费伤害队列、扣血、死亡、加分
@@ -77,6 +78,9 @@ void wasm_init() {
 
         HitFxQueue fxq;
         g_world->add_component<HitFxQueue>(0, fxq);
+
+        HitEventQueue heq;
+        g_world->add_component<HitEventQueue>(0, heq);
 
         GameState gs;
         gs.is_training = true;  // wasm_init 默认是训练模式
