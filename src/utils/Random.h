@@ -4,7 +4,7 @@
 #include <cstdint>
 
 // =====================================================================
-//  game_rng —— 全局随机数工具
+//  game_random —— 全局随机数工具
 //
 //  统一用 <random> 替代全局 rand()，每次运行序列都不同
 //  （旧 rand() 无 srand，种子恒为 1，巡逻选点/增益抽取每次一样）。
@@ -18,7 +18,7 @@
 //  改用高精度时钟播种，绕开该限制，对游戏随机数足够。
 //  （benchmark/umap_benchmark.cpp 用固定种子保证可复现，不走本工具）
 // =====================================================================
-namespace game_rng {
+namespace game_random {
 
 // 计算一个每次运行都不同的 32 位种子（取当前纳秒时间戳，高/低 32 位异或折叠）
 inline std::uint32_t make_seed() {
@@ -45,4 +45,4 @@ inline int range_int(int lo, int hi) {
     return std::uniform_int_distribution<int>(lo, hi)(engine());
 }
 
-}  // namespace game_rng
+}  // namespace game_random

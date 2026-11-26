@@ -45,10 +45,10 @@ private:
     // 各状态行为：只负责算速度，不再改 state
     // 巡逻核心（Boss Patrol 态与小怪随机巡逻共用，数据在 PatrolAI 组件）
     void update_patrol_behavior(float dt, Transform* t, Velocity* v, EnemyAI* ai,
-                                PatrolAI* pc, ObstacleContact* oc, bool blocked_consumed);
+                                PatrolAI* pc, ObstacleContact* oc);
     // 追击核心（Boss Chase 态用，数据在 PathFollowAI 组件）
     void update_chase_behavior(float dt, Transform* t, Velocity* v, PathFollowAI* pf,
                                const Transform* pt, float dir_x, float dir_y,
-                               ObstacleContact* oc, bool blocked_consumed);
+                               ObstacleContact* oc);
     void update_flee_behavior(Velocity* v, float dir_x, float dir_y);
 };

@@ -97,10 +97,19 @@ void CollisionSystem::update(World& world, float dt) {
             if (circle_rect_collide(t->x, t->y, col->radius,
                                     wt->x, wt->y, rc->width * 0.5f, rc->height * 0.5f,
                                     px, py)) {
-                // 敌人撞墙：记录推开方向，供 AI 下一帧反向避让
+                // 敌人撞墙：记录推开方向（单位法向），供 AI 下一帧反向避让。
+                // 物理推到位移用带模长的 px/py（下方 t->x += px），此处只写方向，与模长解耦，
+                // 保证与边界/敌人互撞来源量纲一致（均为单位法向累加）。
                 if (id->identity_type == Identity::Enemy) {
                     auto* oc = world.get_component<ObstacleContact>(e);
-                    if (oc) { oc->blocked = true; oc->block_push_x += px; oc->block_push_y += py; }
+                    if (oc) {
+                        oc->blocked = true;
+                        float plen = std::sqrt(px * px + py * py);
+                        if (plen > 0.001f) {
+                            oc->block_push_x += px / plen;
+                            oc->block_push_y += py / plen;
+                        }
+                    }
                 }
 
                 t->x += px;

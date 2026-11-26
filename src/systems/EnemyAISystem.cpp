@@ -28,8 +28,11 @@ constexpr float PATH_ARRIVE_R    = 18.0f;  // 航点到达半径
 constexpr float PATH_TURN_RATE   = 8.0f;   // 转向平滑速率（/秒，指数插值）
 constexpr float PATH_PUSH_BASE   = 1.2f;   // 正常贴墙时推开方向揉进转向的权重（轻量滑动）
 
-// 巡逻撞墙避让：沿推开方向反向走多远再重新随机选点（原 Boss 150 / 小怪 120，统一为 120）
+// 巡逻撞墙避让：沿推开方向反向走多远再重新随机选点
 constexpr float PATROL_WALL_AVOID_DIST = 120.0f;
+
+// 巡逻选点：候选点被 leash 拒绝时的最大重试次数（受控重试，避免重算风暴）
+constexpr int PATROL_PICK_TRIES = 8;
 
 // 从 io_index 开始推进已到达航点，并在 lookahead 内选最远的、从当前位置可达的航点。
 // 可达判定用 segment_walkable（世界坐标采样），即使 Boss 本体压在膨胀格上也能正确取点。
@@ -65,6 +68,31 @@ bool pick_steer_target(const PathFollowAI& pf, float self_x, float self_y,
     return true;
 }
 
+// 巡逻选点：在当前位置附近（wander_radius 圆盘）随机采样下一个目标，
+// 但候选点必须落在以 home 为圆心、leash_radius 为半径的领地内。
+// 受控重试（上限 PATROL_PICK_TRIES）：全部被领地拒绝时回退到 home，
+// 保证随机游走永不会把敌人带离出生区域（参考 Minecraft home_position_restriction）。
+void pick_patrol_target(float self_x, float self_y, float home_x, float home_y,
+                        float wander_radius, float leash_radius,
+                        float& out_x, float& out_y) {
+    const float leash2 = leash_radius * leash_radius;
+    for (int i = 0; i < PATROL_PICK_TRIES; i++) {
+        float angle = game_random::range(0.0f, std::numbers::pi_v<float> * 2.0f);
+        float prob  = game_random::range(0.0f, 1.0f);
+        float r = std::sqrt(prob) * wander_radius;
+        float cx = self_x + std::cos(angle) * r;
+        float cy = self_y + std::sin(angle) * r;
+        float dx = cx - home_x, dy = cy - home_y;
+        if (dx * dx + dy * dy <= leash2) {
+            out_x = cx;
+            out_y = cy;
+            return;
+        }
+    }
+    out_x = home_x;
+    out_y = home_y;
+}
+
 }  // namespace
 
 // =====================================================================
@@ -72,6 +100,8 @@ bool pick_steer_target(const PathFollowAI& pf, float self_x, float self_y,
 // =====================================================================
 void EnemyAISystem::update(World& world, float dt) {
     Entity player = INVALID_ENTITY;
+
+    //绑定玩家
     for (auto e : world.query<Transform, IdentityTag>()) {
         auto* id = world.get_component<IdentityTag>(e);
         if (id && id->identity_type == Identity::Player) {
@@ -108,11 +138,10 @@ void EnemyAISystem::update_patrol(World& world, float dt) {
             continue;
         }
 
-        // 消费撞墙标志（block_push 由 update_patrol_behavior 读取后清零）
-        bool blocked_consumed = oc->blocked;
-        if (oc->blocked) oc->blocked = false;
+        update_patrol_behavior(dt, t, v, ai, pc, oc);
 
-        update_patrol_behavior(dt, t, v, ai, pc, oc, blocked_consumed);
+        // 末尾统一消费撞墙标志
+        oc->blocked = false;
     }
 }
 
@@ -153,15 +182,6 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
         // 注意：攻击冷却递减已由 CooldownSystem 统一完成，
         // 本系统不再处理 attack_timer（Cooldown 组件在 EnemyAI 之外独立递减）。
 
-        // === 撞墙避让 ===
-        // CollisionSystem 写入 ObstacleContact 组件，
-        // 这里只消费 blocked 标志位；block_push_x/y 留给各状态分支按需读取后自行清零
-        bool blocked_consumed = oc->blocked;
-        if (oc->blocked) {
-            oc->blocked = false;
-            // block_push_x/y 暂不清零，Patrol 分支读取后再清
-        }
-
         // === 玩家相对距离 ===
         float dx = 0, dy = 0, dist = 0, dir_x = 0, dir_y = 0;
         if (pt) {
@@ -181,10 +201,10 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
         v->speed_mult = 1.0f;
         switch (sm->state) {
             case AIState::Patrol:
-                update_patrol_behavior(dt, t, v, ai, pc, oc, blocked_consumed);
+                update_patrol_behavior(dt, t, v, ai, pc, oc);
                 break;
             case AIState::Chase:
-                update_chase_behavior(dt, t, v, pf, pt, dir_x, dir_y, oc, blocked_consumed);
+                update_chase_behavior(dt, t, v, pf, pt, dir_x, dir_y, oc);
                 break;
             case AIState::Flee:
                 v->speed_mult = 1.2f;  // 逃跑 1.2 倍速：倍率走速度字段，方向保持归一化
@@ -196,6 +216,9 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
                 v->vy = 0.0f;
                 break;
         }
+
+        // 末尾统一消费撞墙标志
+        oc->blocked = false;
     }
 }
 
@@ -279,16 +302,14 @@ void EnemyAISystem::decide_state_transition(StateMachineAI* sm, const EnemyAI* a
 }
 
 // =====================================================================
-//  巡逻核心（Boss Patrol 态与小怪随机巡逻共用）
+//  阶段1 巡逻核心（Boss Patrol 态与小怪随机巡逻共用）
 //  只算速度，不改 state（发现玩家的转换在 decide_state_transition 处理）
 //  数据统一在 PatrolAI 组件；撞墙避让沿推开方向反向选点，远离墙再随机
 // =====================================================================
 void EnemyAISystem::update_patrol_behavior(float dt, Transform* t, Velocity* v, EnemyAI* ai,
-                                           PatrolAI* pc, ObstacleContact* oc,
-                                           bool blocked_consumed) {
+                                           PatrolAI* pc, ObstacleContact* oc) {
     // === 撞墙避让 ===
-    // Patrol 态自身没路径规划，撞墙时改目标到推开方向，远离墙再随机选点
-    if (blocked_consumed) {
+    if (oc->blocked) {
         float plen = std::sqrt(oc->block_push_x * oc->block_push_x +
                                oc->block_push_y * oc->block_push_y);
         if (plen > 0.001f) {
@@ -302,22 +323,32 @@ void EnemyAISystem::update_patrol_behavior(float dt, Transform* t, Velocity* v, 
         oc->block_push_y = 0.0f;
     }
 
-    // 正常巡逻
+    // 正常巡逻：到达目标 / 换点计时到期 → 在当前位置附近重选，受 leash 约束不漂离出生点
     pc->patrol_timer -= dt;
     float tdx = pc->target_x - t->x;
     float tdy = pc->target_y - t->y;
     float tdist = std::sqrt(tdx * tdx + tdy * tdy);
-    if (tdist < 8.0f || pc->patrol_timer <= 0.0f) {
-        float angle = game_rng::range(0.0f, std::numbers::pi_v<float> * 2.0f);
-        float probability = game_rng::range(0.0f, 1.0f);
-        float r = std::sqrt(probability) * pc->patrol_radius;
-        pc->target_x = ai->home_x + std::cos(angle) * r;
-        pc->target_y = ai->home_y + std::sin(angle) * r;
+
+    // 硬牵绳兜底：已被推出领地（碰撞/击退等），直接朝 home 拉回，不等换点计时
+    const float hdx = t->x - ai->home_x;
+    const float hdy = t->y - ai->home_y;
+    const bool outside_leash = (hdx * hdx + hdy * hdy) > pc->leash_radius * pc->leash_radius;
+
+    if (outside_leash) {
+        pc->target_x = ai->home_x;
+        pc->target_y = ai->home_y;
         pc->patrol_timer = pc->patrol_interval;
-        tdx = pc->target_x - t->x;
-        tdy = pc->target_y - t->y;
-        tdist = std::sqrt(tdx * tdx + tdy * tdy);
+    } else if (tdist < 8.0f || pc->patrol_timer <= 0.0f) {
+        pick_patrol_target(t->x, t->y, ai->home_x, ai->home_y,
+                           pc->patrol_radius, pc->leash_radius,
+                           pc->target_x, pc->target_y);
+        pc->patrol_timer = pc->patrol_interval;
     }
+
+    // 朝（可能更新后的）目标点移动
+    tdx = pc->target_x - t->x;
+    tdy = pc->target_y - t->y;
+    tdist = std::sqrt(tdx * tdx + tdy * tdy);
     if (tdist > 0.001f) {
         v->vx = tdx / tdist;
         v->vy = tdy / tdist;
@@ -335,7 +366,7 @@ void EnemyAISystem::update_patrol_behavior(float dt, Transform* t, Velocity* v, 
 void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
                                           PathFollowAI* pf, const Transform* pt,
                                           float dir_x, float dir_y,
-                                          ObstacleContact* oc, bool blocked_consumed) {
+                                          ObstacleContact* oc) {
     // === 脱困态优先：卡死时锁定一个方向持续位移，必须先于正常寻路早退 ===
     if (pf->escape_timer > 0.0f) {
         pf->escape_timer -= dt;
@@ -348,7 +379,7 @@ void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
     }
 
     // === 窗口式卡死检测 ===
-    if (blocked_consumed) {
+    if (oc->blocked) {
         if (pf->stuck_timer <= 0.0f) {  // 刚进入被挡，记录窗口起点
             pf->stuck_origin_x = t->x;
             pf->stuck_origin_y = t->y;
@@ -359,7 +390,7 @@ void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
     }
     float net_dx = t->x - pf->stuck_origin_x;
     float net_dy = t->y - pf->stuck_origin_y;
-    bool stuck = blocked_consumed &&
+    bool stuck = oc->blocked &&
                  pf->stuck_timer > PATH_STUCK_TIME &&
                  (net_dx * net_dx + net_dy * net_dy) < PATH_STUCK_DIST * PATH_STUCK_DIST;
 
@@ -427,7 +458,7 @@ void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
     }
 
     // === 贴墙轻量滑动 ===
-    if (blocked_consumed) {
+    if (oc->blocked) {
         float plen = std::sqrt(oc->block_push_x * oc->block_push_x +
                                oc->block_push_y * oc->block_push_y);
         if (plen > 0.001f) {
@@ -457,7 +488,7 @@ void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
 }
 
 // =====================================================================
-//  阶段2 · Flee 行为：朝玩家反方向跑
+//  阶段3 · Flee 行为：朝玩家反方向跑
 //  只算速度，不改 state（无玩家 / 跑远回 Patrol 的转换已在 decide_state_transition 处理）
 // =====================================================================
 void EnemyAISystem::update_flee_behavior(Velocity* v, float dir_x, float dir_y) {

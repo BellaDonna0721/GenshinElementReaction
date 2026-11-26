@@ -242,7 +242,7 @@ void LevelSystem::pick_buff_choices(World& world) {
 
     // Fisher-Yates 洗牌取前 3
     for (int i = static_cast<int>(indices.size()) - 1; i > 0; i--) {
-        int j = game_rng::range_int(0, i);
+        int j = game_random::range_int(0, i);
         std::swap(indices[i], indices[j]);
     }
 

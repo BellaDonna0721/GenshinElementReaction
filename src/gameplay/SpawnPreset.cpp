@@ -165,6 +165,7 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     pc.target_y        = y;
     pc.patrol_interval = preset.patrol_interval;
     pc.patrol_radius   = preset.patrol_radius;
+    pc.leash_radius    = preset.leash_radius;
     world.add_component<PatrolAI>(e, pc);
 
     // 10. 状态机附加组件（仅 ai_type==StateMachine 时挂载，Boss 用）

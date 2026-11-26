@@ -40,6 +40,9 @@ struct EnemyPreset {
 
     // —— StateMachine 专用配置（仅 ai_type==StateMachine 时被 spawn_enemy 消费）——
     float       flee_hp_ratio   = 0.25f;  // 血量比例低于此值进入逃跑
+
+    // —— 巡逻领地半径（通用：小怪 / Boss Patrol 态共用，放入 PatrolAI::leash_radius）——
+    float       leash_radius    = 200.0f; // 目标点不得超出出生点此范围，防止无界漂移
 };
 
 // ========== 内置常用敌人预设（元素量/时长 100% 按原神模型统一查表，别手填 decay_rate！） ==========
@@ -131,6 +134,7 @@ inline const EnemyPreset ENEMY_BOSS = {
     3.0f,                       // patrol_interval：巡逻换点间隔（秒）
     100.0f,                     // patrol_radius：巡逻半径
     0.25f,                      // flee_hp_ratio：血量比例低于此值逃跑
+    400.0f,                     // leash_radius：领地半径（Boss 警戒范围大，匹配其活动空间）
 };
 
 // 生成玩家实体

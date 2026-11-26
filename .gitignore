@@ -20,3 +20,5 @@ Thumbs.db
 
 # —— 开发调试目录 ——
 dev/
+
+.trae/

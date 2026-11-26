@@ -117,7 +117,7 @@ static void spawn_crystallize_shard(World& world, Entity target, ElementType rea
     Entity shard = world.create_entity();
 
     // 位置：目标周围随机方向偏移
-    float angle = game_rng::range(0.0f, std::numbers::pi_v<float> * 2.0f);
+    float angle = game_random::range(0.0f, std::numbers::pi_v<float> * 2.0f);
     float offset = 35.0f;  // 偏移距离（敌人半径 + 晶片半径 + 余量）
     Transform t;
     t.x = tt->x + std::cos(angle) * offset;
