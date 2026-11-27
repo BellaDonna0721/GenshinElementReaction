@@ -11,7 +11,7 @@
 #include "../components/Cooldown.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
-#include "../utils/element_color.h"
+#include "../utils/ElementColor.h"
 #include <cmath>
 #include <algorithm>
 

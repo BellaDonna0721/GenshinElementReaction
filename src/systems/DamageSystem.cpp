@@ -10,7 +10,7 @@
 #include "../components/singletonComponents/HitEventQueue.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../gameplay/EnemyManager.h"
-#include "../utils/element_color.h"
+#include "../utils/ElementColor.h"
 #include <vector>
 #include <cmath>
 

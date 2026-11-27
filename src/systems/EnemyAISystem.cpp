@@ -12,7 +12,7 @@
 #include "../components/ElementStatus.h"
 #include "../utils/GameConfig.h"
 #include "../utils/Random.h"
-#include "PathfinderSystem.h"
+#include "../utils/PathFinder.h"
 #include <cmath>
 #include <numbers>
 
@@ -45,8 +45,8 @@ bool pick_steer_target(const PathFollowAI& pf, float self_x, float self_y,
 
     // 推进已到达航点
     while (idx < n) {
-        float wx = PathfinderSystem::cell_center(path[idx].first);
-        float wy = PathfinderSystem::cell_center(path[idx].second);
+        float wx = PathFinder::cell_center(path[idx].first);
+        float wy = PathFinder::cell_center(path[idx].second);
         float dx = wx - self_x, dy = wy - self_y;
         if (dx * dx + dy * dy < PATH_ARRIVE_R * PATH_ARRIVE_R) idx++;
         else break;
@@ -57,14 +57,14 @@ bool pick_steer_target(const PathFollowAI& pf, float self_x, float self_y,
     // 前瞻：在 lookahead 距离内，取沿途最远的可达航点（线段可走即安全，不会穿墙取点）
     int target = idx;
     for (int i = idx; i < n; i++) {
-        float wx = PathfinderSystem::cell_center(path[i].first);
-        float wy = PathfinderSystem::cell_center(path[i].second);
+        float wx = PathFinder::cell_center(path[i].first);
+        float wy = PathFinder::cell_center(path[i].second);
         float dx = wx - self_x, dy = wy - self_y;
         if (dx * dx + dy * dy > PATH_LOOKAHEAD * PATH_LOOKAHEAD) continue;
-        if (PathfinderSystem::segment_walkable(self_x, self_y, wx, wy, true)) target = i;
+        if (PathFinder::segment_walkable(self_x, self_y, wx, wy, true)) target = i;
     }
-    out_x = PathfinderSystem::cell_center(path[target].first);
-    out_y = PathfinderSystem::cell_center(path[target].second);
+    out_x = PathFinder::cell_center(path[target].first);
+    out_y = PathFinder::cell_center(path[target].second);
     return true;
 }
 
@@ -147,19 +147,20 @@ void EnemyAISystem::update_patrol(World& world, float dt) {
 
 // =====================================================================
 //  状态机行为：Patrol（巡逻）→ Chase（追击）→ Flee（逃跑）
-//  实体需同时携带 EnemyAI + StateMachineAI + PatrolAI + PathFollowAI（Boss 专用）
+//  筛选条件只写 StateMachineAI：SpawnPreset 保证挂 StateMachineAI 的实体
+//  必同时挂 PatrolAI + PathFollowAI（Boss 专用），故两者不重复写入查询。
 //
 //  两阶段结构：
 //    阶段1 decide_state_transition —— 集中决定状态转换（含 entry 动作），只改 state
 //    阶段2 update_xxx_behavior     —— 各状态只算速度，不再改 state
 //
-//  与 PathfinderSystem 配合：Chase 态沿 A* 最短路径追玩家，遇墙自动绕路
+//  与 PathFinder 配合：Chase 态沿 A* 最短路径追玩家，遇墙自动绕路
 //  撞墙（blocked）或玩家换 cell 或冷却归零 → 触发重算路径
 // =====================================================================
 void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) {
     Transform* pt = (player != INVALID_ENTITY) ? world.get_component<Transform>(player) : nullptr;
 
-    for (auto e : world.query<Transform, Velocity, EnemyAI, StateMachineAI, PatrolAI, PathFollowAI>()) {
+    for (auto e : world.query<Transform, Velocity, EnemyAI, StateMachineAI>()) {
         auto* t   = world.get_component<Transform>(e);
         auto* v   = world.get_component<Velocity>(e);
         auto* ai  = world.get_component<EnemyAI>(e);
@@ -388,12 +389,16 @@ void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
     } else {
         pf->stuck_timer = 0.0f;
     }
+
+    //与被挡起点距离
     float net_dx = t->x - pf->stuck_origin_x;
     float net_dy = t->y - pf->stuck_origin_y;
+    
     bool stuck = oc->blocked &&
                  pf->stuck_timer > PATH_STUCK_TIME &&
                  (net_dx * net_dx + net_dy * net_dy) < PATH_STUCK_DIST * PATH_STUCK_DIST;
 
+    //卡死成立
     if (stuck) {
         float plen = std::sqrt(oc->block_push_x * oc->block_push_x +
                                oc->block_push_y * oc->block_push_y);
@@ -427,14 +432,14 @@ void EnemyAISystem::update_chase_behavior(float dt, Transform* t, Velocity* v,
 
         pf->path.clear();
         pf->path_index = 0;
-        if (PathfinderSystem::find_path(t->x, t->y, pt->x, pt->y, pf->path)) {
+        if (PathFinder::find_path(t->x, t->y, pt->x, pt->y, pf->path)) {
             // 保留进度：吸附到离当前位置最近的、可达的航点
             int best = 0;
             float best_d2 = 1e18f;
             for (int i = 0; i < static_cast<int>(pf->path.size()); i++) {
-                float wx = PathfinderSystem::cell_center(pf->path[i].first);
-                float wy = PathfinderSystem::cell_center(pf->path[i].second);
-                if (!PathfinderSystem::segment_walkable(t->x, t->y, wx, wy, true)) continue;
+                float wx = PathFinder::cell_center(pf->path[i].first);
+                float wy = PathFinder::cell_center(pf->path[i].second);
+                if (!PathFinder::segment_walkable(t->x, t->y, wx, wy, true)) continue;
                 float dx = wx - t->x, dy = wy - t->y;
                 float d2 = dx * dx + dy * dy;
                 if (d2 < best_d2) { best_d2 = d2; best = i; }

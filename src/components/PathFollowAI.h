@@ -9,7 +9,7 @@
 //  状态决策（何时追、何时逃）由 StateMachineAI 集中管理，
 //  Patrol 执行由 PatrolAI 负责，三者互不感知。
 //
-//  依赖 PathfinderSystem::find_path 计算绕墙路线。
+//  依赖 PathFinder::find_path 计算绕墙路线。
 //  撞墙反馈统一走 ObstacleContact 组件。
 //
 //  挂载方：ai_type == StateMachine 的敌人（Boss）

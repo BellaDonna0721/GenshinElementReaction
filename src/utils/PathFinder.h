@@ -1,12 +1,12 @@
 #pragma once
 #include "../gameplay/LevelConfig.h"
-#include "../utils/GameConfig.h"
+#include "GameConfig.h"
 #include <vector>
 #include <algorithm>
 #include <cmath>
 
 // =====================================================================
-//  PathfinderSystem —— A* 路径规划（独立于 ECS，按需调用）
+//  PathFinder —— A* 路径规划（独立于 ECS，按需调用）
 //
 //  核心设计：
 //    · 几何膨胀建网格：cell 中心到任一墙体 AABB 的距离 < PATH_AGENT_CLEARANCE
@@ -21,7 +21,7 @@
 //  不继承 System：不参与每帧调度，只在需要时被调用。
 // =====================================================================
 
-namespace PathfinderSystem {
+namespace PathFinder {
 
 // === 网格 ===
 // true = 可通行，false = 墙 / 边界
@@ -300,4 +300,4 @@ inline std::vector<PathPoint> cell_path_to_world(const std::vector<std::pair<sho
     return result;
 }
 
-}  // namespace PathfinderSystem
+}  // namespace PathFinder

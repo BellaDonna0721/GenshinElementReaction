@@ -227,7 +227,7 @@ GenshinElementReaction/
 │   │   └── wasm_api.cpp        # EMSCRIPTEN_BINDINGS：TS ↔ WASM 桥接
 │   └── utils/
 │       ├── ElementType.h     # 共享类型定义：ElementType/ElementStrength/ReactionType 枚举 + 强度参数表
-│       └── element_color.h   # ElementType → RGB 映射，角色/子弹/UI 颜色统一
+│       └── ElementColor.h    # ElementType → RGB 映射，角色/子弹/UI 颜色统一
 │
 └── web/                      # TypeScript 交互/渲染层（浏览器执行）
     ├── index.html            # Canvas 容器 + import main.js
@@ -246,7 +246,7 @@ GenshinElementReaction/
 - **组件存储 Sparse Set**：稀疏索引数组 + 稠密数组实现高缓存局部性，`query<Component...>` 遍历高效。
 - **实体 ID 栈式回收**：`create_entity` 从 `m_free_ids` 栈里复用已销毁的 ID。
 - **系统执行顺序固定**：Input → Lifetime → Movement → Collision → ElementReaction → Output，每帧严格按此顺序调度。
-- **元素→颜色集中化**：所有元素色值来自 `get_element_color()`（utils/element_color.h）。
+- **元素→颜色集中化**：所有元素色值来自 `get_element_color()`（utils/ElementColor.h）。
 - **类型定义集中化**：所有元素枚举/强度参数来自 `utils/ElementType.h`，组件和系统共享。
 
 ## TODO

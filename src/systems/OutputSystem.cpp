@@ -12,7 +12,7 @@
 #include "../components/singletonComponents/GameState.h"
 #include "../components/singletonComponents/HitEventQueue.h"
 #include "../components/singletonComponents/HitFxQueue.h"
-#include "../utils/element_color.h"
+#include "../utils/ElementColor.h"
 #include "../gameplay/BulletPool.h"
 #include <cmath>
 

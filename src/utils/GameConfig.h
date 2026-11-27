@@ -18,7 +18,7 @@ namespace GameConfig {
     constexpr int   PATH_GRID_H   = 28;      // 700 / 25
 
     // 寻路 agent（Boss）的碰撞半径：路径中心线到任一墙体需保持该净空，
-    // 由 PathfinderSystem 在网格构建阶段做几何膨胀保证，运行时不再靠碰撞兜底。
+    // 由 PathFinder 在网格构建阶段做几何膨胀保证，运行时不再靠碰撞兜底。
     constexpr float PATH_AGENT_CLEARANCE = 36.0f;
 
     // 归一化坐标（0~1）→ 世界像素坐标

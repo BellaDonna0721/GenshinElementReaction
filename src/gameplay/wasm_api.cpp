@@ -24,7 +24,7 @@
 #include "../components/IdentityTag.h"
 #include "../components/EnemyAI.h"
 #include "../components/PathFollowAI.h"
-#include "../systems/PathfinderSystem.h"
+#include "../utils/PathFinder.h"
 #include "../components/Transform.h"
 #include "../utils/GameConfig.h"
 #include <vector>
@@ -363,7 +363,7 @@ float* wasm_get_costmap_data() {
     g_grid_cache.reserve(GameConfig::PATH_GRID_W * GameConfig::PATH_GRID_H);
     for (int cy = 0; cy < GameConfig::PATH_GRID_H; cy++) {
         for (int cx = 0; cx < GameConfig::PATH_GRID_W; cx++) {
-            float v = PathfinderSystem::grid[cy][cx] ? 0.0f : -1.0f;
+            float v = PathFinder::grid[cy][cx] ? 0.0f : -1.0f;
             g_grid_cache.push_back(v);
         }
     }

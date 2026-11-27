@@ -11,7 +11,7 @@
 //
 //  巡逻数据统一在 PatrolAI 组件（Boss 的 Patrol 态与小怪共用
 //  update_patrol_behavior 实现）。
-//  Boss 追击依赖 PathfinderSystem::find_path 计算绕墙最短路径
+//  Boss 追击依赖 PathFinder::find_path 计算绕墙最短路径
 //
 //  新增 AI 类型：新建行为组件 + 新增 update_xxx 函数，现有代码零改动。
 //
