@@ -1,5 +1,5 @@
 // ========================================================================
-// ICD（元素附着冷却）单元测试（修复版：7 元素 × 2 档 = 14 组独立）
+// ICD（元素附着冷却）单元测试（修复版：6 元素 × 2 档 = 12 组独立）
 // 编译运行：g++ -std=c++17 -I../src benchmark/icd_test.cpp -o benchmark/icd_test.exe
 // ========================================================================
 #include "../src/components/ElementStatus.h"
@@ -52,7 +52,7 @@ static void test_case1_weak_pyro_sequence() {
             i + 1, slot.counter, slot.timer, (int)allow, (int)expected[i]);
         EXPECT(allow == expected[i], label, "");
     }
-    // 其他 15 个 slot（共 16 行，减去 Weak(Pyro) 自己 1 行）必须完全干净
+    // 其他 13 个 slot（共 14 行，减去 Weak(Pyro) 自己 1 行）必须完全干净
     const int SELF_EI = static_cast<int>(ElementType::Pyro);  // 1
     const int SELF_GI = 0;                                     // Weak
     for (int ei = 0; ei < ElementICDStatus::ELEM_DIM; ++ei) {
@@ -150,10 +150,10 @@ static void test_case4_per_enemy_independent() {
     std::printf("\n===== Case 4：敌人 A/B ICD 互不污染 =====\n");
     ElementICDStatus A;
     ElementICDStatus B;
-    ElementType T = ElementType::Dendro;
+    ElementType T = ElementType::Anemo;
     ElementStrength S = ElementStrength::Weak;
 
-    // 先打 A：Weak(Dendro) 3 发 → ✅❌❌
+    // 先打 A：Weak(Anemo) 3 发 → ✅❌❌
     bool A1 = icd_hit_allowed(A, T, S);
     bool A2 = icd_hit_allowed(A, T, S);
     bool A3 = icd_hit_allowed(A, T, S);
@@ -305,7 +305,7 @@ static void test_case6_cross_element_independent() {
     // —— 额外：Strong(Anemo) 第 1 发 → 完全新组 ✅（含风岩验证）
     bool A1 = icd_hit_allowed(icd, ElementType::Anemo, ElementStrength::Strong);
     EXPECT(A1 == true,
-           "Strong(Anemo) 第 1 发 ✅（Anemo 含在 7 元素中，独立分组）",
+           "Strong(Anemo) 第 1 发 ✅（Anemo 含在 6 元素中，独立分组）",
            "A1=%d AnemoStrong_counter=%d", (int)A1,
            peek(icd, ElementType::Anemo, ElementStrength::Strong).counter);
 }
@@ -315,7 +315,7 @@ static void test_case6_cross_element_independent() {
 // ===========================================================================
 int main() {
     std::printf("=====================================================\n");
-    std::printf(" ICD 单元测试（修复版：7 元素 × 2 档 = 14 组独立）\n");
+    std::printf(" ICD 单元测试（修复版：6 元素 × 2 档 = 12 组独立）\n");
     std::printf(" 分组 key：(触发元素 × 攻击档位)\n");
     std::printf("   每组各自规则：1,4,7,10… 放行 / 2.5s 到点清零 / 首次启动\n");
     std::printf(" 全局规则：每个敌人独立；ICD 拦截 → 反应也无效（选B）\n");

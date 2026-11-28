@@ -180,8 +180,8 @@ void EnemyAISystem::update_state_machine(World& world, float dt, Entity player) 
             continue;
         }
 
-        // 注意：攻击冷却递减已由 CooldownSystem 统一完成，
-        // 本系统不再处理 attack_timer（Cooldown 组件在 EnemyAI 之外独立递减）。
+        // 注意：攻击冷却递减已由 AttackCooldownSystem 统一完成，
+        // 本系统不再处理 attack_timer（AttackCooldown 组件在 EnemyAI 之外独立递减）。
 
         // === 玩家相对距离 ===
         float dx = 0, dy = 0, dist = 0, dir_x = 0, dir_y = 0;

@@ -14,7 +14,7 @@
 #include "../components/PatrolAI.h"
 #include "../components/PathFollowAI.h"
 #include "../components/ObstacleContact.h"
-#include "../components/Cooldown.h"
+#include "../components/AttackCooldown.h"
 #include "../components/singletonComponents/GameState.h"
 
 // ========== 玩家工厂（标准配置，目前没有多种玩家变体） ==========
@@ -80,10 +80,10 @@ Entity spawn_player(World& world, float x, float y) {
 
     // 9. 射击冷却（取代 InputSystem::m_fire_cooldown 违规成员变量）
     //    duration 基础值 0.5s；InputSystem 触发时按攻击速度 buff 动态乘以 atk_speed_mult
-    Cooldown fire_cd;
+    AttackCooldown fire_cd;
     fire_cd.duration  = 0.5f;
     fire_cd.remaining = 0.0f;  // 初始就绪
-    world.add_component<Cooldown>(e, fire_cd);
+    world.add_component<AttackCooldown>(e, fire_cd);
 
     return e;
 }
@@ -141,7 +141,7 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     hp.current_hp = preset.max_hp;
     world.add_component<Health>(e, hp);
 
-    // 8. AI 公共数据（参数来自预设，attack_cooldown 已抽成独立 Cooldown 组件）
+    // 8. AI 公共数据（参数来自预设，attack_cooldown 已抽成独立 AttackCooldown 组件）
     EnemyAI ai;
     ai.ai_type       = preset.ai_type;
     ai.enemy_type    = static_cast<uint8_t>(preset.element);  // 临时：存元素类型用于血条显示类型名
@@ -154,10 +154,10 @@ Entity spawn_enemy(World& world, float x, float y, const EnemyPreset& preset) {
     world.add_component<EnemyAI>(e, ai);
 
     // 8b. 攻击冷却组件（取代 EnemyAI::attack_timer + attack_cooldown）
-    Cooldown atk_cd;
+    AttackCooldown atk_cd;
     atk_cd.duration  = preset.attack_cooldown;  // 配置真源仍在 EnemyPreset
     atk_cd.remaining = 0.0f;  // 初始就绪，进 CollisionSystem 第一帧即可攻击
-    world.add_component<Cooldown>(e, atk_cd);
+    world.add_component<AttackCooldown>(e, atk_cd);
 
     // 9. 挂载巡逻组件（通用：小怪随机巡逻 / Boss 状态机 Patrol 态共用）
     PatrolAI pc;

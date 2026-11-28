@@ -4,7 +4,7 @@
 #include "../components/IdentityTag.h"
 #include "../components/EnemyAI.h"
 #include "../components/ElementStatus.h"
-#include "../components/Cooldown.h"
+#include "../components/AttackCooldown.h"
 #include "../components/singletonComponents/DamageQueue.h"
 #include "../components/singletonComponents/DamageNumberQueue.h"
 #include "../components/singletonComponents/HitEventQueue.h"
@@ -55,7 +55,7 @@ void DamageSystem::update(World& world, float dt) {
             for (const auto& ev : hit_queue->events) {
                 if (ev.type != HitEventQueue::Type::EnemyTouchPlayer) continue;
                 EnemyAI* eai = world.get_component<EnemyAI>(ev.aggressor);
-                Cooldown* ecd = world.get_component<Cooldown>(ev.aggressor);
+                AttackCooldown* ecd = world.get_component<AttackCooldown>(ev.aggressor);
                 if (!eai || !ecd || !ecd->is_ready()) continue;
 
                 DamageQueue::DamageEvent dev;

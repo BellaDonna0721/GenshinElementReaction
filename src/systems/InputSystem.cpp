@@ -8,7 +8,7 @@
 #include "../components/ElementStatus.h"
 #include "../components/RenderInfo.h"
 #include "../components/FacingDirection.h"
-#include "../components/Cooldown.h"
+#include "../components/AttackCooldown.h"
 #include "../components/singletonComponents/GameState.h"
 #include "../gameplay/BuffRegistry.h"
 #include "../utils/ElementColor.h"
@@ -20,7 +20,7 @@ InputState g_input;
 // ========== InputSystem ==========
 
 void InputSystem::update(World& world, float dt) {
-    // 注意：冷却递减已由流水线最前的 CooldownSystem 统一完成，
+    // 注意：冷却递减已由流水线最前的 AttackCooldownSystem 统一完成，
     // 本系统只负责查 remaining → 触发 → 重置。
 
     // 读取全局增益
@@ -33,7 +33,7 @@ void InputSystem::update(World& world, float dt) {
     }
 
     // 用 IdentityTag 过滤玩家
-    for (auto e : world.query<Transform, Velocity, FacingDirection, IdentityTag, RenderInfo, Cooldown>()) {
+    for (auto e : world.query<Transform, Velocity, FacingDirection, IdentityTag, RenderInfo, AttackCooldown>()) {
         auto* id = world.get_component<IdentityTag>(e);
         if (id->identity_type != Identity::Player) continue;
 
@@ -41,10 +41,10 @@ void InputSystem::update(World& world, float dt) {
         auto* v    = world.get_component<Velocity>(e);
         auto* face = world.get_component<FacingDirection>(e);
         auto* ri   = world.get_component<RenderInfo>(e);
-        auto* cd   = world.get_component<Cooldown>(e);
+        auto* cd   = world.get_component<AttackCooldown>(e);
 
-        // ========== ① 数字键切换玩家元素（1~7）==========
-        if (g_input.element_key >= 1 && g_input.element_key <= 7) {
+        // ========== ① 数字键切换玩家元素（1~6）==========
+        if (g_input.element_key >= 1 && g_input.element_key <= 6) {
             ElementType new_elem = s_key_to_elem[g_input.element_key];
             if (new_elem != ElementType::None) {
                 gs->player_current_element = new_elem;

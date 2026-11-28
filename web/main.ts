@@ -94,7 +94,6 @@ function onKeyDown(e: KeyboardEvent): void {
     case '4': input.elemKey = 4; renderer.setCurrentElement(ElementType.Cryo);    break; // 冰
     case '5': input.elemKey = 5; renderer.setCurrentElement(ElementType.Anemo);   break; // 风
     case '6': input.elemKey = 6; renderer.setCurrentElement(ElementType.Geo);     break; // 岩
-    case '7': input.elemKey = 7; renderer.setCurrentElement(ElementType.Dendro);  break; // 草
   }
 }
 

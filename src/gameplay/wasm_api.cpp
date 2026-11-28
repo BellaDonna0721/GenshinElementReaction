@@ -1,7 +1,7 @@
 #include <emscripten.h>
 #include "../core/World.h"
 #include "../systems/InputSystem.h"
-#include "../systems/CooldownSystem.h"
+#include "../systems/AttackCooldownSystem.h"
 #include "../systems/LifetimeSystem.h"
 #include "../systems/MovementSystem.h"
 #include "../systems/EnemyAISystem.h"
@@ -40,7 +40,7 @@ void wasm_init() {
     g_world = new World();
 
     // 系统执行流水线：
-    //   1. Cooldown — 统一递减所有 Cooldown 组件（玩家射击/敌人攻击…）
+    //   1. AttackCooldown — 统一递减所有 AttackCooldown 组件（玩家射击/敌人攻击…）
     //   2. Input      — 读输入、写速度/朝向、生成子弹
     //   3. Lifetime   — 子弹寿命扣减、回收
     //   4. EnemyAI    — 敌人状态机：算速度（巡逻/警戒/战斗/逃跑），先算速度再移动
@@ -51,7 +51,7 @@ void wasm_init() {
     //   9. Damage     — 消费伤害队列、扣血、死亡、加分
     //  10. Level      — 波次刷怪、通关判定、增益
     //  11. Output     — 打包渲染数据
-    g_world->add_system(std::make_unique<CooldownSystem>());
+    g_world->add_system(std::make_unique<AttackCooldownSystem>());
     g_world->add_system(std::make_unique<InputSystem>());
     g_world->add_system(std::make_unique<LifetimeSystem>());
     g_world->add_system(std::make_unique<EnemyAISystem>());

@@ -94,12 +94,6 @@ static TestReactionRule g_test_rules[] = {
     {ElementType::Geo,   ElementType::Hydro,  ReactionType::Crystallize,     true, true, 1.0f},
     {ElementType::Geo,   ElementType::Electro,ReactionType::Crystallize,     true, true, 1.0f},
     {ElementType::Geo,   ElementType::Cryo,   ReactionType::Crystallize,     true, true, 1.0f},
-    // Burning
-    {ElementType::Dendro,ElementType::Pyro,   ReactionType::Burning,         true, true, 1.0f},
-    {ElementType::Pyro,  ElementType::Dendro, ReactionType::Burning,         true, true, 1.0f},
-    // Bloom
-    {ElementType::Dendro,ElementType::Hydro,  ReactionType::Bloom,           true, true, 1.0f},
-    {ElementType::Hydro, ElementType::Dendro, ReactionType::Bloom,           true, true, 1.0f},
 };
 static constexpr int g_rule_count = sizeof(g_test_rules) / sizeof(g_test_rules[0]);
 
@@ -152,7 +146,7 @@ static std::vector<std::pair<ElementType, ElementType>> generate_queries(size_t 
     std::mt19937 rng(42);
     std::vector<ElementType> all_elements = {
         ElementType::Pyro, ElementType::Hydro, ElementType::Electro,
-        ElementType::Cryo, ElementType::Anemo, ElementType::Geo, ElementType::Dendro
+        ElementType::Cryo, ElementType::Anemo, ElementType::Geo
     };
     for (size_t i = 0; i < N; ++i) {
         if (rng() % 10 < 7) {

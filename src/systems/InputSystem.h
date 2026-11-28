@@ -13,21 +13,21 @@ struct InputState {
     float mouse_y        = 0.0f;   //鼠标世界坐标 Y（像素）
     bool mouse_click     = false;  //鼠标左键按下（Weak 子弹）
     bool mouse_right_click = false;//鼠标右键按下（Strong 子弹）
-    int  element_key     = 0;      //数字键 1-7 切角色元素
+    int  element_key     = 0;      //数字键 1-6 切角色元素
 };
 
 extern InputState g_input;  //全局输入实例（wasm_api.cpp 写，InputSystem 读）
 
-// 输入系统：第 2 步流水线（CooldownSystem 之后，冷却已被递减）
-//   读 g_input → 写玩家 Velocity/FacingDirection → 查玩家 Cooldown → fire() 生成子弹
+// 输入系统：第 2 步流水线（AttackCooldownSystem 之后，冷却已被递减）
+//   读 g_input → 写玩家 Velocity/FacingDirection → 查玩家 AttackCooldown → fire() 生成子弹
 class InputSystem : public System {
 public:
     void update(World& world, float dt) override;
 
 private:
-    // 数字键 1-7 → 对应 ElementType 枚举值（数组下标即按键，索引 0=不用）
-    // 1=Pyro火 2=Hydro水 3=Electro雷 4=Cryo冰 5=Anemo风 6=Geo岩 7=Dendro草
-    static constexpr ElementType s_key_to_elem[8] = {
+    // 数字键 1-6 → 对应 ElementType 枚举值（数组下标即按键，索引 0=不用）
+    // 1=Pyro火 2=Hydro水 3=Electro雷 4=Cryo冰 5=Anemo风 6=Geo岩
+    static constexpr ElementType s_key_to_elem[7] = {
         ElementType::None,    // 0 占位
         ElementType::Pyro,    // 1 火
         ElementType::Hydro,   // 2 水
@@ -35,7 +35,6 @@ private:
         ElementType::Cryo,    // 4 冰
         ElementType::Anemo,   // 5 风
         ElementType::Geo,     // 6 岩
-        ElementType::Dendro,  // 7 草
     };
 
     // 发射一颗子弹：从 BulletPool 拿实体 → 装配 7 个组件

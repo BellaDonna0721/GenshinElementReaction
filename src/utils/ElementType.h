@@ -5,7 +5,7 @@
 //  元素领域的共享类型定义
 // =====================================================================
 
-// 元素类型（七元素 + 空）
+// 元素类型（六元素 + 空）
 enum class ElementType : uint8_t {
     None    = 0,  // 无元素
     Pyro,         // 火元素
@@ -14,12 +14,11 @@ enum class ElementType : uint8_t {
     Cryo,         // 冰元素
     Anemo,        // 风元素
     Geo,          // 岩元素
-    Dendro,       // 草元素
 };
 
 // 元素反应类型
 // 注意：枚举值 = 位掩码 index，取值范围 0~15（刚好放进 uint16_t pending_reaction_mask）
-//   将来扩反应（烈绽放/超绽放/激化等）继续 16、17…就超过 uint16，届时同步把
+//   将来扩反应继续 14、15…就超过 uint16，届时同步把
 //   ElementStatus::pending_reaction_mask 与 RenderCommand 的 reaction_mask 字段
 //   扩展为 uint32（lo/hi/2/3 共 4 字节，仍有 _pad 空间可复用）。
 enum class ReactionType : uint8_t {
@@ -37,8 +36,6 @@ enum class ReactionType : uint8_t {
     SwirlElectro,          // 雷扩散：风 + 雷 → 扩散雷范围伤害
     SwirlCryo,             // 冰扩散：风 + 冰 → 扩散冰范围伤害
     Crystallize,           // 结晶：岩 + 其他元素 → 生成对应元素护盾
-    Burning,               // 燃烧：火 + 草  → 持续火伤
-    Bloom,                 // 绽放：水 + 草  → 生成草原核
 };
 
 // ==================== 元素强度分级 ====================

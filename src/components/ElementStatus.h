@@ -83,7 +83,7 @@ struct ElementStatus {
     //   位 index = static_cast<int>(ReactionType)：
     //     bit 0 = None（始终 0，无用）
     //     bit 1 = Vaporize, bit 2 = ReverseVaporize, bit 3 = Melt, ...
-    //     bit 13 = Bloom（当前上限）
+    //     bit 13 = Crystallize（当前上限）
     //   同帧发生的多个反应通过 OR 叠加（阶段 2 感电 DoT 与阶段 3 新触发反应不再互相覆盖）。
     uint16_t pending_reaction_mask = 0;
 
@@ -148,12 +148,11 @@ inline void attach_element(ElementStatus& s, ElementType type, ElementStrength s
 }
 
 // 判断元素是否可以作为"附着状态"留在目标身上
-//   可附着：Pyro / Hydro / Electro / Cryo / Dendro
+//   可附着：Pyro / Hydro / Electro / Cryo
 //   不可附着（只能做后手触发元素）：Anemo / Geo
 inline bool is_attachable_element(ElementType type) {
     return type == ElementType::Pyro    ||
            type == ElementType::Hydro   ||
            type == ElementType::Electro ||
-           type == ElementType::Cryo    ||
-           type == ElementType::Dendro;
+           type == ElementType::Cryo;
 }

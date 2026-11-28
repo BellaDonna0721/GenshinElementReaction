@@ -6,7 +6,6 @@ export enum ElementType {
   Cryo,
   Anemo,
   Geo,
-  Dendro,
 }
 
 export enum EntityType {
@@ -63,7 +62,7 @@ export interface InputState {
   mouseY: number;
   mouseClick: boolean;       // 左键 → Weak 子弹
   mouseRightClick: boolean;  // 右键 → Strong 子弹
-  elemKey: number;           // 数字键 1-7 切玩家元素（0=没按，1=火…7=草）
+  elemKey: number;           // 数字键 1-6 切玩家元素（0=没按，1=火…6=岩）
 }
 
 export const ELEMENT_COLORS: Record<number, string> = {
@@ -74,7 +73,6 @@ export const ELEMENT_COLORS: Record<number, string> = {
   [ElementType.Cryo]:    '#9FD6E0',
   [ElementType.Anemo]:   '#75D2B2',
   [ElementType.Geo]:     '#FAB632',
-  [ElementType.Dendro]:  '#A5C83B',
 };
 
 export const ELEMENT_NAMES: Record<number, string> = {
@@ -85,7 +83,6 @@ export const ELEMENT_NAMES: Record<number, string> = {
   [ElementType.Cryo]:    '冰',
   [ElementType.Anemo]:   '风',
   [ElementType.Geo]:     '岩',
-  [ElementType.Dendro]:  '草',
 };
 
 export const REACTION_NAMES: Record<number, string> = {
@@ -103,8 +100,6 @@ export const REACTION_NAMES: Record<number, string> = {
   11: '雷扩散',
   12: '冰扩散',
   13: '结晶',
-  14: '燃烧',
-  15: '绽放',
 };
 
 // C++ 侧 gauge 打包约定：0-255 u8 线性映射 0-4.0f actual_gauge

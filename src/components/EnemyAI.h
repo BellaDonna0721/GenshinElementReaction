@@ -26,7 +26,7 @@ enum class AIType : uint8_t {
 //
 //  字段分三段：
 //    · 配置段   —— 真源在 EnemyPreset，spawn_enemy 填充，运行时只读（此处默认值仅兜底）
-//    · 运行时状态段 —— 已抽离到独立 Cooldown / ObstacleContact / StateMachineAI / PatrolAI
+//    · 运行时状态段 —— 已抽离到独立 AttackCooldown / ObstacleContact / StateMachineAI / PatrolAI
 //    · 实例段   —— spawn 时确定，之后不变
 // =====================================================================
 struct EnemyAI {

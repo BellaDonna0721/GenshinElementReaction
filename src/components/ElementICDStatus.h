@@ -6,7 +6,7 @@
 //  ElementICDStatus —— "元素命中冷却"组件（Internal Cooldown）
 //
 //  单一职责：
-//    · 每个目标实体（玩家/敌人）独立持有 7(元素) × 2(档位) = 14 组
+//    · 每个目标实体（玩家/敌人）独立持有 6(元素) × 2(档位) = 12 组
 //      {timer, counter}，控制同一元素+档位攻击的附着频率。
 //    · 与 ElementStatus（光环）完全正交：
 //        - ElementStatus 关心"目标身上挂了什么元素"
@@ -16,9 +16,9 @@
 //
 //  规则：
 //    · 分组 key = (触发元素类型 × 攻击档位) 二元组 —— 彼此完全独立
-//      - 7 种元素：Pyro/Hydro/Electro/Cryo/Anemo/Geo/Dendro（0-6 下标，含风岩）
+//      - 6 种元素：Pyro/Hydro/Electro/Cryo/Anemo/Geo（下标 0=None，1-6 对应元素，含风岩）
 //      - 2 种档位：Weak/Medium → 档 0；Strong/ExtraStrong → 档 1
-//      → 每实体 7×2=14 组独立 {timer, counter}
+//      → 每实体 6×2=12 组独立 {timer, counter}
 //    · 每组各自：
 //      · timer==0 停表；首次命中立刻启动新一轮（timer=2.5s, counter=0）
 //      · 每次命中 counter += 1（拦截也计入）
@@ -27,8 +27,8 @@
 //    · 命中若被 ICD 拦截：既不挂元素也不触发反应
 // =====================================================================
 struct ElementICDStatus {
-    // None=0, Pyro=1..Dendro=7 → 直接用枚举值当下标
-    static constexpr int ELEM_DIM = 8;
+    // None=0, Pyro=1..Geo=6 → 直接用枚举值当下标
+    static constexpr int ELEM_DIM = 7;
     static constexpr int GEAR_DIM = 2;  // 2 档（Weak=0 / Strong=1）
 
     struct CounterSlot {
@@ -46,7 +46,7 @@ struct ElementICDStatus {
 //   不触碰 ElementStatus，因此可以安全地放在本组件头里作为"组件 API"。
 //   真正的每帧调度由 ElementReactionSystem（decay + hit_allowed）负责。
 
-// ① 每帧衰减：从 1..7（None=0 不用循环）
+// ① 每帧衰减：从 1..6（None=0 不用循环）
 inline void icd_decay_tick(ElementICDStatus& icd, float dt) {
     for (int ei = 1; ei < ElementICDStatus::ELEM_DIM; ++ei) {
         for (int gi = 0; gi < ElementICDStatus::GEAR_DIM; ++gi) {

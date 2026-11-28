@@ -49,7 +49,7 @@ export class Renderer {
     this.width = canvas.width;
     this.height = canvas.height;
 
-    // 预加载各元素史莱姆贴图（ElementType 1~7 对应 assets 下同名 jpg）
+    // 预加载各元素史莱姆贴图（ElementType 1~6 对应 assets 下同名 jpg）
     const ENEMY_SPRITE_SRC: Record<number, string> = {
       [ElementType.Pyro]:    'assets/PyroSlime.jpg',
       [ElementType.Hydro]:   'assets/HydroSlime.jpg',
@@ -57,7 +57,6 @@ export class Renderer {
       [ElementType.Cryo]:    'assets/CryoSlime.jpg',
       [ElementType.Anemo]:   'assets/AnemoSlime.jpg',
       [ElementType.Geo]:     'assets/GeoSlime.jpg',
-      [ElementType.Dendro]:  'assets/DendroSlime.jpg',
     };
     for (const [etStr, src] of Object.entries(ENEMY_SPRITE_SRC)) {
       const et = Number(etStr);
@@ -213,7 +212,6 @@ export class Renderer {
       case 4: return '冰史莱姆';   // Cryo
       case 5: return '风史莱姆';   // Anemo
       case 6: return '岩史莱姆';   // Geo
-      case 7: return '草史莱姆';   // Dendro
       default: return '';
     }
   }
@@ -799,7 +797,6 @@ export class Renderer {
       { key: '4', elem: ElementType.Cryo    },
       { key: '5', elem: ElementType.Anemo   },
       { key: '6', elem: ElementType.Geo     },
-      { key: '7', elem: ElementType.Dendro  },
     ];
 
     ctx.font = '14px monospace';

@@ -19,7 +19,7 @@ set(GAMEPLAY_SOURCES
 set(SYSTEM_SOURCES
     src/systems/MovementSystem.cpp
     src/systems/InputSystem.cpp
-    src/systems/CooldownSystem.cpp
+    src/systems/AttackCooldownSystem.cpp
     src/systems/LifetimeSystem.cpp
     src/systems/CollisionSystem.cpp
     src/systems/ElementReactionSystem.cpp

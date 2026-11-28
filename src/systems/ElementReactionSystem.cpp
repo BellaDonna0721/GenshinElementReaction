@@ -206,12 +206,6 @@ ElementReactionSystem::ElementReactionSystem() {
     add_rule(ElementType::Geo,    ElementType::Hydro,  ReactionType::Crystallize,      true,true, 0.5f);
     add_rule(ElementType::Geo,    ElementType::Electro,ReactionType::Crystallize,      true,true, 0.5f);
     add_rule(ElementType::Geo,    ElementType::Cryo,   ReactionType::Crystallize,      true,true, 0.5f);
-    // 燃烧
-    add_rule(ElementType::Dendro, ElementType::Pyro,   ReactionType::Burning,          true,true, 1.0f);
-    add_rule(ElementType::Pyro,   ElementType::Dendro, ReactionType::Burning,          true,true, 1.0f);
-    // 绽放
-    add_rule(ElementType::Dendro, ElementType::Hydro,  ReactionType::Bloom,            true,true, 1.0f);
-    add_rule(ElementType::Hydro,  ElementType::Dendro, ReactionType::Bloom,            true,true, 1.0f);
 }
 
 // 基于 myUnorderedMap 的 O(1) 查表
@@ -507,9 +501,6 @@ void ElementReactionSystem::update(World& world, float dt) {
                     }
 
                     remaining = 0.0f;  // 风后手不残留
-                } else if (pending_T == ElementType::Dendro) {
-                    // 草与冻共存，不反应
-                    remaining = 0.0f;
                 } else if (pending_T == ElementType::Geo) {
                     // 岩结晶：与冻元素（冰）结晶
                     const ReactionRule* rule = find_rule(ElementType::Geo, ElementType::Cryo);
